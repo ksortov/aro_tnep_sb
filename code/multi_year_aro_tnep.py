@@ -264,7 +264,7 @@ con_5def[G,T,H].where[Ord(H)==1] = Sum(N.where[G_n[G,N]], lambdaN_nyth[N,yi,T,H]
               muGU_gyth[G,yi,T,H.lead(1)] == sigma_yt[yi,T]*tau_yth[yi,T,H]*cG_gy[G,yi]
 con_5def[G,T,H].where[Ord(H)==Card(H)] = Sum(N.where[G_n[G,N]], lambdaN_nyth[N,yi,T,H])+muG_gyth_lo[G,yi,T,H]-muG_gyth_up[G,yi,T,H]+muGD_gyth[G,yi,T,H] -\
               muGU_gyth[G,yi,T,H] == sigma_yt[yi,T]*tau_yth[yi,T,H]*cG_gy[G,yi]
-con_5g = Equation(m, name="con_5g", domain=[Y])
+# con_5g = Equation(m, name="con_5g", domain=[Y])
 con_5h = Equation(m, name="con_5h", domain=[Y])
 con_5i = Equation(m, name="con_5i", domain=[Y])
 con_5j = Equation(m, name="con_5j", domain=[Y])
