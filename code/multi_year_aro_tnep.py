@@ -221,69 +221,69 @@ con_4s2[R,T,H,Y] = pR_ryth[R,Y,T,H] >= 0
 con_4t = Equation(m, name="con_4t", domain=[T,H,Y]) # N == ref bus
 con_4t[T,H,Y] = theta_nyth[1,Y,T,H] == 0
 
-# Outer-loop subproblem
-# Inner-loop master problem OF and constraints
-# OF_ilmp = Equation(m, name="OF_ilmp", type="regular")
-con_2b = Equation(m, name="con_2b", domain=[G,Y])
-con_2b[G,Y] = cG_gy[G,Y] == CG_g_fc[G]*power(1+zetaGC_g_fc[G], Y.val-1) + CG_g_max[G]*power(1+zetaGC_g_max[G], Y.val-1)*zGC_gy[G,Y]
-con_2c = Equation(m, name="con_2c", domain=[D,Y])
-con_2c[D,Y] = pD_dy[D,Y] == PD_d_fc[D]*power(1+zetaD_d_fc[D], Y.val-1) + PD_d_max[D]*power(1+zetaD_d_max[D], Y.val-1)*zD_dy[D,Y]
-con_2d = Equation(m, name="con_2d", domain=[G,Y])
-con_2d[G,Y] = pG_gy[G,Y] == PG_g_fc[G]*power(1+zetaGP_g_fc[G], Y.val-1) - PG_g_max[G]*power(1+zetaGP_g_max[G], Y.val-1)*zGP_gy[G,Y]
-con_2e = Equation(m, name="con_2e", domain=[R,Y])
-con_2e[R,Y] = pR_ry[R,Y] == PR_r_fc[R]*power(1+zetaR_r_fc[R], Y.val-1) - PR_r_max[R]*power(1+zetaR_r_max[R], Y.val-1)*zR_ry[R,Y]
-# con_2f = Equation(m, name="con_2f", domain=[G,Y])
-# con_2g = Equation(m, name="con_2g", domain=[D,Y])
-# con_2h = Equation(m, name="con_2h", domain=[G,Y])
-# con_2i = Equation(m, name="con_2i", domain=[R,Y])
-con_2j = Equation(m, name="con_2j", domain=[Y])
-con_2j[Y] = Sum(G, zGC_gy[G,Y]) <= GammaGC
-con_2k = Equation(m, name="con_2k", domain=[Y])
-con_2k[Y] = Sum(D, zD_dy[D,Y]) <= GammaD
-con_2l = Equation(m, name="con_2l", domain=[Y])
-con_2l[Y] = Sum(G, zGP_gy[G,Y]) <= GammaGP
-con_2m = Equation(m, name="con_2m", domain=[Y])
-con_2m[Y] = Sum(RS, zR_ry[RS,Y]) <= GammaRS
-con_2n = Equation(m, name="con_2n", domain=[Y])
-con_2n[Y] = Sum(RW, zR_ry[RW,Y]) <= GammaRW
-
-yi = 1
-con_5c = Equation(m, name="con_5c")
-con_5c[...] = xi_y[yi] <= Sum(T, Sum(H, Sum(D, gammaD_dyth[D,yi,T,H]*pD_dy[D,yi]*Sum(N.where[D_n[D,N]], lambdaN_nyth[N,yi,T,H]))-\
-                          Sum(L, PL_l[L]*(muL_lyth_lo[L,yi,T,H]+muL_lyth_up[L,yi,T,H]))-\
-                          Sum(S, uS_syth[S,yi,T,H]*PSC_s[S]*muSC_syth_up[S,yi,T,H]+(1-uS_syth[S,yi,T,H])*PSD_s[S]*muSD_syth_up[S,yi,T,H]-ES_s_min[S]*muS_syth_lo[S,yi,T,H]+ES_s_max[S]*muS_syth_up[S,yi,T,H])+\
-                          Sum(G, uG_gyth[G,yi,T,H]*(PG_g_min[G]*muG_gyth_lo[G,yi,T,H]-pG_gy[G,yi]*muG_gyth_up[G,yi,T,H]))-\
-                          Sum(R, gammaR_ryth[R,yi,T,H]*pR_ry[R,yi]*(muR_ryth_up[R,yi,T,H]-sigma_yt[yi,T]*tau_yth[yi,T,H]*CR_r[R]))-\
-                          Sum(D, gammaD_dyth[D,yi,T,H]*pD_dy[D,yi]*muD_dyth_up[D,yi,T,H]))+\
-                          Sum(S, ES_syt0[S,yi,T]*(PhiS_syt[S,yi,T]+PhiS_syt_lo[S,yi,T]))-\
-                          Sum(H.where[Ord(H)>1], Sum(G, RGD_g[G]*muGD_gyth[G,yi,T,H]+RGU_g[G]*muGU_gyth[G,yi,T,H])))
-con_5def = Equation(m, name="con_5d", domain=[G,T,H])
-con_5def[G,T,H] = Sum(N.where[G_n[G,N]], lambdaN_nyth[N,yi,T,H])+muG_gyth_lo[G,yi,T,H]-muG_gyth_up[G,yi,T,H]+muGD_gyth[G,yi,T,H] -\
-              muGD_gyth[G,yi,T,H.lead(1)]-muGU_gyth[G,yi,T,H]+muGU_gyth[G,yi,T,H.lead(1)] == sigma_yt[yi,T]*tau_yth[yi,T,H]*cG_gy[G,yi]
-con_5def[G,T,H].where[Ord(H)==1] = Sum(N.where[G_n[G,N]], lambdaN_nyth[N,yi,T,H])+muG_gyth_lo[G,yi,T,H]-muG_gyth_up[G,yi,T,H]-muGD_gyth[G,yi,T,H.lead(1)] +\
-              muGU_gyth[G,yi,T,H.lead(1)] == sigma_yt[yi,T]*tau_yth[yi,T,H]*cG_gy[G,yi]
-con_5def[G,T,H].where[Ord(H)==Card(H)] = Sum(N.where[G_n[G,N]], lambdaN_nyth[N,yi,T,H])+muG_gyth_lo[G,yi,T,H]-muG_gyth_up[G,yi,T,H]+muGD_gyth[G,yi,T,H] -\
-              muGU_gyth[G,yi,T,H] == sigma_yt[yi,T]*tau_yth[yi,T,H]*cG_gy[G,yi]
-con_5g = Equation(m, name="con_5g", domain=[Y])
-con_5h = Equation(m, name="con_5h", domain=[Y])
-con_5i = Equation(m, name="con_5i", domain=[Y])
-con_5j = Equation(m, name="con_5j", domain=[Y])
-con_5k = Equation(m, name="con_5k", domain=[Y])
-con_5l = Equation(m, name="con_5l", domain=[Y])
-con_5m = Equation(m, name="con_5m", domain=[Y])
-con_5n = Equation(m, name="con_5n", domain=[Y])
-con_5o = Equation(m, name="con_5o", domain=[Y])
-con_5p = Equation(m, name="con_5p", domain=[Y])
-con_5q = Equation(m, name="con_5q", domain=[Y])
-con_5r = Equation(m, name="con_5r", domain=[Y])
-con_5s = Equation(m, name="con_5s", domain=[Y])
-con_5t = Equation(m, name="con_5t", domain=[Y])
-con_5u = Equation(m, name="con_5u", domain=[Y])
-con_5v = Equation(m, name="con_5v", domain=[Y])
-con_5w = Equation(m, name="con_5w", domain=[Y])
-con_5x = Equation(m, name="con_5x", domain=[Y])
-con_5y = Equation(m, name="con_5y", domain=[Y])
-con_5z = Equation(m, name="con_5z", domain=[Y])
+# # Outer-loop subproblem
+# # Inner-loop master problem OF and constraints
+# # OF_ilmp = Equation(m, name="OF_ilmp", type="regular")
+# con_2b = Equation(m, name="con_2b", domain=[G,Y])
+# con_2b[G,Y] = cG_gy[G,Y] == CG_g_fc[G]*power(1+zetaGC_g_fc[G], Y.val-1) + CG_g_max[G]*power(1+zetaGC_g_max[G], Y.val-1)*zGC_gy[G,Y]
+# con_2c = Equation(m, name="con_2c", domain=[D,Y])
+# con_2c[D,Y] = pD_dy[D,Y] == PD_d_fc[D]*power(1+zetaD_d_fc[D], Y.val-1) + PD_d_max[D]*power(1+zetaD_d_max[D], Y.val-1)*zD_dy[D,Y]
+# con_2d = Equation(m, name="con_2d", domain=[G,Y])
+# con_2d[G,Y] = pG_gy[G,Y] == PG_g_fc[G]*power(1+zetaGP_g_fc[G], Y.val-1) - PG_g_max[G]*power(1+zetaGP_g_max[G], Y.val-1)*zGP_gy[G,Y]
+# con_2e = Equation(m, name="con_2e", domain=[R,Y])
+# con_2e[R,Y] = pR_ry[R,Y] == PR_r_fc[R]*power(1+zetaR_r_fc[R], Y.val-1) - PR_r_max[R]*power(1+zetaR_r_max[R], Y.val-1)*zR_ry[R,Y]
+# # con_2f = Equation(m, name="con_2f", domain=[G,Y])
+# # con_2g = Equation(m, name="con_2g", domain=[D,Y])
+# # con_2h = Equation(m, name="con_2h", domain=[G,Y])
+# # con_2i = Equation(m, name="con_2i", domain=[R,Y])
+# con_2j = Equation(m, name="con_2j", domain=[Y])
+# con_2j[Y] = Sum(G, zGC_gy[G,Y]) <= GammaGC
+# con_2k = Equation(m, name="con_2k", domain=[Y])
+# con_2k[Y] = Sum(D, zD_dy[D,Y]) <= GammaD
+# con_2l = Equation(m, name="con_2l", domain=[Y])
+# con_2l[Y] = Sum(G, zGP_gy[G,Y]) <= GammaGP
+# con_2m = Equation(m, name="con_2m", domain=[Y])
+# con_2m[Y] = Sum(RS, zR_ry[RS,Y]) <= GammaRS
+# con_2n = Equation(m, name="con_2n", domain=[Y])
+# con_2n[Y] = Sum(RW, zR_ry[RW,Y]) <= GammaRW
+#
+# yi = 1
+# con_5c = Equation(m, name="con_5c")
+# con_5c[...] = xi_y[yi] <= Sum(T, Sum(H, Sum(D, gammaD_dyth[D,yi,T,H]*pD_dy[D,yi]*Sum(N.where[D_n[D,N]], lambdaN_nyth[N,yi,T,H]))-\
+#                           Sum(L, PL_l[L]*(muL_lyth_lo[L,yi,T,H]+muL_lyth_up[L,yi,T,H]))-\
+#                           Sum(S, uS_syth[S,yi,T,H]*PSC_s[S]*muSC_syth_up[S,yi,T,H]+(1-uS_syth[S,yi,T,H])*PSD_s[S]*muSD_syth_up[S,yi,T,H]-ES_s_min[S]*muS_syth_lo[S,yi,T,H]+ES_s_max[S]*muS_syth_up[S,yi,T,H])+\
+#                           Sum(G, uG_gyth[G,yi,T,H]*(PG_g_min[G]*muG_gyth_lo[G,yi,T,H]-pG_gy[G,yi]*muG_gyth_up[G,yi,T,H]))-\
+#                           Sum(R, gammaR_ryth[R,yi,T,H]*pR_ry[R,yi]*(muR_ryth_up[R,yi,T,H]-sigma_yt[yi,T]*tau_yth[yi,T,H]*CR_r[R]))-\
+#                           Sum(D, gammaD_dyth[D,yi,T,H]*pD_dy[D,yi]*muD_dyth_up[D,yi,T,H]))+\
+#                           Sum(S, ES_syt0[S,yi,T]*(PhiS_syt[S,yi,T]+PhiS_syt_lo[S,yi,T]))-\
+#                           Sum(H.where[Ord(H)>1], Sum(G, RGD_g[G]*muGD_gyth[G,yi,T,H]+RGU_g[G]*muGU_gyth[G,yi,T,H])))
+# con_5def = Equation(m, name="con_5d", domain=[G,T,H])
+# con_5def[G,T,H] = Sum(N.where[G_n[G,N]], lambdaN_nyth[N,yi,T,H])+muG_gyth_lo[G,yi,T,H]-muG_gyth_up[G,yi,T,H]+muGD_gyth[G,yi,T,H] -\
+#               muGD_gyth[G,yi,T,H.lead(1)]-muGU_gyth[G,yi,T,H]+muGU_gyth[G,yi,T,H.lead(1)] == sigma_yt[yi,T]*tau_yth[yi,T,H]*cG_gy[G,yi]
+# con_5def[G,T,H].where[Ord(H)==1] = Sum(N.where[G_n[G,N]], lambdaN_nyth[N,yi,T,H])+muG_gyth_lo[G,yi,T,H]-muG_gyth_up[G,yi,T,H]-muGD_gyth[G,yi,T,H.lead(1)] +\
+#               muGU_gyth[G,yi,T,H.lead(1)] == sigma_yt[yi,T]*tau_yth[yi,T,H]*cG_gy[G,yi]
+# con_5def[G,T,H].where[Ord(H)==Card(H)] = Sum(N.where[G_n[G,N]], lambdaN_nyth[N,yi,T,H])+muG_gyth_lo[G,yi,T,H]-muG_gyth_up[G,yi,T,H]+muGD_gyth[G,yi,T,H] -\
+#               muGU_gyth[G,yi,T,H] == sigma_yt[yi,T]*tau_yth[yi,T,H]*cG_gy[G,yi]
+# con_5g = Equation(m, name="con_5g", domain=[Y])
+# con_5h = Equation(m, name="con_5h", domain=[Y])
+# con_5i = Equation(m, name="con_5i", domain=[Y])
+# con_5j = Equation(m, name="con_5j", domain=[Y])
+# con_5k = Equation(m, name="con_5k", domain=[Y])
+# con_5l = Equation(m, name="con_5l", domain=[Y])
+# con_5m = Equation(m, name="con_5m", domain=[Y])
+# con_5n = Equation(m, name="con_5n", domain=[Y])
+# con_5o = Equation(m, name="con_5o", domain=[Y])
+# con_5p = Equation(m, name="con_5p", domain=[Y])
+# con_5q = Equation(m, name="con_5q", domain=[Y])
+# con_5r = Equation(m, name="con_5r", domain=[Y])
+# con_5s = Equation(m, name="con_5s", domain=[Y])
+# con_5t = Equation(m, name="con_5t", domain=[Y])
+# con_5u = Equation(m, name="con_5u", domain=[Y])
+# con_5v = Equation(m, name="con_5v", domain=[Y])
+# con_5w = Equation(m, name="con_5w", domain=[Y])
+# con_5x = Equation(m, name="con_5x", domain=[Y])
+# con_5y = Equation(m, name="con_5y", domain=[Y])
+# con_5z = Equation(m, name="con_5z", domain=[Y])
 
 OLMP_model = Model(
     m,
@@ -295,12 +295,11 @@ OLMP_model = Model(
     objective=min_inv_cost_wc,
 )
 
-# summary = OLMP_model.solve(options=Options(relative_optimality_gap=0.005, mip="CPLEX", savepoint=1), output=sys.stdout)
+# summary = OLMP_model.solve(options=Options(relative_optimality_gap=0.005, mip="CPLEX", savepoint=1, log_file="log_debug.txt"), output=sys.stdout)
 # redirect output to a file
 # print("Objective Function Value:  ", round(OLMP_model.objective_value, 3))
 # print(vL_ly.records)
-# with open("gamspy_solve_out", "w") as file:
-#     OLMP_model.solve(output=file)
+# m.write(r'C:\Users\Kevin\OneDrive - McGill University\Research\Sandbox\optimization\multi-year_AROTNEP\results\aro_tnep_results.gdx')
 
 
 
