@@ -11,30 +11,30 @@ m = Container()
 
 # SETS #
 # General sets
-N = Set(m, name="N", records=buses['Bus'], description="Set of buses indexed by n")
-D = Set(m, name="D", records=loads['Load'], description="Set of loads indexed by d")
-G = Set(m, name="G", records=CG['Generating unit'], description="Set of conventional units indexed by g")
-H = Set(m, name="H", records=RD1['RTP'], description="Set of RTPs indexed by h")
-L = Set(m, name="L", records=lines['Transmission line'], description="Set of transmission lines indexed by l")
-R = Set(m, name="R", records=RES['Generating unit'], description="Set of renewable units indexed by r")
-S = Set(m, name="S", records=ESS['Storage unit'], description="Set of storage units indexed by s")
-T = Set(m, name="T", records=weights['RD'], description="Set of RDs indexed by t")
-Y = Set(m, name="Y", records=years_data, description="Set of years indexed by y")
+n = Set(m, name="n", records=buses['Bus'], description="Set of buses indexed by n")
+d = Set(m, name="d", records=loads['Load'], description="Set of loads indexed by d")
+g = Set(m, name="g", records=CG['Generating unit'], description="Set of conventional units indexed by g")
+h = Set(m, name="h", records=RD1['RTP'], description="Set of RTPs indexed by h")
+l = Set(m, name="l", records=lines['Transmission line'], description="Set of transmission lines indexed by l")
+r = Set(m, name="r", records=RES['Generating unit'], description="Set of renewable units indexed by r")
+s = Set(m, name="s", records=ESS['Storage unit'], description="Set of storage units indexed by s")
+t = Set(m, name="t", records=weights['RD'], description="Set of RDs indexed by t")
+y = Set(m, name="y", records=years_data, description="Set of years indexed by y")
 # Subsets of the general sets
-L_exist = Set(m, name="L_exist", domain=[L], records=lines[lines['IL_l [$]'] == 0]['Transmission line'], description="Set of existing transmission lines")
-L_can = Set(m, name="L_can", domain=[L], records=lines[lines['IL_l [$]'] > 0]['Transmission line'], description="Set of candidate transmission lines")
-RS = Set(m, name="RS", domain=[R], records=RES[RES['Technology'] == 'Solar']['Generating unit'], description="Set of solar units indexed by r")
-RW = Set(m, name="RW", domain=[R], records=RES[RES['Technology'] == 'Wind']['Generating unit'], description="Set of wind units indexed by r")
-HM = Set(m, name="HM", domain=[H], records=RD1[RD1['middle'] == 1]['RTP'], description="Set of wind units indexed by r")
+le = Set(m, name="le", domain=[l], records=lines[lines['IL_l [$]'] == 0]['Transmission line'], description="Set of existing transmission lines")
+lc = Set(m, name="lc", domain=[l], records=lines[lines['IL_l [$]'] > 0]['Transmission line'], description="Set of candidate transmission lines")
+rs = Set(m, name="rs", domain=[r], records=RES[RES['Technology'] == 'Solar']['Generating unit'], description="Set of solar units indexed by r")
+rw = Set(m, name="rw", domain=[r], records=RES[RES['Technology'] == 'Wind']['Generating unit'], description="Set of wind units indexed by r")
+# HM = Set(m, name="HM", domain=[h], records=RD1[RD1['middle'] == 1]['RTP'], description="Set of wind units indexed by r")
 
-D_n = Set(m, name="D_n", domain=[D,N], records=loads[['Load', 'Bus']], description="Set of loads connected to bus n")
-G_n = Set(m, name="G_n", domain=[G,N], records=CG[['Generating unit', 'Bus']], description="Set of conventional units connected to bus n")
-R_n = Set(m, name="R_n", domain=[R,N], records=RES[['Generating unit', 'Bus']], description="Set of renewable units connected to bus n")
-S_n = Set(m, name="S_n", domain=[S,N], records=ESS[['Storage unit', 'Bus']], description="Set of storage units connected to bus n")
-RE_l = Set(m, name="RE_l", domain=[L,N], records=lines[['Transmission line', 'To bus']], description="Receiving bus of transmission line l")
-SE_l = Set(m, name="SE_l", domain=[L,N], records=lines[['Transmission line', 'From bus']], description="Sending bus of transmission line l")
+d_n = Set(m, name="d_n", domain=[d, n], records=loads[['Load', 'Bus']], description="Set of loads connected to bus n")
+g_n = Set(m, name="g_n", domain=[g, n], records=CG[['Generating unit', 'Bus']], description="Set of conventional units connected to bus n")
+r_n = Set(m, name="r_n", domain=[r, n], records=RES[['Generating unit', 'Bus']], description="Set of renewable units connected to bus n")
+s_n = Set(m, name="s_n", domain=[s, n], records=ESS[['Storage unit', 'Bus']], description="Set of storage units connected to bus n")
+rel_n = Set(m, name="rel_n", domain=[l, n], records=lines[['Transmission line', 'To bus']], description="Receiving bus of transmission line l")
+sel_n = Set(m, name="sel_n", domain=[l, n], records=lines[['Transmission line', 'From bus']], description="Sending bus of transmission line l")
 # ALIAS #
-Yp = Alias(m, name="Yp", alias_with=Y)
+yp = Alias(m, name="yp", alias_with=y)
 
 # PARAMETERS #
 # Scalars
@@ -48,96 +48,96 @@ IT = Parameter(m, name="IT", records=400000000, description="Investment budget")
 nb_H = Parameter(m, name="nb_H", records=8, description="Number of RTPs of each RD")
 FL = Parameter(m, name="FL", records=9999999, description="Large constant for disjunctive linearization")
 
-gammaD_dyth = Parameter(m, name="gammaD_dth", domain=[D,Y,T,H], records=gamma_dyth_data, description="Demand factor of load d")
-gammaR_ryth = Parameter(m, name="gammaR_rth", domain=[R,Y,T,H], records=gamma_ryth_data, description="Capacity factor of renewable unit r")
-zetaD_d_fc = Parameter(m, name="zetaD_d_fc", domain=[D], records=loads[['Load', 'zetaD_d_fc']], description="Annual evolution rate of the forecast peak power consumption of load d")
-zetaD_d_max = Parameter(m, name="zetaD_d_max", domain=[D], records=loads[['Load', 'zetaD_d_max']], description="Annual evolution rate of the maximum deviation from the forecast peak power consumption of load d")
-zetaGC_g_fc = Parameter(m, name="zetaGC_g_fc", domain=[G], records=CG[['Generating unit', 'zetaGC_g_fc']], description="Annual evolution rate of the forecast marginal production cost of conventional generating unit g")
-zetaGC_g_max = Parameter(m, name="zetaGC_g_max", domain=[G], records=CG[['Generating unit', 'zetaGC_g_max']], description="Annual evolution rate of the maximum deviation from the forecast marginal production cost of conventional generating unit g")
-zetaGP_g_fc = Parameter(m, name="zetaGP_g_fc", domain=[G], records=CG[['Generating unit', 'zetaGP_g_fc']], description="Annual evolution rate of the forecast capacity of conventional generating unit g")
-zetaGP_g_max = Parameter(m, name="zetaGP_g_max", domain=[G], records=CG[['Generating unit', 'zetaGP_g_max']], description="Annual evolution rate of the maximum deviation from the forecast capacity of conventional generating unit g")
-zetaR_r_fc = Parameter(m, name="zetaR_r_fc", domain=[R], records=RES[['Generating unit', 'zetaR_r_fc']], description="Annual evolution rate of the forecast capacity of renewable generating unit r")
-zetaR_r_max = Parameter(m, name="zetaR_r_max", domain=[R], records=RES[['Generating unit', 'zetaR_r_max']], description="Annual evolution rate of the maximum deviation from the forecast capacity of renewable generating unit r")
-etaSC_s = Parameter(m, name="etaSC_s", domain=[S], records=ESS[['Storage unit', 'etaSC_s']], description="Charging efficiency of storage facility")
-etaSD_s = Parameter(m, name="etaSD_s", domain=[S], records=ESS[['Storage unit', 'etaSD_s']], description="Discharging efficiency of storage facility")
-sigma_yt = Parameter(m, name="sigma_yt", domain=[Y,T], records=sigma_yt_data, description="Weight of RD t")
-tau_yth = Parameter(m, name="tau_yth", domain=[Y,T,H], records=tau_yth_data, description="Duration of RTP h of RD t")
+gammaD_dyth = Parameter(m, name="gammaD_dth", domain=[d, y, t, h], records=gamma_dyth_data, description="Demand factor of load d")
+gammaR_ryth = Parameter(m, name="gammaR_rth", domain=[r, y, t, h], records=gamma_ryth_data, description="Capacity factor of renewable unit r")
+zetaD_d_fc = Parameter(m, name="zetaD_d_fc", domain=[d], records=loads[['Load', 'zetaD_d_fc']], description="Annual evolution rate of the forecast peak power consumption of load d")
+zetaD_d_max = Parameter(m, name="zetaD_d_max", domain=[d], records=loads[['Load', 'zetaD_d_max']], description="Annual evolution rate of the maximum deviation from the forecast peak power consumption of load d")
+zetaGC_g_fc = Parameter(m, name="zetaGC_g_fc", domain=[g], records=CG[['Generating unit', 'zetaGC_g_fc']], description="Annual evolution rate of the forecast marginal production cost of conventional generating unit g")
+zetaGC_g_max = Parameter(m, name="zetaGC_g_max", domain=[g], records=CG[['Generating unit', 'zetaGC_g_max']], description="Annual evolution rate of the maximum deviation from the forecast marginal production cost of conventional generating unit g")
+zetaGP_g_fc = Parameter(m, name="zetaGP_g_fc", domain=[g], records=CG[['Generating unit', 'zetaGP_g_fc']], description="Annual evolution rate of the forecast capacity of conventional generating unit g")
+zetaGP_g_max = Parameter(m, name="zetaGP_g_max", domain=[g], records=CG[['Generating unit', 'zetaGP_g_max']], description="Annual evolution rate of the maximum deviation from the forecast capacity of conventional generating unit g")
+zetaR_r_fc = Parameter(m, name="zetaR_r_fc", domain=[r], records=RES[['Generating unit', 'zetaR_r_fc']], description="Annual evolution rate of the forecast capacity of renewable generating unit r")
+zetaR_r_max = Parameter(m, name="zetaR_r_max", domain=[r], records=RES[['Generating unit', 'zetaR_r_max']], description="Annual evolution rate of the maximum deviation from the forecast capacity of renewable generating unit r")
+etaSC_s = Parameter(m, name="etaSC_s", domain=[s], records=ESS[['Storage unit', 'etaSC_s']], description="Charging efficiency of storage facility")
+etaSD_s = Parameter(m, name="etaSD_s", domain=[s], records=ESS[['Storage unit', 'etaSD_s']], description="Discharging efficiency of storage facility")
+sigma_yt = Parameter(m, name="sigma_yt", domain=[y, t], records=sigma_yt_data, description="Weight of RD t")
+tau_yth = Parameter(m, name="tau_yth", domain=[y, t, h], records=tau_yth_data, description="Duration of RTP h of RD t")
 
-CG_g_fc = Parameter(m, name="CG_g_fc", domain=[G], records=CG[['Generating unit', 'CG_g [$/MWh]']], description="Forecast marginal production cost of conventional unit g in year 1")
-CG_g_max = Parameter(m, name="CG_g_max", domain=[G], records=CG[['Generating unit', 'CG_g_max']], description="Maximum deviation from the forecast marginal production cost of conventional generating unit g in year 1")
-CLS_d = Parameter(m, name="CLS_d", domain=[D], records=loads[['Load', 'CLS_d [$/MWh]']], description="Load-shedding cost coefficient of load d")
-CR_r = Parameter(m, name="CR_r", domain=[R], records=RES[['Generating unit', 'CR_r [$/MWh]']], description="Spillage cost coefficient of renewable unit r")
-ES_syt0 = Parameter(m, name="ES_syt0", domain=[S,Y,T], records=ES_syt0_data, description="Energy initially stored of storage facility s")
-ES_s_min = Parameter(m, name="ES_s_min", domain=[S], records=ESS[['Storage unit', 'ES_smin [MWh]']], description="Minimum energy level of storage facility s")
-ES_s_max = Parameter(m, name="ES_s_max", domain=[S], records=ESS[['Storage unit', 'ES_smax [MWh]']], description="Maximum energy level of storage facility s")
-IL_l = Parameter(m, name="IL_l", domain=[L], records=lines[['Transmission line', 'IL_l [$]']], description="Investment cost coefficient of candidate transmission line l")
-PD_d_fc = Parameter(m, name="PD_d_fc", domain=[D], records=loads[['Load', 'PD_dfc [MW]']], description="Forecast peak power consumption of load d in year 1")
-PD_d_max = Parameter(m, name="PD_d_max", domain=[D], records=loads[['Load', 'PD_d_max']], description="Maximum deviation from the forecast peak power consumption of load d in year 1")
-PG_g_min = Parameter(m, name="PG_g_min", domain=[G], records=CG[['Generating unit', 'PG_gmin [MW]']], description="Minimum production level of conventional unit g")
-PG_g_fc = Parameter(m, name="PG_g_fc", domain=[G], records=CG[['Generating unit', 'PG_gfc [MW]']], description="Forecast capacity of existing conventional unit g in year 1")
-PG_g_max = Parameter(m, name="PG_g_max", domain=[G], records=CG[['Generating unit', 'PG_g_max']], description="Maximum deviation from the forecast capacity of conventional generating unit g in year 1")
-PL_l = Parameter(m, name="PL_l", domain=[L], records=lines[['Transmission line', 'PL_l']], description="Power flow capacity of transmission line l")
-PR_r_fc = Parameter(m, name="PR_r_fc", domain=[R], records=RES[['Generating unit', 'PR_rfc [MW]']], description="Forecast capacity of existing renewable unit r in year 1")
-PR_r_max = Parameter(m, name="PR_r_max", domain=[R], records=RES[['Generating unit', 'PR_r_max']], description="Maximum deviation from the forecast capacity of renewable generating unit r in year 1")
-PSC_s = Parameter(m, name="PSC_s", domain=[S], records=ESS[['Storage unit', 'PSC_smax [MW]']], description="Charging power capacity of storage facility s")
-PSD_s = Parameter(m, name="PSD_s", domain=[S], records=ESS[['Storage unit', 'PSD_smax [MW]']], description="Discharging power capacity of storage facility s")
-RGD_g = Parameter(m, name="RGD_g", domain=[G], records=CG[['Generating unit', 'RGD_g [MW]']], description="Ramp-down limit of conventional unit g")
-RGU_g = Parameter(m, name="RGU_g", domain=[G], records=CG[['Generating unit', 'RGU_g [MW]']], description="Ramp-up limit of conventional unit")
-X_l = Parameter(m, name="X_l", domain=[L], records=lines[['Transmission line', 'X_l']], description="Reactance of transmission line l")
+CG_g_fc = Parameter(m, name="CG_g_fc", domain=[g], records=CG[['Generating unit', 'CG_g [$/MWh]']], description="Forecast marginal production cost of conventional unit g in year 1")
+CG_g_max = Parameter(m, name="CG_g_max", domain=[g], records=CG[['Generating unit', 'CG_g_max']], description="Maximum deviation from the forecast marginal production cost of conventional generating unit g in year 1")
+CLS_d = Parameter(m, name="CLS_d", domain=[d], records=loads[['Load', 'CLS_d [$/MWh]']], description="Load-shedding cost coefficient of load d")
+CR_r = Parameter(m, name="CR_r", domain=[r], records=RES[['Generating unit', 'CR_r [$/MWh]']], description="Spillage cost coefficient of renewable unit r")
+ES_syt0 = Parameter(m, name="ES_syt0", domain=[s, y, t], records=ES_syt0_data, description="Energy initially stored of storage facility s")
+ES_s_min = Parameter(m, name="ES_s_min", domain=[s], records=ESS[['Storage unit', 'ES_smin [MWh]']], description="Minimum energy level of storage facility s")
+ES_s_max = Parameter(m, name="ES_s_max", domain=[s], records=ESS[['Storage unit', 'ES_smax [MWh]']], description="Maximum energy level of storage facility s")
+IL_l = Parameter(m, name="IL_l", domain=[l], records=lines[['Transmission line', 'IL_l [$]']], description="Investment cost coefficient of candidate transmission line l")
+PD_d_fc = Parameter(m, name="PD_d_fc", domain=[d], records=loads[['Load', 'PD_dfc [MW]']], description="Forecast peak power consumption of load d in year 1")
+PD_d_max = Parameter(m, name="PD_d_max", domain=[d], records=loads[['Load', 'PD_d_max']], description="Maximum deviation from the forecast peak power consumption of load d in year 1")
+PG_g_min = Parameter(m, name="PG_g_min", domain=[g], records=CG[['Generating unit', 'PG_gmin [MW]']], description="Minimum production level of conventional unit g")
+PG_g_fc = Parameter(m, name="PG_g_fc", domain=[g], records=CG[['Generating unit', 'PG_gfc [MW]']], description="Forecast capacity of existing conventional unit g in year 1")
+PG_g_max = Parameter(m, name="PG_g_max", domain=[g], records=CG[['Generating unit', 'PG_g_max']], description="Maximum deviation from the forecast capacity of conventional generating unit g in year 1")
+PL_l = Parameter(m, name="PL_l", domain=[l], records=lines[['Transmission line', 'PL_l']], description="Power flow capacity of transmission line l")
+PR_r_fc = Parameter(m, name="PR_r_fc", domain=[r], records=RES[['Generating unit', 'PR_rfc [MW]']], description="Forecast capacity of existing renewable unit r in year 1")
+PR_r_max = Parameter(m, name="PR_r_max", domain=[r], records=RES[['Generating unit', 'PR_r_max']], description="Maximum deviation from the forecast capacity of renewable generating unit r in year 1")
+PSC_s = Parameter(m, name="PSC_s", domain=[s], records=ESS[['Storage unit', 'PSC_smax [MW]']], description="Charging power capacity of storage facility s")
+PSD_s = Parameter(m, name="PSD_s", domain=[s], records=ESS[['Storage unit', 'PSD_smax [MW]']], description="Discharging power capacity of storage facility s")
+RGD_g = Parameter(m, name="RGD_g", domain=[g], records=CG[['Generating unit', 'RGD_g [MW]']], description="Ramp-down limit of conventional unit g")
+RGU_g = Parameter(m, name="RGU_g", domain=[g], records=CG[['Generating unit', 'RGU_g [MW]']], description="Ramp-up limit of conventional unit")
+X_l = Parameter(m, name="X_l", domain=[l], records=lines[['Transmission line', 'X_l']], description="Reactance of transmission line l")
 
 # VARIABLES #
 # Optimization variables
-theta_nyth = Variable(m, name="theta_nyth", domain=[N,Y,T,H], description="Voltage angle at bus n")
-xi_y = Variable(m, name='xi_y', domain=[Y], description="Auxiliary variable of the inner-loop master problem")
-xiP_y = Variable(m, name='xiP_y', domain=[Y], description="Auxiliary variable of the first problem solved at each iteration of the ADA when it is applied to the inner-loop master problem")
-xiQ_y = Variable(m, name='xiQ_y', domain=[Y], description="Auxiliary variable of the second problem solved at each iteration of the ADA when it is applied to the inner-loop master problem")
-rho_y = Variable(m, name='rho_y', domain=[Y], description="Auxiliary variable of the outer-loop master problem")
-aD_dy = Variable(m, name='aD_dy', domain=[D,Y], description="Continuous variable associated with the deviation that the peak power consumption of load d can experience from its forecast value in year y")
-aGC_gy = Variable(m, name='aGC_gy', domain=[G,Y], description="Continuous variable associated with the deviation that the marginal production cost of conventional generating unit g can experience from its forecast value in year y")
-aGP_gy = Variable(m, name='aGP_gy', domain=[G,Y], description="Continuous variable associated with the deviation that the capacity of conventional generating unit g can experience from its forecast value in year y")
-aR_ry = Variable(m, name='aR_ry', domain=[R,Y], description="Continuous variable associated with the deviation that the capacity of renewable generating unit r can experience from its forecast value in year y")
-cG_gy = Variable(m, name='cG_gy', domain=[G,Y], description="Worst-case realization of the marginal production cost of conventional generating unit g")
-cO_y = Variable(m, name='cO_y', domain=[Y], description="Operating costs")
-cOWC_y = Variable(m, name='cOWC_y', domain=[Y], description="Worst case operating costs")
-eS_syth = Variable(m, name='eS_syth', domain=[S,Y,T,H], description="Energy stored in storage facility s")
-pD_dy = Variable(m, name='pD_dy', domain=[D, Y], description="Worst-case realization of the peak power consumption of load d")
-pG_gyth = Variable(m, name='pG_gyth', domain=[G,Y,T,H], description="Power produced by conventional generating unit g")
-pG_gy = Variable(m, name='pG_gy', domain=[G, Y], description="Worst-case realization of the capacity of conventional generating unit g")
-pL_lyth = Variable(m, name='pL_lyth', domain=[L,Y,T,H], description="Power flow through transmission line l")
-pLS_dyth = Variable(m, name='pLS_dyth', domain=[D,Y,T,H], description="Unserved demand of load d")
-pR_ryth = Variable(m, name='pR_ryth', domain=[R,Y,T,H], description="Power produced by renewable generating unit r")
-pR_ry = Variable(m, name='pR_ry', domain=[R, Y], description="Worst-case realization of the capacity of renewable generating unit r")
-pSC_syth = Variable(m, name='pSC_syth', domain=[S,Y,T,H], description="Charging power of storage facility s")
-pSD_syth = Variable(m, name='pSD_syth', domain=[S,Y,T,H], description="Discharging power of storage facility s")
-uG_gyth = Variable(m, name='uG_gyth', type='binary', domain=[G,Y,T,H], description="Binary variable used to model the commitment status of conventional unit g")
-uS_syth = Variable(m, name='uS_syth', type='binary', domain=[S,Y,T,H], description="Binary variable used to used to avoid the simultaneous charging and discharging of storage facility s")
-vL_ly = Variable(m, name='vL_ly', type='binary', domain=[L_can,Y], description="Binary variable that is equal to 1 if candidate transmission line l is built in year y, which is otherwise 0")
-vL_ly_prev = Variable(m, name='vL_ly_prev', type='binary', domain=[L_can,Y], description="Binary variable that is equal to 1 if candidate transmission line l is built in year y or in previous years, which is otherwise 0")
-zD_dy = Variable(m, name='zD_dy', type='binary', domain=[D,Y], description="Binary variable that is equal to 1 if the worst-case realization of the peak power consumption of load 𝑑 is equal to its upper bound, which is otherwise 0")
-zGC_gy = Variable(m, name='zGC_gy', type='binary', domain=[G,Y], description="Binary variable that is equal to 1 if the worst-case realization of the marginal production cost of conventional generating unit g is equal to its upper bound, which is otherwise 0")
-zGP_gy = Variable(m, name='zGP_gy', type='binary', domain=[G,Y], description="Binary variable that is equal to 1 if the worst-case realization of the capacity of conventional generating unit g is equal to its upper bound, which is otherwise 0")
-zR_ry = Variable(m, name='zR_ry', type='binary', domain=[R,Y], description="Binary variable that is equal to 1 if the worst-case realization of he capacity of renewable generating unit r is equal to its upper bound, which is otherwise 0")
+theta_nyth = Variable(m, name="theta_nyth", domain=[n, y, t, h], description="Voltage angle at bus n")
+xi_y = Variable(m, name='xi_y', domain=[y], description="Auxiliary variable of the inner-loop master problem")
+xiP_y = Variable(m, name='xiP_y', domain=[y], description="Auxiliary variable of the first problem solved at each iteration of the ADA when it is applied to the inner-loop master problem")
+xiQ_y = Variable(m, name='xiQ_y', domain=[y], description="Auxiliary variable of the second problem solved at each iteration of the ADA when it is applied to the inner-loop master problem")
+rho_y = Variable(m, name='rho_y', domain=[y], description="Auxiliary variable of the outer-loop master problem")
+aD_dy = Variable(m, name='aD_dy', domain=[d, y], description="Continuous variable associated with the deviation that the peak power consumption of load d can experience from its forecast value in year y")
+aGC_gy = Variable(m, name='aGC_gy', domain=[g, y], description="Continuous variable associated with the deviation that the marginal production cost of conventional generating unit g can experience from its forecast value in year y")
+aGP_gy = Variable(m, name='aGP_gy', domain=[g, y], description="Continuous variable associated with the deviation that the capacity of conventional generating unit g can experience from its forecast value in year y")
+aR_ry = Variable(m, name='aR_ry', domain=[r, y], description="Continuous variable associated with the deviation that the capacity of renewable generating unit r can experience from its forecast value in year y")
+cG_gy = Variable(m, name='cG_gy', domain=[g, y], description="Worst-case realization of the marginal production cost of conventional generating unit g")
+cO_y = Variable(m, name='cO_y', domain=[y], description="Operating costs")
+cOWC_y = Variable(m, name='cOWC_y', domain=[y], description="Worst case operating costs")
+eS_syth = Variable(m, name='eS_syth', domain=[s, y, t, h], description="Energy stored in storage facility s")
+pD_dy = Variable(m, name='pD_dy', domain=[d, y], description="Worst-case realization of the peak power consumption of load d")
+pG_gyth = Variable(m, name='pG_gyth', domain=[g, y, t, h], description="Power produced by conventional generating unit g")
+pG_gy = Variable(m, name='pG_gy', domain=[g, y], description="Worst-case realization of the capacity of conventional generating unit g")
+pL_lyth = Variable(m, name='pL_lyth', domain=[l, y, t, h], description="Power flow through transmission line l")
+pLS_dyth = Variable(m, name='pLS_dyth', domain=[d, y, t, h], description="Unserved demand of load d")
+pR_ryth = Variable(m, name='pR_ryth', domain=[r, y, t, h], description="Power produced by renewable generating unit r")
+pR_ry = Variable(m, name='pR_ry', domain=[r, y], description="Worst-case realization of the capacity of renewable generating unit r")
+pSC_syth = Variable(m, name='pSC_syth', domain=[s, y, t, h], description="Charging power of storage facility s")
+pSD_syth = Variable(m, name='pSD_syth', domain=[s, y, t, h], description="Discharging power of storage facility s")
+uG_gyth = Variable(m, name='uG_gyth', type='binary', domain=[g, y, t, h], description="Binary variable used to model the commitment status of conventional unit g")
+uS_syth = Variable(m, name='uS_syth', type='binary', domain=[s, y, t, h], description="Binary variable used to used to avoid the simultaneous charging and discharging of storage facility s")
+vL_ly = Variable(m, name='vL_ly', type='binary', domain=[lc, y], description="Binary variable that is equal to 1 if candidate transmission line l is built in year y, which is otherwise 0")
+vL_ly_prev = Variable(m, name='vL_ly_prev', type='binary', domain=[lc, y], description="Binary variable that is equal to 1 if candidate transmission line l is built in year y or in previous years, which is otherwise 0")
+zD_dy = Variable(m, name='zD_dy', type='binary', domain=[d, y], description="Binary variable that is equal to 1 if the worst-case realization of the peak power consumption of load 𝑑 is equal to its upper bound, which is otherwise 0")
+zGC_gy = Variable(m, name='zGC_gy', type='binary', domain=[g, y], description="Binary variable that is equal to 1 if the worst-case realization of the marginal production cost of conventional generating unit g is equal to its upper bound, which is otherwise 0")
+zGP_gy = Variable(m, name='zGP_gy', type='binary', domain=[g, y], description="Binary variable that is equal to 1 if the worst-case realization of the capacity of conventional generating unit g is equal to its upper bound, which is otherwise 0")
+zR_ry = Variable(m, name='zR_ry', type='binary', domain=[r, y], description="Binary variable that is equal to 1 if the worst-case realization of he capacity of renewable generating unit r is equal to its upper bound, which is otherwise 0")
 
 # Dual variables
-lambdaN_nyth = Variable(m, name='lambdaN_nyth', domain=[N,Y,T,H], description="Dual variable associated with the power balance equation at bus n")
-muD_dyth_up = Variable(m, name='muD_dyth_up', domain=[D,Y,T,H], description="Dual variable associated with the constraint imposing the upper bound for the unserved demand of load d")
-muG_gyth_lo = Variable(m, name='muG_gyth_lo', domain=[G,Y,T,H], description="Dual variable associated with the constraint imposing the lower bound for the power produced by conventional generating unit g")
-muG_gyth_up = Variable(m, name='muG_gyth_up', domain=[G,Y,T,H], description="Dual variable associated with the constraint imposing the upper bound for the power produced by conventional generating unit g")
-muGD_gyth = Variable(m, name='muGD_gyth', domain=[G,Y,T,H], description="Dual variable associated with the constraint imposing the ramp-down limit of conventional generating unit g, being ℎ greater than 1")
-muGU_gyth = Variable(m, name='muGU_gyth', domain=[G,Y,T,H], description="Dual variable associated with the constraint imposing the ramp-up limit of conventional generating unit g, being ℎ greater than 1")
-muL_lyth_exist = Variable(m, name='muL_lyth_exist', domain=[L_exist,Y,T,H], description="Dual variable associated with the power flow through existing transmission line l")
-muL_lyth_can = Variable(m, name='muL_lyth_can', domain=[L_can,Y,T,H], description="Dual variable associated with the power flow through candidate transmission line l")
-muL_lyth_lo = Variable(m, name='muL_lyth_lo', domain=[L,Y,T,H], description="Dual variable associated with the constraint imposing the lower bound for the power flow through transmission line l")
-muL_lyth_up = Variable(m, name='muL_lyth_up', domain=[L,Y,T,H], description="Dual variable associated with the constraint imposing the upper bound for the power flow through transmission line l")
-muR_ryth_up = Variable(m, name='muR_ryth_up', domain=[R,Y,T,H], description="Dual variable associated with the constraint imposing the upper bound for the power produced by renewable generating unit r")
-muS_syth = Variable(m, name='muS_syth', domain=[S,Y,T,H], description="Dual variable associated with the energy stored in storage facility s, being h greater than 1")
-muS_syth_lo = Variable(m, name='muS_syth_lo', domain=[S,Y,T,H], description="Dual variable associated with the constraint imposing the lower bound for the energy stored in storage facility s")
-muS_syth_up = Variable(m, name='muS_syth_up', domain=[S,Y,T,H], description="Dual variable associated with the constraint imposing the upper bound for the energy stored in storage facility s")
-muSC_syth_up = Variable(m, name='muSC_syth_up', domain=[S,Y,T,H], description="Dual variable associated with the constraint imposing the upper bound for the charging power of storage facility s")
-muSD_syth_up = Variable(m, name='muSD_syth_up', domain=[S,Y,T,H], description="Dual variable associated with the constraint imposing the upper bound for the discharging power of storage facility s")
-PhiS_syt = Variable(m, name='PhiS_syt', domain=[S,Y,T], description="Dual variable associated with the energy stored in storage facility s at the first RTP of RD")
-PhiS_syt_lo = Variable(m, name='PhiS_syt_lo', domain=[S,Y,T], description="Dual variable associated with the constraint imposing the lower bound for the energy stored in storage facility s at the last RTP of RD")
-phiN_nyth = Variable(m, name='phiN_nyth', domain=[N,Y,T,H], description="Dual variable associated with the definition of the reference bus n")
+lambdaN_nyth = Variable(m, name='lambdaN_nyth', domain=[n, y, t, h], description="Dual variable associated with the power balance equation at bus n")
+muD_dyth_up = Variable(m, name='muD_dyth_up', type='positive', domain=[d, y, t, h], description="Dual variable associated with the constraint imposing the upper bound for the unserved demand of load d")
+muG_gyth_lo = Variable(m, name='muG_gyth_lo', type='positive', domain=[g, y, t, h], description="Dual variable associated with the constraint imposing the lower bound for the power produced by conventional generating unit g")
+muG_gyth_up = Variable(m, name='muG_gyth_up', type='positive', domain=[g, y, t, h], description="Dual variable associated with the constraint imposing the upper bound for the power produced by conventional generating unit g")
+muGD_gyth = Variable(m, name='muGD_gyth', type='positive', domain=[g, y, t, h], description="Dual variable associated with the constraint imposing the ramp-down limit of conventional generating unit g, being ℎ greater than 1")
+muGU_gyth = Variable(m, name='muGU_gyth', type='positive', domain=[g, y, t, h], description="Dual variable associated with the constraint imposing the ramp-up limit of conventional generating unit g, being ℎ greater than 1")
+muL_lyth_exist = Variable(m, name='muL_lyth_exist', domain=[le, y, t, h], description="Dual variable associated with the power flow through existing transmission line l")
+muL_lyth_can = Variable(m, name='muL_lyth_can', domain=[lc, y, t, h], description="Dual variable associated with the power flow through candidate transmission line l")
+muL_lyth_lo = Variable(m, name='muL_lyth_lo', type='positive', domain=[l, y, t, h], description="Dual variable associated with the constraint imposing the lower bound for the power flow through transmission line l")
+muL_lyth_up = Variable(m, name='muL_lyth_up', type='positive', domain=[l, y, t, h], description="Dual variable associated with the constraint imposing the upper bound for the power flow through transmission line l")
+muR_ryth_up = Variable(m, name='muR_ryth_up', type='positive', domain=[r, y, t, h], description="Dual variable associated with the constraint imposing the upper bound for the power produced by renewable generating unit r")
+muS_syth = Variable(m, name='muS_syth', domain=[s, y, t, h], description="Dual variable associated with the energy stored in storage facility s, being h greater than 1")
+muS_syth_lo = Variable(m, name='muS_syth_lo', type='positive', domain=[s, y, t, h], description="Dual variable associated with the constraint imposing the lower bound for the energy stored in storage facility s")
+muS_syth_up = Variable(m, name='muS_syth_up', type='positive', domain=[s, y, t, h], description="Dual variable associated with the constraint imposing the upper bound for the energy stored in storage facility s")
+muSC_syth_up = Variable(m, name='muSC_syth_up', type='positive', domain=[s, y, t, h], description="Dual variable associated with the constraint imposing the upper bound for the charging power of storage facility s")
+muSD_syth_up = Variable(m, name='muSD_syth_up', type='positive', domain=[s, y, t, h], description="Dual variable associated with the constraint imposing the upper bound for the discharging power of storage facility s")
+PhiS_syt = Variable(m, name='PhiS_syt', domain=[s, y, t], description="Dual variable associated with the energy stored in storage facility s at the first RTP of RD")
+PhiS_syt_lo = Variable(m, name='PhiS_syt_lo', type='positive', domain=[s, y, t], description="Dual variable associated with the constraint imposing the lower bound for the energy stored in storage facility s at the last RTP of RD")
+phiN_nyth = Variable(m, name='phiN_nyth', domain=[n, y, t, h], description="Dual variable associated with the definition of the reference bus n")
 
 min_inv_cost_wc = Variable(m, name="min_inv_cost_wc", description="Worst-case investment costs")
 max_op_cost_wc = Variable(m, name="max_op_cost_wc", description="Worst-case operating costs")
@@ -145,145 +145,161 @@ max_op_cost_wc = Variable(m, name="max_op_cost_wc", description="Worst-case oper
 # EQUATIONS #
 # Outer-loop master problem OF and constraints
 # Initialize uncertain parameters to forecast values
-cG_gy[G,Y].fx = CG_g_fc[G]
-pD_dy[D,Y].fx = PD_d_fc[D]
-pG_gy[G,Y].fx = PG_g_fc[G]
-pR_ry[R,Y].fx = PR_r_fc[R]
+cG_gy[g,y].fx = CG_g_fc[g]
+pD_dy[d,y].fx = PD_d_fc[d]
+pG_gy[g,y].fx = PG_g_fc[g]
+pR_ry[r,y].fx = PR_r_fc[r]
 
 OF_olmp = Equation(m, name="OF_olmp", type="regular")
-OF_olmp[...] = min_inv_cost_wc == Sum(Y, rho_y[Y]/power(1.0+kappa, Y.val) +\
-              (1.0/power(1.0+kappa, Y.val-1))*Sum(L_can, IL_l[L_can]*vL_ly[L_can,Y]))
+OF_olmp[...] = min_inv_cost_wc == Sum(y, rho_y[y] / power(1.0 + kappa, y.val) + \
+                                      (1.0 / power(1.0 + kappa, y.val - 1)) * Sum(lc, IL_l[lc] * vL_ly[lc,y]))
 con_1c = Equation(m, name="con_1c")
-con_1c[...] = Sum(L_can, Sum(Y, (1.0/power(1.0+kappa, Y.val-1))*IL_l[L_can]*vL_ly[L_can,Y])) <= IT
-con_1d = Equation(m, name="con_1d", domain=[L_can])
-con_1d[L_can] = Sum(Y, vL_ly[L_can,Y]) <= 1
-con_1e = Equation(m, name="con_1e", domain=[L_can,Y])
-con_1e[L_can,Y] = vL_ly_prev[L_can,Y] == Sum(Yp.where[Yp.val<=Y.val], vL_ly[L_can,Yp])
+con_1c[...] = Sum(lc, Sum(y, (1.0 / power(1.0 + kappa, y.val - 1)) * IL_l[lc] * vL_ly[lc,y])) <= IT
+con_1d = Equation(m, name="con_1d", domain=[lc])
+con_1d[lc] = Sum(y, vL_ly[lc,y]) <= 1
+con_1e = Equation(m, name="con_1e", domain=[lc, y])
+con_1e[lc,y] = vL_ly_prev[lc,y] == Sum(yp.where[yp.val <= y.val], vL_ly[lc,yp])
 
-con_4c = Equation(m, name="con_4c", domain=[Y])
-con_4c[Y] = rho_y[Y] >= Sum(T, sigma_yt[Y,T]*Sum(H, tau_yth[Y,T,H]*(Sum(G, CG_g_fc[G]*pG_gyth[G,Y,T,H])+\
-            Sum(R, CR_r[R]*(gammaR_ryth[R,Y,T,H]*PR_r_fc[R]-pR_ryth[R,Y,T,H]))+Sum(D, CLS_d[D]*pLS_dyth[D,Y,T,H]))))
-con_4d = Equation(m, name="con_4d", domain=[N,T,H,Y])
-con_4d[N,T,H,Y] = Sum(G.where[G_n[G,N]], pG_gyth[G,Y,T,H]) + Sum(R.where[R_n[R,N]], pR_ryth[R,Y,T,H]) +\
-                  Sum(L.where[SE_l[L,N]], pL_lyth[L,Y,T,H]) - Sum(L.where[RE_l[L,N]], pL_lyth[L,Y,T,H]) +\
-                  Sum(S.where[S_n[S,N]], pSD_syth[S,Y,T,H] - pSC_syth[S,Y,T,H]) == \
-                  Sum(D.where[D_n[D,N]], gammaD_dyth[D,Y,T,H]*PD_d_fc[D] - pLS_dyth[D,Y,T,H])
-con_4e = Equation(m, name="con_4e", domain=[L_exist,T,H,Y])
-con_4e[L_exist,T,H,Y] = pL_lyth[L_exist,Y,T,H] == (1.0/X_l[L_exist])*(Sum(N.where[SE_l[L_exist,N]], theta_nyth[N,Y,T,H]) - Sum(N.where[RE_l[L_exist,N]], theta_nyth[N,Y,T,H]))
-con_4f_lin1 = Equation(m, name="con_4f_lin1", domain=[L_can,T,H,Y]) # Linearized
-con_4f_lin1[L_can,T,H,Y] = pL_lyth[L_can,Y,T,H] - (1/X_l[L_can])*(Sum(N.where[SE_l[L_can,N]], theta_nyth[N,Y,T,H]) - Sum(N.where[RE_l[L_can,N]], theta_nyth[N,Y,T,H])) <= (1-vL_ly_prev[L_can,Y])*FL
-con_4f_lin2 = Equation(m, name="con_4f_lin2", domain=[L_can,T,H,Y]) # Linearized
-con_4f_lin2[L_can,T,H,Y] = pL_lyth[L_can,Y,T,H] - (1/X_l[L_can])*(Sum(N.where[SE_l[L_can,N]], theta_nyth[N,Y,T,H]) - Sum(N.where[RE_l[L_can,N]], theta_nyth[N,Y,T,H])) >= -(1-vL_ly_prev[L_can,Y])*FL
-con_4g_exist_lin1 = Equation(m, name="con_4g_exist_lin1", domain=[L_exist,T,H,Y])
-con_4g_exist_lin1[L_exist,T,H,Y] = pL_lyth[L_exist,Y,T,H] <= PL_l[L_exist]
-con_4g_exist_lin2 = Equation(m, name="con_4g_exist_lin2", domain=[L_exist,T,H,Y])
-con_4g_exist_lin2[L_exist,T,H,Y] = pL_lyth[L_exist,Y,T,H] >= -PL_l[L_exist]
-con_4g_can_lin1 = Equation(m, name="con_4g_can_lin1", domain=[L_can,T,H,Y])
-con_4g_can_lin1[L_can,T,H,Y] = pL_lyth[L_can,Y,T,H] <= vL_ly_prev[L_can,Y]*PL_l[L_can]
-con_4g_can_lin2 = Equation(m, name="con_4g_can_lin2", domain=[L_can,T,H,Y])
-con_4g_can_lin2[L_can,T,H,Y] = pL_lyth[L_can,Y,T,H] >= -vL_ly_prev[L_can,Y]*PL_l[L_can]
-con_4h = Equation(m, name="con_4h", domain=[S,T,Y]) # H == 1
-con_4h[S,T,Y] = eS_syth[S,Y,T,1] == ES_syt0[S,Y,T]+(pSC_syth[S,Y,T,1]*etaSC_s[S]-(pSD_syth[S,Y,T,1]/etaSD_s[S]))*tau_yth[Y,T,1]
-con_4i = Equation(m, name="con_4i", domain=[S,T,H,Y]) # H =/= 1
-con_4i[S,T,H,Y].where[Ord(H) > 1] = eS_syth[S,Y,T,H] == eS_syth[S,Y,T,H.lag(1)] + (pSC_syth[S,Y,T,H]*etaSC_s[S]-(pSD_syth[S,Y,T,H]/etaSD_s[S]))*tau_yth[Y,T,H]
-con_4j = Equation(m, name="con_4j", domain=[S,T,H,Y]) # H == Hmax
-con_4j[S,T,H,Y].where[Ord(H) == Card(H)] = ES_syt0[S,Y,T] <= eS_syth[S,Y,T,H]
-con_4k1 = Equation(m, name="con_4k1", domain=[S,T,H,Y])
-con_4k1[S,T,H,Y] = eS_syth[S,Y,T,H] <= ES_s_max[S]
-con_4k2 = Equation(m, name="con_4k2", domain=[S,T,H,Y])
-con_4k2[S,T,H,Y] = eS_syth[S,Y,T,H] >= ES_s_min[S]
+con_4c = Equation(m, name="con_4c", domain=[y])
+con_4c[y] = rho_y[y] >= Sum(t, sigma_yt[y,t] * Sum(h, tau_yth[y,t,h] * (Sum(g, CG_g_fc[g] * pG_gyth[g,y,t,h]) + \
+                                                                        Sum(r, CR_r[r] * (gammaR_ryth[r,y,t,h] * PR_r_fc[r] - pR_ryth[r,y,t,h])) + Sum(d, CLS_d[d] * pLS_dyth[d,y,t,h]))))
+con_4d = Equation(m, name="con_4d", domain=[n, t, h, y])
+con_4d[n,t,h,y] = Sum(g.where[g_n[g,n]], pG_gyth[g,y,t,h]) + Sum(r.where[r_n[r,n]], pR_ryth[r,y,t,h]) + \
+                  Sum(l.where[sel_n[l,n]], pL_lyth[l,y,t,h]) - Sum(l.where[rel_n[l,n]], pL_lyth[l,y,t,h]) + \
+                  Sum(s.where[s_n[s,n]], pSD_syth[s,y,t,h] - pSC_syth[s,y,t,h]) == \
+                  Sum(d.where[d_n[d,n]], gammaD_dyth[d,y,t,h] * PD_d_fc[d] - pLS_dyth[d,y,t,h])
+con_4e = Equation(m, name="con_4e", domain=[le, t, h, y])
+con_4e[le,t,h,y] = pL_lyth[le,y,t,h] == (1.0 / X_l[le]) * (Sum(n.where[sel_n[le,n]], theta_nyth[n,y,t,h]) - Sum(n.where[rel_n[le,n]], theta_nyth[n,y,t,h]))
+con_4f_lin1 = Equation(m, name="con_4f_lin1", domain=[lc, t, h, y]) # Linearized
+con_4f_lin1[lc,t,h,y] = pL_lyth[lc,y,t,h] - (1 / X_l[lc]) * (Sum(n.where[sel_n[lc,n]], theta_nyth[n,y,t,h]) - Sum(n.where[rel_n[lc,n]], theta_nyth[n,y,t,h])) <= (1 - vL_ly_prev[lc,y]) * FL
+con_4f_lin2 = Equation(m, name="con_4f_lin2", domain=[lc, t, h, y]) # Linearized
+con_4f_lin2[lc,t,h,y] = pL_lyth[lc,y,t,h] - (1 / X_l[lc]) * (Sum(n.where[sel_n[lc,n]], theta_nyth[n,y,t,h]) - Sum(n.where[rel_n[lc,n]], theta_nyth[n,y,t,h])) >= -(1 - vL_ly_prev[lc,y]) * FL
+con_4g_exist_lin1 = Equation(m, name="con_4g_exist_lin1", domain=[le, t, h, y])
+con_4g_exist_lin1[le,t,h,y] = pL_lyth[le,y,t,h] <= PL_l[le]
+con_4g_exist_lin2 = Equation(m, name="con_4g_exist_lin2", domain=[le, t, h, y])
+con_4g_exist_lin2[le,t,h,y] = pL_lyth[le,y,t,h] >= -PL_l[le]
+con_4g_can_lin1 = Equation(m, name="con_4g_can_lin1", domain=[lc, t, h, y])
+con_4g_can_lin1[lc,t,h,y] = pL_lyth[lc,y,t,h] <= vL_ly_prev[lc,y] * PL_l[lc]
+con_4g_can_lin2 = Equation(m, name="con_4g_can_lin2", domain=[lc, t, h, y])
+con_4g_can_lin2[lc,t,h,y] = pL_lyth[lc,y,t,h] >= -vL_ly_prev[lc,y] * PL_l[lc]
+con_4h = Equation(m, name="con_4h", domain=[s, t, y]) # H == 1
+con_4h[s,t,y] = eS_syth[s,y,t,1] == ES_syt0[s,y,t] + (pSC_syth[s,y,t,1] * etaSC_s[s] - (pSD_syth[s,y,t,1] / etaSD_s[s])) * tau_yth[y,t,1]
+con_4i = Equation(m, name="con_4i", domain=[s, t, h, y]) # H =/= 1
+con_4i[s,t,h,y].where[Ord(h) > 1] = eS_syth[s,y,t,h] == eS_syth[s,y,t,h.lag(1)] + (pSC_syth[s,y,t,h] * etaSC_s[s] - (pSD_syth[s,y,t,h] / etaSD_s[s])) * tau_yth[y,t,h]
+con_4j = Equation(m, name="con_4j", domain=[s, t, h, y]) # H == Hmax
+con_4j[s,t,h,y].where[Ord(h) == Card(h)] = ES_syt0[s,y,t] <= eS_syth[s,y,t,h]
+con_4k1 = Equation(m, name="con_4k1", domain=[s, t, h, y])
+con_4k1[s,t,h,y] = eS_syth[s,y,t,h] <= ES_s_max[s]
+con_4k2 = Equation(m, name="con_4k2", domain=[s, t, h, y])
+con_4k2[s,t,h,y] = eS_syth[s,y,t,h] >= ES_s_min[s]
 # con_4l = Equation(m, name="con_4l", domain=[S,T,H,Y])
-con_4m1 = Equation(m, name="con_4m1", domain=[S,T,H,Y])
-con_4m1[S,T,H,Y] = pSC_syth[S,Y,T,H] <= uS_syth[S,Y,T,H]*PSC_s[S]
-con_4m2 = Equation(m, name="con_4m2", domain=[S,T,H,Y])
-con_4m2[S,T,H,Y] = pSC_syth[S,Y,T,H] >= 0
-con_4n1 = Equation(m, name="con_4n1", domain=[S,T,H,Y])
-con_4n1[S,T,H,Y] = pSD_syth[S,Y,T,H] <= (1-uS_syth[S,Y,T,H])*PSD_s[S]
-con_4n2 = Equation(m, name="con_4n2", domain=[S,T,H,Y])
-con_4n2[S,T,H,Y] = pSD_syth[S,Y,T,H] >= 0
-con_4o1 = Equation(m, name="con_4o1", domain=[D,T,H,Y])
-con_4o1[D,T,H,Y] = pLS_dyth[D,Y,T,H] <= gammaD_dyth[D,Y,T,H]*PD_d_fc[D]#pD_dy[D,Y]
-con_4o2 = Equation(m, name="con_4o2", domain=[D,T,H,Y])
-con_4o2[D,T,H,Y] = pLS_dyth[D,Y,T,H] >= 0
+con_4m1 = Equation(m, name="con_4m1", domain=[s, t, h, y])
+con_4m1[s,t,h,y] = pSC_syth[s,y,t,h] <= uS_syth[s,y,t,h] * PSC_s[s]
+con_4m2 = Equation(m, name="con_4m2", domain=[s, t, h, y])
+con_4m2[s,t,h,y] = pSC_syth[s,y,t,h] >= 0
+con_4n1 = Equation(m, name="con_4n1", domain=[s, t, h, y])
+con_4n1[s,t,h,y] = pSD_syth[s,y,t,h] <= (1 - uS_syth[s,y,t,h]) * PSD_s[s]
+con_4n2 = Equation(m, name="con_4n2", domain=[s, t, h, y])
+con_4n2[s,t,h,y] = pSD_syth[s,y,t,h] >= 0
+con_4o1 = Equation(m, name="con_4o1", domain=[d, t, h, y])
+con_4o1[d,t,h,y] = pLS_dyth[d,y,t,h] <= gammaD_dyth[d,y,t,h] * PD_d_fc[d]#pD_dy[D,Y]
+con_4o2 = Equation(m, name="con_4o2", domain=[d, t, h, y])
+con_4o2[d,t,h,y] = pLS_dyth[d,y,t,h] >= 0
 # con_4p = Equation(m, name="con_4p", domain=[G,T,H,Y])
-con_4q1 = Equation(m, name="con_4q1", domain=[G,T,H,Y])
-con_4q1[G,T,H,Y] = pG_gyth[G,Y,T,H] <= uG_gyth[G,Y,T,H]*PG_g_fc[G]#pG_gy[G,Y]
-con_4q2 = Equation(m, name="con_4q2", domain=[G,T,H,Y])
-con_4q2[G,T,H,Y] = pG_gyth[G,Y,T,H] >= uG_gyth[G,Y,T,H]*PG_g_min[G]
-con_4r1 = Equation(m, name="con_4r1", domain=[G,T,H,Y]) # H =/= 1
-con_4r1[G,T,H,Y].where[Ord(H) > 1] = pG_gyth[G,Y,T,H]-pG_gyth[G,Y,T,H.lag(1)] <= RGU_g[G]
-con_4r2 = Equation(m, name="con_4r2", domain=[G,T,H,Y]) # H =/= 1
-con_4r2[G,T,H,Y].where[Ord(H) > 1] = pG_gyth[G,Y,T,H]-pG_gyth[G,Y,T,H.lag(1)] >= -RGD_g[G]
-con_4s1 = Equation(m, name="con_4s1", domain=[R,T,H,Y])
-con_4s1[R,T,H,Y] = pR_ryth[R,Y,T,H] <= gammaR_ryth[R,Y,T,H]*PR_r_fc[R]#pR_ry[R,Y]
-con_4s2 = Equation(m, name="con_4s2", domain=[R,T,H,Y])
-con_4s2[R,T,H,Y] = pR_ryth[R,Y,T,H] >= 0
-con_4t = Equation(m, name="con_4t", domain=[T,H,Y]) # N == ref bus
-con_4t[T,H,Y] = theta_nyth[1,Y,T,H] == 0
+con_4q1 = Equation(m, name="con_4q1", domain=[g, t, h, y])
+con_4q1[g,t,h,y] = pG_gyth[g,y,t,h] <= uG_gyth[g,y,t,h] * PG_g_fc[g]#pG_gy[G,Y]
+con_4q2 = Equation(m, name="con_4q2", domain=[g, t, h, y])
+con_4q2[g,t,h,y] = pG_gyth[g,y,t,h] >= uG_gyth[g,y,t,h] * PG_g_min[g]
+con_4r1 = Equation(m, name="con_4r1", domain=[g, t, h, y]) # H =/= 1
+con_4r1[g,t,h,y].where[Ord(h) > 1] = pG_gyth[g,y,t,h] - pG_gyth[g,y,t,h.lag(1)] <= RGU_g[g]
+con_4r2 = Equation(m, name="con_4r2", domain=[g, t, h, y]) # H =/= 1
+con_4r2[g,t,h,y].where[Ord(h) > 1] = pG_gyth[g,y,t,h] - pG_gyth[g,y,t,h.lag(1)] >= -RGD_g[g]
+con_4s1 = Equation(m, name="con_4s1", domain=[r, t, h, y])
+con_4s1[r,t,h,y] = pR_ryth[r,y,t,h] <= gammaR_ryth[r,y,t,h] * PR_r_fc[r]#pR_ry[R,Y]
+con_4s2 = Equation(m, name="con_4s2", domain=[r, t, h, y])
+con_4s2[r,t,h,y] = pR_ryth[r,y,t,h] >= 0
+con_4t = Equation(m, name="con_4t", domain=[n, t, h, y]) # N == ref bus
+con_4t[n,t,h,y].where[Ord(n)==1] = theta_nyth[n,y,t,h] == 0
 
-# # Outer-loop subproblem
-# # Inner-loop master problem OF and constraints
-# # OF_ilmp = Equation(m, name="OF_ilmp", type="regular")
-# con_2b = Equation(m, name="con_2b", domain=[G,Y])
-# con_2b[G,Y] = cG_gy[G,Y] == CG_g_fc[G]*power(1+zetaGC_g_fc[G], Y.val-1) + CG_g_max[G]*power(1+zetaGC_g_max[G], Y.val-1)*zGC_gy[G,Y]
-# con_2c = Equation(m, name="con_2c", domain=[D,Y])
-# con_2c[D,Y] = pD_dy[D,Y] == PD_d_fc[D]*power(1+zetaD_d_fc[D], Y.val-1) + PD_d_max[D]*power(1+zetaD_d_max[D], Y.val-1)*zD_dy[D,Y]
-# con_2d = Equation(m, name="con_2d", domain=[G,Y])
-# con_2d[G,Y] = pG_gy[G,Y] == PG_g_fc[G]*power(1+zetaGP_g_fc[G], Y.val-1) - PG_g_max[G]*power(1+zetaGP_g_max[G], Y.val-1)*zGP_gy[G,Y]
-# con_2e = Equation(m, name="con_2e", domain=[R,Y])
-# con_2e[R,Y] = pR_ry[R,Y] == PR_r_fc[R]*power(1+zetaR_r_fc[R], Y.val-1) - PR_r_max[R]*power(1+zetaR_r_max[R], Y.val-1)*zR_ry[R,Y]
-# # con_2f = Equation(m, name="con_2f", domain=[G,Y])
-# # con_2g = Equation(m, name="con_2g", domain=[D,Y])
-# # con_2h = Equation(m, name="con_2h", domain=[G,Y])
-# # con_2i = Equation(m, name="con_2i", domain=[R,Y])
-# con_2j = Equation(m, name="con_2j", domain=[Y])
-# con_2j[Y] = Sum(G, zGC_gy[G,Y]) <= GammaGC
-# con_2k = Equation(m, name="con_2k", domain=[Y])
-# con_2k[Y] = Sum(D, zD_dy[D,Y]) <= GammaD
-# con_2l = Equation(m, name="con_2l", domain=[Y])
-# con_2l[Y] = Sum(G, zGP_gy[G,Y]) <= GammaGP
-# con_2m = Equation(m, name="con_2m", domain=[Y])
-# con_2m[Y] = Sum(RS, zR_ry[RS,Y]) <= GammaRS
-# con_2n = Equation(m, name="con_2n", domain=[Y])
-# con_2n[Y] = Sum(RW, zR_ry[RW,Y]) <= GammaRW
-#
-# yi = 1
-# con_5c = Equation(m, name="con_5c")
-# con_5c[...] = xi_y[yi] <= Sum(T, Sum(H, Sum(D, gammaD_dyth[D,yi,T,H]*pD_dy[D,yi]*Sum(N.where[D_n[D,N]], lambdaN_nyth[N,yi,T,H]))-\
-#                           Sum(L, PL_l[L]*(muL_lyth_lo[L,yi,T,H]+muL_lyth_up[L,yi,T,H]))-\
-#                           Sum(S, uS_syth[S,yi,T,H]*PSC_s[S]*muSC_syth_up[S,yi,T,H]+(1-uS_syth[S,yi,T,H])*PSD_s[S]*muSD_syth_up[S,yi,T,H]-ES_s_min[S]*muS_syth_lo[S,yi,T,H]+ES_s_max[S]*muS_syth_up[S,yi,T,H])+\
-#                           Sum(G, uG_gyth[G,yi,T,H]*(PG_g_min[G]*muG_gyth_lo[G,yi,T,H]-pG_gy[G,yi]*muG_gyth_up[G,yi,T,H]))-\
-#                           Sum(R, gammaR_ryth[R,yi,T,H]*pR_ry[R,yi]*(muR_ryth_up[R,yi,T,H]-sigma_yt[yi,T]*tau_yth[yi,T,H]*CR_r[R]))-\
-#                           Sum(D, gammaD_dyth[D,yi,T,H]*pD_dy[D,yi]*muD_dyth_up[D,yi,T,H]))+\
-#                           Sum(S, ES_syt0[S,yi,T]*(PhiS_syt[S,yi,T]+PhiS_syt_lo[S,yi,T]))-\
-#                           Sum(H.where[Ord(H)>1], Sum(G, RGD_g[G]*muGD_gyth[G,yi,T,H]+RGU_g[G]*muGU_gyth[G,yi,T,H])))
-# con_5def = Equation(m, name="con_5d", domain=[G,T,H])
-# con_5def[G,T,H] = Sum(N.where[G_n[G,N]], lambdaN_nyth[N,yi,T,H])+muG_gyth_lo[G,yi,T,H]-muG_gyth_up[G,yi,T,H]+muGD_gyth[G,yi,T,H] -\
-#               muGD_gyth[G,yi,T,H.lead(1)]-muGU_gyth[G,yi,T,H]+muGU_gyth[G,yi,T,H.lead(1)] == sigma_yt[yi,T]*tau_yth[yi,T,H]*cG_gy[G,yi]
-# con_5def[G,T,H].where[Ord(H)==1] = Sum(N.where[G_n[G,N]], lambdaN_nyth[N,yi,T,H])+muG_gyth_lo[G,yi,T,H]-muG_gyth_up[G,yi,T,H]-muGD_gyth[G,yi,T,H.lead(1)] +\
-#               muGU_gyth[G,yi,T,H.lead(1)] == sigma_yt[yi,T]*tau_yth[yi,T,H]*cG_gy[G,yi]
-# con_5def[G,T,H].where[Ord(H)==Card(H)] = Sum(N.where[G_n[G,N]], lambdaN_nyth[N,yi,T,H])+muG_gyth_lo[G,yi,T,H]-muG_gyth_up[G,yi,T,H]+muGD_gyth[G,yi,T,H] -\
-#               muGU_gyth[G,yi,T,H] == sigma_yt[yi,T]*tau_yth[yi,T,H]*cG_gy[G,yi]
-# con_5g = Equation(m, name="con_5g", domain=[Y])
-# con_5h = Equation(m, name="con_5h", domain=[Y])
-# con_5i = Equation(m, name="con_5i", domain=[Y])
-# con_5j = Equation(m, name="con_5j", domain=[Y])
-# con_5k = Equation(m, name="con_5k", domain=[Y])
-# con_5l = Equation(m, name="con_5l", domain=[Y])
-# con_5m = Equation(m, name="con_5m", domain=[Y])
-# con_5n = Equation(m, name="con_5n", domain=[Y])
-# con_5o = Equation(m, name="con_5o", domain=[Y])
-# con_5p = Equation(m, name="con_5p", domain=[Y])
-# con_5q = Equation(m, name="con_5q", domain=[Y])
-# con_5r = Equation(m, name="con_5r", domain=[Y])
-# con_5s = Equation(m, name="con_5s", domain=[Y])
-# con_5t = Equation(m, name="con_5t", domain=[Y])
-# con_5u = Equation(m, name="con_5u", domain=[Y])
-# con_5v = Equation(m, name="con_5v", domain=[Y])
-# con_5w = Equation(m, name="con_5w", domain=[Y])
-# con_5x = Equation(m, name="con_5x", domain=[Y])
-# con_5y = Equation(m, name="con_5y", domain=[Y])
-# con_5z = Equation(m, name="con_5z", domain=[Y])
+# Outer-loop subproblem
+# Inner-loop master problem OF and constraints
+# OF_ilmp = Equation(m, name="OF_ilmp", type="regular")
+con_2b = Equation(m, name="con_2b", domain=[g, y])
+con_2b[g,y] = cG_gy[g,y] == CG_g_fc[g] * power(1 + zetaGC_g_fc[g], y.val - 1) + CG_g_max[g] * power(1 + zetaGC_g_max[g], y.val - 1) * zGC_gy[g,y]
+con_2c = Equation(m, name="con_2c", domain=[d, y])
+con_2c[d,y] = pD_dy[d,y] == PD_d_fc[d] * power(1 + zetaD_d_fc[d], y.val - 1) + PD_d_max[d] * power(1 + zetaD_d_max[d], y.val - 1) * zD_dy[d,y]
+con_2d = Equation(m, name="con_2d", domain=[g, y])
+con_2d[g,y] = pG_gy[g,y] == PG_g_fc[g] * power(1 + zetaGP_g_fc[g], y.val - 1) - PG_g_max[g] * power(1 + zetaGP_g_max[g], y.val - 1) * zGP_gy[g,y]
+con_2e = Equation(m, name="con_2e", domain=[r, y])
+con_2e[r,y] = pR_ry[r,y] == PR_r_fc[r] * power(1 + zetaR_r_fc[r], y.val - 1) - PR_r_max[r] * power(1 + zetaR_r_max[r], y.val - 1) * zR_ry[r,y]
+# con_2f = Equation(m, name="con_2f", domain=[G,Y])
+# con_2g = Equation(m, name="con_2g", domain=[D,Y])
+# con_2h = Equation(m, name="con_2h", domain=[G,Y])
+# con_2i = Equation(m, name="con_2i", domain=[R,Y])
+con_2j = Equation(m, name="con_2j", domain=[y])
+con_2j[y] = Sum(g, zGC_gy[g,y]) <= GammaGC
+con_2k = Equation(m, name="con_2k", domain=[y])
+con_2k[y] = Sum(d, zD_dy[d,y]) <= GammaD
+con_2l = Equation(m, name="con_2l", domain=[y])
+con_2l[y] = Sum(g, zGP_gy[g,y]) <= GammaGP
+con_2m = Equation(m, name="con_2m", domain=[y])
+con_2m[y] = Sum(rs, zR_ry[rs,y]) <= GammaRS
+con_2n = Equation(m, name="con_2n", domain=[y])
+con_2n[y] = Sum(rw, zR_ry[rw,y]) <= GammaRW
+
+yi = 1
+con_5c = Equation(m, name="con_5c")
+con_5c[...] = xi_y[yi] <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h] * pD_dy[d,yi] * Sum(n.where[d_n[d,n]], lambdaN_nyth[n,yi,t,h])) - \
+                                     Sum(l, PL_l[l] * (muL_lyth_lo[l,yi,t,h] + muL_lyth_up[l,yi,t,h])) - \
+                                     Sum(s, uS_syth[s,yi,t,h] * PSC_s[s] * muSC_syth_up[s,yi,t,h] + (1 - uS_syth[s,yi,t,h]) * PSD_s[s] * muSD_syth_up[s,yi,t,h] - ES_s_min[s] * muS_syth_lo[s,yi,t,h] + ES_s_max[s] * muS_syth_up[s,yi,t,h]) + \
+                                     Sum(g, uG_gyth[g,yi,t,h] * (PG_g_min[g] * muG_gyth_lo[g,yi,t,h] - pG_gy[g,yi] * muG_gyth_up[g,yi,t,h])) - \
+                                     Sum(r, gammaR_ryth[r,yi,t,h] * pR_ry[r,yi] * (muR_ryth_up[r,yi,t,h] - sigma_yt[yi,t] * tau_yth[yi,t,h] * CR_r[r])) - \
+                                     Sum(d, gammaD_dyth[d,yi,t,h] * pD_dy[d,yi] * muD_dyth_up[d,yi,t,h])) + \
+                              Sum(s, ES_syt0[s,yi,t] * (PhiS_syt[s,yi,t] + PhiS_syt_lo[s,yi,t])) - \
+                              Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g] * muGD_gyth[g,yi,t,h] + RGU_g[g] * muGU_gyth[g,yi,t,h])))
+con_5def = Equation(m, name="con_5d", domain=[g, t, h])
+con_5def[g,t,h] = Sum(n.where[g_n[g,n]], lambdaN_nyth[n,yi,t,h]) + muG_gyth_lo[g,yi,t,h] - muG_gyth_up[g,yi,t,h] + muGD_gyth[g,yi,t,h] - \
+                  muGD_gyth[g,yi,t,h.lead(1)] - muGU_gyth[g,yi,t,h] + muGU_gyth[g,yi,t,h.lead(1)] == sigma_yt[yi,t] * tau_yth[yi,t,h] * cG_gy[g,yi]
+con_5def[g,t,h].where[Ord(h) == 1] = Sum(n.where[g_n[g,n]], lambdaN_nyth[n,yi,t,h]) + muG_gyth_lo[g,yi,t,h] - muG_gyth_up[g,yi,t,h] - muGD_gyth[g,yi,t,h.lead(1)] + \
+                                     muGU_gyth[g,yi,t,h.lead(1)] == sigma_yt[yi,t] * tau_yth[yi,t,h] * cG_gy[g,yi]
+con_5def[g,t,h].where[Ord(h) == Card(h)] = Sum(n.where[g_n[g,n]], lambdaN_nyth[n,yi,t,h]) + muG_gyth_lo[g,yi,t,h] - muG_gyth_up[g,yi,t,h] + muGD_gyth[g,yi,t,h] - \
+                                           muGU_gyth[g,yi,t,h] == sigma_yt[yi,t] * tau_yth[yi,t,h] * cG_gy[g,yi]
+con_5g = Equation(m, name="con_5g", domain=[d, t, h])
+con_5g[d,t,h] = Sum(n.where[d_n[d,n]], lambdaN_nyth[n,yi,t,h]) - muD_dyth_up[d,yi,t,h] <= sigma_yt[yi,t] * tau_yth[yi,t,h] * CLS_d[d]
+con_5h = Equation(m, name="con_5h", domain=[r, t, h])
+con_5h[r,t,h] = Sum(n.where[r_n[r,n]], lambdaN_nyth[n,yi,t,h]) - muR_ryth_up[r,yi,t,h] <= sigma_yt[yi,t] * tau_yth[yi,t,h] * CR_r[r]
+con_5i = Equation(m, name="con_5i", domain=[le, t, h])
+con_5i[le,t,h] = Sum(n.where[rel_n[le,n]], lambdaN_nyth[n,yi,t,h]) - Sum(n.where[sel_n[le,n]], lambdaN_nyth[n,yi,t,h]) \
+                 + muL_lyth_exist[le,yi,t,h] + muL_lyth_lo[le,yi,t,h] - muL_lyth_up[le,yi,t,h] == 0
+con_5j = Equation(m, name="con_5j", domain=[lc, t, h])
+con_5j[lc,t,h] = Sum(n.where[rel_n[lc,n]], lambdaN_nyth[n,yi,t,h]) - Sum(n.where[sel_n[lc,n]], lambdaN_nyth[n,yi,t,h]) \
+                 + muL_lyth_can[lc,yi,t,h] + muL_lyth_lo[lc,yi,t,h] - muL_lyth_up[lc,yi,t,h] == 0
+con_5k = Equation(m, name="con_5k", domain=[s, t, h])
+con_5k[s,t,h].where[Ord(h)==1] = Sum(n.where[s_n[s,n]], lambdaN_nyth[n,yi,t,h])+(tau_yth[yi,t,h]/etaSD_s[s])*PhiS_syt[s,yi,t]-\
+                                 muSD_syth_up[s,yi,t,h] <=  0
+con_5l = Equation(m, name="con_5l", domain=[s, t, h])
+con_5l[s,t,h].where[Ord(h)>1] = Sum(n.where[s_n[s,n]], lambdaN_nyth[n,yi,t,h])+(tau_yth[yi,t,h]/etaSD_s[s])*muS_syth[s,yi,t,h]-\
+                                 muSD_syth_up[s,yi,t,h] <=  0
+con_5m = Equation(m, name="con_5m", domain=[s, t, h])
+con_5m[s,t,h].where[Ord(h)==1] = -Sum(n.where[s_n[s,n]], lambdaN_nyth[n,yi,t,h])-etaSC_s[s]*tau_yth[yi,t,h]*PhiS_syt[s,yi,t]-\
+                                 muSC_syth_up[s,yi,t,h] <= 0
+con_5n = Equation(m, name="con_5n", domain=[s, t, h])
+con_5n[s,t,h].where[Ord(h)>1] = -Sum(n.where[s_n[s,n]], lambdaN_nyth[n,yi,t,h])-etaSC_s[s]*tau_yth[yi,t,h]*muS_syth[s,yi,t,h]-\
+                                 muSC_syth_up[s,yi,t,h] <= 0
+con_5o = Equation(m, name="con_5o", domain=[n,t,h]) # N =/= ref bus
+con_5o[n,t,h].where[Ord(n)>1] = -Sum(le.where[sel_n[le,n]], muL_lyth_exist[le,yi,t,h]/X_l[le])+\
+                                  Sum(le.where[rel_n[le,n]], muL_lyth_exist[le,yi,t,h]/X_l[le])-\
+                                  Sum(lc.where[sel_n[lc,n]], (vL_ly_prev[lc,yi]/X_l[lc])*muL_lyth_can[lc,yi,t,h])+\
+                                  Sum(lc.where[rel_n[lc,n]], (vL_ly_prev[lc,yi]/X_l[lc])*muL_lyth_can[lc,yi,t,h]) == 0
+con_5p = Equation(m, name="con_5p", domain=[n,t,h]) # N == ref bus
+con_5p[n,t,h].where[Ord(n)==1] = -Sum(le.where[sel_n[le,n]], muL_lyth_exist[le,yi,t,h]/X_l[le])+\
+                                  Sum(le.where[rel_n[le,n]], muL_lyth_exist[le,yi,t,h]/X_l[le])-\
+                                  Sum(lc.where[sel_n[lc,n]], (vL_ly_prev[lc,yi]/X_l[lc])*muL_lyth_can[lc,yi,t,h])+\
+                                  Sum(lc.where[rel_n[lc,n]], (vL_ly_prev[lc,yi]/X_l[lc])*muL_lyth_can[lc,yi,t,h])+phiN_nyth[n,yi,t,h] == 0
+con_5qrs = Equation(m, name="con_5q", domain=[s,t,h])
+con_5qrs[s,t,h] = muS_syth_up[s,yi,t,h]-muS_syth_up[s,yi,t,h.lead(1)]+muS_syth_lo[s,yi,t,h]-muS_syth_up[s,yi,t,h] == 0
+con_5qrs[s,t,h].where[Ord(h)==1] = PhiS_syt[s,yi,t]-muS_syth_up[s,yi,t,h.lead(1)]+muS_syth_lo[s,yi,t,h]-muS_syth_up[s,yi,t,h] == 0
+con_5qrs[s,t,h].where[Ord(h)==Card(h)] = muS_syth[s,yi,t,h]+PhiS_syt_lo[s,yi,t]+muS_syth_lo[s,yi,t,h]-muS_syth_up[s,yi,t,h] == 0
 
 OLMP_model = Model(
     m,
