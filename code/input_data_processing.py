@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 
 # Read input Excel files
-weights_rd_data =  pd.read_excel(r'C:\Users\Kevin\OneDrive - McGill University\Research\Sandbox\optimization\multi-year_AROTNEP\data\RDs_weights_data.xlsx', sheet_name=None)
-rts_24_data =  pd.read_excel(r'C:\Users\Kevin\OneDrive - McGill University\Research\Sandbox\optimization\multi-year_AROTNEP\data\rts_24_data.xlsx', sheet_name=None)
+weights_rd_data =  pd.read_excel('../data/RDs_weights_data.xlsx', sheet_name=None)
+rts_24_data =  pd.read_excel('../data/rts_24_data.xlsx', sheet_name=None)
 
 # Generate dictionaries where each item is a sheet from the above Excel files
 weights_rd = {}
