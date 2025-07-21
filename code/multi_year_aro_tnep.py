@@ -139,6 +139,12 @@ PhiS_syt = Variable(m, name='PhiS_syt', domain=[s, y, t], description="Dual vari
 PhiS_syt_lo = Variable(m, name='PhiS_syt_lo', type='positive', domain=[s, y, t], description="Dual variable associated with the constraint imposing the lower bound for the energy stored in storage facility s at the last RTP of RD")
 phiN_nyth = Variable(m, name='phiN_nyth', domain=[n, y, t, h], description="Dual variable associated with the definition of the reference bus n")
 
+# Linearization variables
+alphaD_dyth = Variable(m, name="alphaD_dyth", domain=[d, y, t, h], description="Auxiliary variable for the linearization of zD_dy*lambdaN_nyth")
+alphaD_dyth_up = Variable(m, name="alphaD_dyth_up", domain=[d, y, t, h], description="Auxiliary variable for the linearization of zD_dy*muD_dyth_up")
+alphaGP_gyth_up = Variable(m, name="alphaGP_gyth_up", domain=[g, y, t, h], description="Auxiliary variable for the linearization of zGP_gy*muGP_gyth_up")
+alphaR_ryth_up = Variable(m, name="alphaR_ryth_up", domain=[r, y, t, h], description="Auxiliary variable for the linearization of zR_ry*muR_ryth_up")
+
 min_inv_cost_wc = Variable(m, name="min_inv_cost_wc", description="Worst-case investment costs")
 max_op_cost_wc = Variable(m, name="max_op_cost_wc", description="Worst-case operating costs")
 
@@ -250,13 +256,13 @@ con_2n[y] = Sum(rw, zR_ry[rw,y]) <= GammaRW
 yi = 1
 con_5c = Equation(m, name="con_5c")
 con_5c[...] = xi_y[yi] <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h] * pD_dy[d,yi] * Sum(n.where[d_n[d,n]], lambdaN_nyth[n,yi,t,h])) - \
-                                     Sum(l, PL_l[l] * (muL_lyth_lo[l,yi,t,h] + muL_lyth_up[l,yi,t,h])) - \
-                                     Sum(s, uS_syth[s,yi,t,h] * PSC_s[s] * muSC_syth_up[s,yi,t,h] + (1 - uS_syth[s,yi,t,h]) * PSD_s[s] * muSD_syth_up[s,yi,t,h] - ES_s_min[s] * muS_syth_lo[s,yi,t,h] + ES_s_max[s] * muS_syth_up[s,yi,t,h]) + \
-                                     Sum(g, uG_gyth[g,yi,t,h] * (PG_g_min[g] * muG_gyth_lo[g,yi,t,h] - pG_gy[g,yi] * muG_gyth_up[g,yi,t,h])) - \
-                                     Sum(r, gammaR_ryth[r,yi,t,h] * pR_ry[r,yi] * (muR_ryth_up[r,yi,t,h] - sigma_yt[yi,t] * tau_yth[yi,t,h] * CR_r[r])) - \
-                                     Sum(d, gammaD_dyth[d,yi,t,h] * pD_dy[d,yi] * muD_dyth_up[d,yi,t,h])) + \
-                              Sum(s, ES_syt0[s,yi,t] * (PhiS_syt[s,yi,t] + PhiS_syt_lo[s,yi,t])) - \
-                              Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g] * muGD_gyth[g,yi,t,h] + RGU_g[g] * muGU_gyth[g,yi,t,h])))
+                          Sum(l, PL_l[l] * (muL_lyth_lo[l,yi,t,h] + muL_lyth_up[l,yi,t,h])) - \
+                          Sum(s, uS_syth[s,yi,t,h] * PSC_s[s] * muSC_syth_up[s,yi,t,h] + (1 - uS_syth[s,yi,t,h]) * PSD_s[s] * muSD_syth_up[s,yi,t,h] - ES_s_min[s] * muS_syth_lo[s,yi,t,h] + ES_s_max[s] * muS_syth_up[s,yi,t,h]) + \
+                          Sum(g, uG_gyth[g,yi,t,h] * (PG_g_min[g] * muG_gyth_lo[g,yi,t,h] - pG_gy[g,yi] * muG_gyth_up[g,yi,t,h])) - \
+                          Sum(r, gammaR_ryth[r,yi,t,h] * pR_ry[r,yi] * (muR_ryth_up[r,yi,t,h] - sigma_yt[yi,t] * tau_yth[yi,t,h] * CR_r[r])) - \
+                          Sum(d, gammaD_dyth[d,yi,t,h] * pD_dy[d,yi] * muD_dyth_up[d,yi,t,h])) + \
+                          Sum(s, ES_syt0[s,yi,t] * (PhiS_syt[s,yi,t] + PhiS_syt_lo[s,yi,t])) - \
+                          Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g] * muGD_gyth[g,yi,t,h] + RGU_g[g] * muGU_gyth[g,yi,t,h])))
 con_5def = Equation(m, name="con_5d", domain=[g, t, h])
 con_5def[g,t,h] = Sum(n.where[g_n[g,n]], lambdaN_nyth[n,yi,t,h]) + muG_gyth_lo[g,yi,t,h] - muG_gyth_up[g,yi,t,h] + muGD_gyth[g,yi,t,h] - \
                   muGD_gyth[g,yi,t,h.lead(1)] - muGU_gyth[g,yi,t,h] + muGU_gyth[g,yi,t,h.lead(1)] == sigma_yt[yi,t] * tau_yth[yi,t,h] * cG_gy[g,yi]
