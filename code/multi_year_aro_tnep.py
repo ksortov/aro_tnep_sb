@@ -318,7 +318,7 @@ OLMP_model = Model(
 )
 
 # summary = OLMP_model.solve(options=Options(relative_optimality_gap=0.005, mip="CPLEX", savepoint=1, log_file="log_debug.txt"), output=sys.stdout)
-# redirect output to a file
+# #redirect output to a file
 # print("Objective Function Value:  ", round(OLMP_model.objective_value, 3))
 # print(vL_ly.records)
 # m.write(r'C:\Users\Kevin\OneDrive - McGill University\Research\Sandbox\optimization\multi-year_AROTNEP\results\aro_tnep_results.gdx')
