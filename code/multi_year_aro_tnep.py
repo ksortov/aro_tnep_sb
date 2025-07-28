@@ -92,10 +92,10 @@ xi_y = Variable(m, name='xi_y', domain=[y], description="Auxiliary variable of t
 xiP_y = Variable(m, name='xiP_y', domain=[y], description="Auxiliary variable of the first problem solved at each iteration of the ADA when it is applied to the inner-loop master problem")
 xiQ_y = Variable(m, name='xiQ_y', domain=[y], description="Auxiliary variable of the second problem solved at each iteration of the ADA when it is applied to the inner-loop master problem")
 rho_y = Variable(m, name='rho_y', domain=[y], description="Auxiliary variable of the outer-loop master problem")
-aD_dy = Variable(m, name='aD_dy', domain=[d, y], description="Continuous variable associated with the deviation that the peak power consumption of load d can experience from its forecast value in year y")
-aGC_gy = Variable(m, name='aGC_gy', domain=[g, y], description="Continuous variable associated with the deviation that the marginal production cost of conventional generating unit g can experience from its forecast value in year y")
-aGP_gy = Variable(m, name='aGP_gy', domain=[g, y], description="Continuous variable associated with the deviation that the capacity of conventional generating unit g can experience from its forecast value in year y")
-aR_ry = Variable(m, name='aR_ry', domain=[r, y], description="Continuous variable associated with the deviation that the capacity of renewable generating unit r can experience from its forecast value in year y")
+aD_dy = Variable(m, type='positive', name='aD_dy', domain=[d, y], description="Continuous variable associated with the deviation that the peak power consumption of load d can experience from its forecast value in year y")
+aGC_gy = Variable(m, type='positive', name='aGC_gy', domain=[g, y], description="Continuous variable associated with the deviation that the marginal production cost of conventional generating unit g can experience from its forecast value in year y")
+aGP_gy = Variable(m, type='positive', name='aGP_gy', domain=[g, y], description="Continuous variable associated with the deviation that the capacity of conventional generating unit g can experience from its forecast value in year y")
+aR_ry = Variable(m, type='positive', name='aR_ry', domain=[r, y], description="Continuous variable associated with the deviation that the capacity of renewable generating unit r can experience from its forecast value in year y")
 cG_gy = Variable(m, name='cG_gy', domain=[g, y], description="Worst-case realization of the marginal production cost of conventional generating unit g")
 cO_y = Variable(m, name='cO_y', domain=[y], description="Operating costs")
 cOWC_y = Variable(m, name='cOWC_y', domain=[y], description="Worst case operating costs")
@@ -104,11 +104,11 @@ pD_dy = Variable(m, name='pD_dy', domain=[d, y], description="Worst-case realiza
 pG_gyth = Variable(m, name='pG_gyth', domain=[g, y, t, h], description="Power produced by conventional generating unit g")
 pG_gy = Variable(m, name='pG_gy', domain=[g, y], description="Worst-case realization of the capacity of conventional generating unit g")
 pL_lyth = Variable(m, name='pL_lyth', domain=[l, y, t, h], description="Power flow through transmission line l")
-pLS_dyth = Variable(m, name='pLS_dyth', domain=[d, y, t, h], description="Unserved demand of load d")
-pR_ryth = Variable(m, name='pR_ryth', domain=[r, y, t, h], description="Power produced by renewable generating unit r")
+pLS_dyth = Variable(m, type='positive', name='pLS_dyth', domain=[d, y, t, h], description="Unserved demand of load d")
+pR_ryth = Variable(m, type='positive', name='pR_ryth', domain=[r, y, t, h], description="Power produced by renewable generating unit r")
 pR_ry = Variable(m, name='pR_ry', domain=[r, y], description="Worst-case realization of the capacity of renewable generating unit r")
-pSC_syth = Variable(m, name='pSC_syth', domain=[s, y, t, h], description="Charging power of storage facility s")
-pSD_syth = Variable(m, name='pSD_syth', domain=[s, y, t, h], description="Discharging power of storage facility s")
+pSC_syth = Variable(m, type='positive', name='pSC_syth', domain=[s, y, t, h], description="Charging power of storage facility s")
+pSD_syth = Variable(m, type='positive', name='pSD_syth', domain=[s, y, t, h], description="Discharging power of storage facility s")
 uG_gyth = Variable(m, name='uG_gyth', type='binary', domain=[g, y, t, h], description="Binary variable used to model the commitment status of conventional unit g")
 uS_syth = Variable(m, name='uS_syth', type='binary', domain=[s, y, t, h], description="Binary variable used to used to avoid the simultaneous charging and discharging of storage facility s")
 vL_ly = Variable(m, name='vL_ly', type='binary', domain=[lc, y], description="Binary variable that is equal to 1 if candidate transmission line l is built in year y, which is otherwise 0")
@@ -146,7 +146,7 @@ alphaGP_gyth_up = Variable(m, name="alphaGP_gyth_up", domain=[g, y, t, h], descr
 alphaR_ryth_up = Variable(m, name="alphaR_ryth_up", domain=[r, y, t, h], description="Auxiliary variable for the linearization of zR_ry*muR_ryth_up")
 
 min_inv_cost_wc = Variable(m, name="min_inv_cost_wc", description="Worst-case investment costs")
-max_op_cost_wc = Variable(m, name="max_op_cost_wc", description="Worst-case operating costs")
+min_op_cost_y = Variable(m, name="max_op_cost_wc", description="Minimized operating costs for year y")
 
 # EQUATIONS #
 # Outer-loop master problem OF and constraints
@@ -168,7 +168,7 @@ con_1e[lc,y] = vL_ly_prev[lc,y] == Sum(yp.where[yp.val <= y.val], vL_ly[lc,yp])
 
 con_4c = Equation(m, name="con_4c", domain=[y])
 con_4c[y] = rho_y[y] >= Sum(t, sigma_yt[y,t] * Sum(h, tau_yth[y,t,h] * (Sum(g, CG_g_fc[g] * pG_gyth[g,y,t,h]) + \
-                                                                        Sum(r, CR_r[r] * (gammaR_ryth[r,y,t,h] * PR_r_fc[r] - pR_ryth[r,y,t,h])) + Sum(d, CLS_d[d] * pLS_dyth[d,y,t,h]))))
+                        Sum(r, CR_r[r] * (gammaR_ryth[r,y,t,h] * PR_r_fc[r] - pR_ryth[r,y,t,h])) + Sum(d, CLS_d[d] * pLS_dyth[d,y,t,h]))))
 con_4d = Equation(m, name="con_4d", domain=[n, t, h, y])
 con_4d[n,t,h,y] = Sum(g.where[g_n[g,n]], pG_gyth[g,y,t,h]) + Sum(r.where[r_n[r,n]], pR_ryth[r,y,t,h]) + \
                   Sum(l.where[sel_n[l,n]], pL_lyth[l,y,t,h]) - Sum(l.where[rel_n[l,n]], pL_lyth[l,y,t,h]) + \
@@ -227,8 +227,9 @@ con_4s2[r,t,h,y] = pR_ryth[r,y,t,h] >= 0
 con_4t = Equation(m, name="con_4t", domain=[n, t, h, y]) # N == ref bus
 con_4t[n,t,h,y].where[Ord(n)==1] = theta_nyth[n,y,t,h] == 0
 
-# Outer-loop subproblem
+## Outer-loop subproblem
 # Inner-loop master problem OF and constraints
+yi = 1
 # OF_ilmp = Equation(m, name="OF_ilmp", type="regular")
 con_2b = Equation(m, name="con_2b", domain=[g, y])
 con_2b[g,y] = cG_gy[g,y] == CG_g_fc[g] * power(1 + zetaGC_g_fc[g], y.val - 1) + CG_g_max[g] * power(1 + zetaGC_g_max[g], y.val - 1) * zGC_gy[g,y]
@@ -253,7 +254,6 @@ con_2m[y] = Sum(rs, zR_ry[rs,y]) <= GammaRS
 con_2n = Equation(m, name="con_2n", domain=[y])
 con_2n[y] = Sum(rw, zR_ry[rw,y]) <= GammaRW
 
-yi = 1
 con_5c = Equation(m, name="con_5c")
 con_5c[...] = xi_y[yi] <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h] * pD_dy[d,yi] * Sum(n.where[d_n[d,n]], lambdaN_nyth[n,yi,t,h])) - \
                           Sum(l, PL_l[l] * (muL_lyth_lo[l,yi,t,h] + muL_lyth_up[l,yi,t,h])) - \
@@ -306,6 +306,103 @@ con_5qrs = Equation(m, name="con_5q", domain=[s,t,h])
 con_5qrs[s,t,h] = muS_syth_up[s,yi,t,h]-muS_syth_up[s,yi,t,h.lead(1)]+muS_syth_lo[s,yi,t,h]-muS_syth_up[s,yi,t,h] == 0
 con_5qrs[s,t,h].where[Ord(h)==1] = PhiS_syt[s,yi,t]-muS_syth_up[s,yi,t,h.lead(1)]+muS_syth_lo[s,yi,t,h]-muS_syth_up[s,yi,t,h] == 0
 con_5qrs[s,t,h].where[Ord(h)==Card(h)] = muS_syth[s,yi,t,h]+PhiS_syt_lo[s,yi,t]+muS_syth_lo[s,yi,t,h]-muS_syth_up[s,yi,t,h] == 0
+
+# Inner-loop subproblem OF and constraints
+OF_ilsp = Equation(m, name="OF_ilsp", type="regular") # Double-check
+OF_ilsp[...] = min_op_cost_y == Sum(t, Sum(h, sigma_yt[yi,t]*tau_yth[yi,t,h]*(Sum(g, cG_gy[g,yi]*pG_gyth[g,yi,t,h]) +\
+          Sum(r, CR_r[r]*(gammaR_ryth[r,yi,t,h]*pR_ry[r,yi]-pR_ryth[r,yi,t,h])) + Sum(d, CLS_d[d]*pLS_dyth[d,yi,t,h]))))
+con_6b = Equation(m, name="con_6b", domain=[n, t, h])
+con_6b[n,t,h] = Sum(g, pG_gyth[g,yi,t,h]) + Sum(r, pR_ryth[r,yi,t,h]) + Sum(l.where[rel_n[l,n]], pL_lyth[l,yi,t,h]) -\
+                Sum(l.where[sel_n[l,n]], pL_lyth[l,yi,t,h]) + Sum(s, pSD_syth[s,yi,t,h]-pSC_syth[s,yi,t,h]) ==\
+                Sum(d, gammaD_dyth[d,yi,t,h]*pD_dy[d,yi]-pLS_dyth[d,yi,t,h])
+con_6c = Equation(m, name="con_6c", domain=[lc, t, h])
+con_6c[lc,t,h] = pL_lyth[lc,yi,t,h] == (vL_ly_prev[lc,yi]/X_l[lc])*(Sum(n.where[sel_n[lc,n]], theta_nyth[n,yi,t,h])-\
+                 Sum(n.where[rel_n[lc,n]], theta_nyth[n,yi,t,h]))
+con_6d = Equation(m, name="con_6d", domain=[d, t, h])
+con_6d[d,t,h] = pLS_dyth[d,yi,t,h] <= gammaD_dyth[d,yi,t,h]*pD_dy[d,yi]
+con_6e1 = Equation(m, name="con_6e1", domain=[g, t, h])
+con_6e1 = pG_gyth[g,yi,t,h] <= uG_gyth[g,yi,t,h]*pG_gy[g,yi]
+con_6e2 = Equation(m, name="con_6e2", domain=[g, t, h])
+con_6e2 = pG_gyth[g,yi,t,h] >= uG_gyth[g,yi,t,h]*PG_g_min[g]
+con_6f = Equation(m, name="con_6f", domain=[r, t, h])
+con_6f[r,t,h] = pR_ryth[r,yi,t,h] <= gammaR_ryth[r,yi,t,h]*pR_ry[r,yi]
+
+con_3c = Equation(m, name="con_3c", domain=[lc, t, h])
+con_3c[lc,t,h] = pL_lyth[lc,yi,t,h] == (1.0/X_l[lc])*(Sum(n.where[sel_n[lc,n]], theta_nyth[n,yi,t,h])-\
+                 Sum(n.where[rel_n[lc,n]], theta_nyth[n,yi,t,h]))
+con_3e1 = Equation(m, name="con_3e1", domain=[l, t, h])
+con_3e1[l,t,h] = pL_lyth[l,yi,t,h] <= PL_l[l]
+con_3e2 = Equation(m, name="con_3e2", domain=[l, t, h])
+con_3e2[l,t,h] = pL_lyth[l,yi,t,h] <= -PL_l[l]
+con_3fg = Equation(m, name="con_3fg", domain=[s, t, h])
+con_3fg[s,t,h] = eS_syth[s,yi,t,h] == eS_syth[s,yi,t,h.lag(1)] + (pSC_syth[s,yi,t,h]*etaSC_s[s]-(pSD_syth[s,yi,t,h]/etaSD_s[s]))*tau_yth[yi,t,h]
+con_3fg[s,t,h].where[Ord(h)==1] = eS_syth[s,yi,t,h] == ES_syt0[s,yi,t] + (pSC_syth[s,yi,t,h]*etaSC_s[s]-(pSD_syth[s,yi,t,h]/etaSD_s[s]))*tau_yth[yi,t,h]
+con_3h = Equation(m, name="con_3h", domain=[s, t, h])
+con_3h[s,t,h] = eS_syth[s,yi,t,h] >= ES_syt0[s,yi,t]
+con_3i1 = Equation(m, name="con_3i1", domain=[s, t, h])
+con_3i1[s,t,h] = eS_syth[s,yi,t,h] <= ES_s_max[s]
+con_3i2 = Equation(m, name="con_3i2", domain=[s, t, h])
+con_3i1[s,t,h] = eS_syth[s,yi,t,h] >= ES_s_min[s]
+# con_3j = Equation(m, name="con_3j", domain=[n, t, h])
+con_3k = Equation(m, name="con_3k", domain=[s, t, h])
+con_3k[s,t,h] = pSC_syth[s,yi,t,h] <= uS_syth[s,yi,t,h]*PSC_s[s]
+con_3l = Equation(m, name="con_3l", domain=[s, t, h])
+con_3l[s,t,h] = pSD_syth[s,yi,t,h] <= (1-uS_syth[s,yi,t,h])*PSD_s[s]
+# con_3n = Equation(m, name="con_3n", domain=[n, t, h])
+con_3p1 = Equation(m, name="con_3p1", domain=[g, t, h])
+con_3p1[g,t,h] = pG_gyth[g,yi,t,h] - pG_gyth[g,yi,t,h.lag(1)] <= RGU_g[g]
+con_3p2 = Equation(m, name="con_3p2", domain=[g, t, h])
+con_3p2[g,t,h] = pG_gyth[g,yi,t,h] - pG_gyth[g,yi,t,h.lag(1)] >= -RGD_g[g]
+con_3r = Equation(m, name="con_3r", domain=[n, t, h]) # n == ref bus
+con_3r[n,t,h].where[Ord(n)==1] = theta_nyth[n,yi,t,h] == 0
+
+## ADA-based initialization of the inner loop
+# First linear problem OF and constraints
+con_7b = Equation(m, name="con_7b", domain=[g])
+con_7b[g] = cG_gy[g,yi] == CG_g_fc[g]*power(1+zetaGC_g_fc, yi-1) + CG_g_max[g]*power(1+zetaGC_g_max, yi-1)*aGC_gy[g,yi]
+con_7c = Equation(m, name="con_7c", domain=[g])
+con_7c[g] = aGC_gy[g,yi] <= 1
+con_7d = Equation(m, name="con_7d")
+con_7d[...] = Sum(g, aGC_gy[g,yi]) <= GammaGC
+con_7e = Equation(m, name="con_7e")
+con_7e[...] = xiP_y[yi] <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h]*pD_dy[d,yi]*Sum(n.where[d_n[d,n]], lambdaN_nyth[n,yi,t,h]))-\
+              Sum(l, PL_l[l]*(muL_lyth_lo[l,yi,t,h]+muL_lyth_up[l,yi,t,h])) - Sum(s, uS_syth[s,yi,t,h]*PSC_s[s]*muSC_syth_up[s,yi,t,h]+ \
+              (1-uS_syth[s,yi,t,h])*PSD_s[s]*muSD_syth_up[s,yi,t,h]-ES_s_min[s]*muS_syth_lo[s,yi,t,h]+ES_s_max[s]*muS_syth_up[s,yi,t,h]) +\
+              Sum(g, uG_gyth[g,yi,t,h]*(PG_g_min[g]*muG_gyth_lo[g,yi,t,h]-pG_gy[g,yi]*muG_gyth_up[g,yi,t,h])) -\
+              Sum(r, gammaR_ryth[r,yi,t,h]*pR_ry[r,yi]*(muR_ryth_up[r,yi,t,h]-sigma_yt[yi,t]*tau_yth[yi,t,h]*CR_r[r])) -\
+              Sum(d, gammaD_dyth[d,yi,t,h]*pD_dy[d,yi]*muD_dyth_up[d,yi,t,h])) + Sum(s, ES_syt0[s,yi,t]*(PhiS_syt[s,yi,t]+PhiS_syt_lo[s,yi,t])) -\
+              Sum(h.where[Ord(h)>1], Sum(g, RGD_g[g]*muGD_gyth[g,yi,t,h]+RGU_g[g]*muGU_gyth[g,yi,t,h])))
+# Constraints 5d-5z
+
+# Second linear problem OF and constraints
+con_8b = Equation(m, name="con_8b", domain=[d])
+con_8b[d] = pD_dy[d,yi] == PD_d_fc[d]*power(1+zetaD_d_fc[d], yi-1) + PD_d_max[d]*power(1+zetaD_d_max[d], yi-1)*aD_dy[d,yi]
+con_8c = Equation(m, name="con_8c", domain=[g])
+con_8c[g] = pG_gy[g,yi] == PG_g_fc[g]*power(1-zetaGP_g_fc[g], yi-1) - PG_g_max[g]*power(1+zetaGP_g_max[g], yi-1)*aGP_gy[g,yi]
+con_8d = Equation(m, name="con_8d", domain=[r])
+con_8d[r] = pR_ry[r,yi] == PR_r_fc[r]*power(1+zetaR_r_fc[r], yi-1) - PR_r_max[r]*power(1+zetaR_r_max[r], yi-1)*aR_ry[r,yi]
+con_8e = Equation(m, name="con_8e", domain=[d])
+con_8e[d] = aD_dy[d,yi] <= 1
+con_8f = Equation(m, name="con_8f", domain=[g])
+con_8f[g] = aGP_gy[g,yi] <= 1
+con_8g = Equation(m, name="con_8g", domain=[r])
+con_8g[r] = aR_ry[r,yi] <= 1
+con_8h = Equation(m, name="con_8h")
+con_8h[...] = Sum(d, aD_dy[d,yi]) <= GammaD
+con_8i = Equation(m, name="con_8i")
+con_8i[...] = Sum(g, aGP_gy[g,yi]) <= GammaGP
+con_8j = Equation(m, name="con_8j")
+con_8j[...] = Sum(rs, aR_ry[rs,yi]) <= GammaRS
+con_8k = Equation(m, name="con_8k")
+con_8k[...] = Sum(rw, aR_ry[rw,yi]) <= GammaRW
+con_8l = Equation(m, name="con_8l")
+con_8l[...] = xiQ_y[yi] <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h]*pD_dy[d,yi]*Sum(n.where[d_n[d,n]], lambdaN_nyth[n,yi,t,h]))-\
+              Sum(l, PL_l[l]*(muL_lyth_lo[l,yi,t,h]+muL_lyth_up[l,yi,t,h])) - Sum(s, uS_syth[s,yi,t,h]*PSC_s[s]*muSC_syth_up[s,yi,t,h]+ \
+              (1-uS_syth[s,yi,t,h])*PSD_s[s]*muSD_syth_up[s,yi,t,h]-ES_s_min[s]*muS_syth_lo[s,yi,t,h]+ES_s_max[s]*muS_syth_up[s,yi,t,h]) +\
+              Sum(g, uG_gyth[g,yi,t,h]*(PG_g_min[g]*muG_gyth_lo[g,yi,t,h]-pG_gy[g,yi]*muG_gyth_up[g,yi,t,h])) -\
+              Sum(r, gammaR_ryth[r,yi,t,h]*pR_ry[r,yi]*(muR_ryth_up[r,yi,t,h]-sigma_yt[yi,t]*tau_yth[yi,t,h]*CR_r[r])) -\
+              Sum(d, gammaD_dyth[d,yi,t,h]*pD_dy[d,yi]*muD_dyth_up[d,yi,t,h])) + Sum(s, ES_syt0[s,yi,t]*(PhiS_syt[s,yi,t]+PhiS_syt_lo[s,yi,t])) -\
+              Sum(h.where[Ord(h)>1], Sum(g, RGD_g[g]*muGD_gyth[g,yi,t,h]+RGU_g[g]*muGU_gyth[g,yi,t,h])))
 
 OLMP_model = Model(
     m,
