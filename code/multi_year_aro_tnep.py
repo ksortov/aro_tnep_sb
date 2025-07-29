@@ -47,6 +47,10 @@ kappa = Parameter(m, name="kappa", records=0.1, description="Discount rate")
 IT = Parameter(m, name="IT", records=400000000, description="Investment budget")
 nb_H = Parameter(m, name="nb_H", records=8, description="Number of RTPs of each RD")
 FL = Parameter(m, name="FL", records=9999999, description="Large constant for disjunctive linearization")
+FD = Parameter(m, name="FD", records=9999999, description="Large constant for exact linearization")
+FD_up = Parameter(m, name="FD_up", records=9999999, description="Large constant for exact linearization")
+FG_up = Parameter(m, name="FG_up", records=9999999, description="Large constant for exact linearization")
+FR_up = Parameter(m, name="FR_up", records=9999999, description="Large constant for exact linearization")
 
 gammaD_dyth = Parameter(m, name="gammaD_dth", domain=[d, y, t, h], records=gamma_dyth_data, description="Demand factor of load d")
 gammaR_ryth = Parameter(m, name="gammaR_rth", domain=[r, y, t, h], records=gamma_ryth_data, description="Capacity factor of renewable unit r")
@@ -141,9 +145,9 @@ phiN_nyth = Variable(m, name='phiN_nyth', domain=[n, y, t, h], description="Dual
 
 # Linearization variables
 alphaD_dyth = Variable(m, name="alphaD_dyth", domain=[d, y, t, h], description="Auxiliary variable for the linearization of zD_dy*lambdaN_nyth")
-alphaD_dyth_up = Variable(m, name="alphaD_dyth_up", domain=[d, y, t, h], description="Auxiliary variable for the linearization of zD_dy*muD_dyth_up")
-alphaGP_gyth_up = Variable(m, name="alphaGP_gyth_up", domain=[g, y, t, h], description="Auxiliary variable for the linearization of zGP_gy*muGP_gyth_up")
-alphaR_ryth_up = Variable(m, name="alphaR_ryth_up", domain=[r, y, t, h], description="Auxiliary variable for the linearization of zR_ry*muR_ryth_up")
+alphaD_dyth_up = Variable(m, name="alphaD_dyth_up", type='positive', domain=[d, y, t, h], description="Auxiliary variable for the linearization of zD_dy*muD_dyth_up")
+alphaGP_gyth_up = Variable(m, name="alphaGP_gyth_up", type='positive', domain=[g, y, t, h], description="Auxiliary variable for the linearization of zGP_gy*muGP_gyth_up")
+alphaR_ryth_up = Variable(m, name="alphaR_ryth_up", type='positive', domain=[r, y, t, h], description="Auxiliary variable for the linearization of zR_ry*muR_ryth_up")
 
 min_inv_cost_wc = Variable(m, name="min_inv_cost_wc", description="Worst-case investment costs")
 min_op_cost_y = Variable(m, name="max_op_cost_wc", description="Minimized operating costs for year y")
@@ -254,15 +258,53 @@ con_2m[y] = Sum(rs, zR_ry[rs,y]) <= GammaRS
 con_2n = Equation(m, name="con_2n", domain=[y])
 con_2n[y] = Sum(rw, zR_ry[rw,y]) <= GammaRW
 
-con_5c = Equation(m, name="con_5c")
-con_5c[...] = xi_y[yi] <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h] * pD_dy[d,yi] * Sum(n.where[d_n[d,n]], lambdaN_nyth[n,yi,t,h])) - \
-                          Sum(l, PL_l[l] * (muL_lyth_lo[l,yi,t,h] + muL_lyth_up[l,yi,t,h])) - \
-                          Sum(s, uS_syth[s,yi,t,h] * PSC_s[s] * muSC_syth_up[s,yi,t,h] + (1 - uS_syth[s,yi,t,h]) * PSD_s[s] * muSD_syth_up[s,yi,t,h] - ES_s_min[s] * muS_syth_lo[s,yi,t,h] + ES_s_max[s] * muS_syth_up[s,yi,t,h]) + \
-                          Sum(g, uG_gyth[g,yi,t,h] * (PG_g_min[g] * muG_gyth_lo[g,yi,t,h] - pG_gy[g,yi] * muG_gyth_up[g,yi,t,h])) - \
-                          Sum(r, gammaR_ryth[r,yi,t,h] * pR_ry[r,yi] * (muR_ryth_up[r,yi,t,h] - sigma_yt[yi,t] * tau_yth[yi,t,h] * CR_r[r])) - \
-                          Sum(d, gammaD_dyth[d,yi,t,h] * pD_dy[d,yi] * muD_dyth_up[d,yi,t,h])) + \
-                          Sum(s, ES_syt0[s,yi,t] * (PhiS_syt[s,yi,t] + PhiS_syt_lo[s,yi,t])) - \
-                          Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g] * muGD_gyth[g,yi,t,h] + RGU_g[g] * muGU_gyth[g,yi,t,h])))
+# con_5c = Equation(m, name="con_5c")
+# con_5c[...] = xi_y[yi] <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h] * pD_dy[d,yi] * Sum(n.where[d_n[d,n]], lambdaN_nyth[n,yi,t,h])) - \
+#                           Sum(l, PL_l[l] * (muL_lyth_lo[l,yi,t,h] + muL_lyth_up[l,yi,t,h])) - \
+#                           Sum(s, uS_syth[s,yi,t,h] * PSC_s[s] * muSC_syth_up[s,yi,t,h] + (1 - uS_syth[s,yi,t,h]) * PSD_s[s] * muSD_syth_up[s,yi,t,h] - ES_s_min[s] * muS_syth_lo[s,yi,t,h] + ES_s_max[s] * muS_syth_up[s,yi,t,h]) + \
+#                           Sum(g, uG_gyth[g,yi,t,h] * (PG_g_min[g] * muG_gyth_lo[g,yi,t,h] - pG_gy[g,yi] * muG_gyth_up[g,yi,t,h])) - \
+#                           Sum(r, gammaR_ryth[r,yi,t,h] * pR_ry[r,yi] * (muR_ryth_up[r,yi,t,h] - sigma_yt[yi,t] * tau_yth[yi,t,h] * CR_r[r])) - \
+#                           Sum(d, gammaD_dyth[d,yi,t,h] * pD_dy[d,yi] * muD_dyth_up[d,yi,t,h])) + \
+#                           Sum(s, ES_syt0[s,yi,t] * (PhiS_syt[s,yi,t] + PhiS_syt_lo[s,yi,t])) - \
+#                           Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g] * muGD_gyth[g,yi,t,h] + RGU_g[g] * muGU_gyth[g,yi,t,h])))
+con_5c_lin_a = Equation(m, name="con_5c_lin_a")
+con_5c_lin_a[...] = xi_y[yi] <= Sum(t, Sum(h,\
+                    Sum(d, gammaD_dyth[d,yi,t,h]*(PD_d_fc[d]*power(1+zetaD_d_fc[d], yi-1)*Sum(n.where[d_n[d,n]], lambdaN_nyth[n,yi,t,h]) + PD_d_max[d]*power(1+zetaD_d_max[d], yi-1)*alphaD_dyth[d,yi,t,h]))\
+                    -Sum(l, PL_l[l]*(muL_lyth_lo[l,yi,t,h] + muL_lyth_up[l,yi,t,h]))\
+                    -Sum(s, uS_syth[s,yi,t,h]*PSC_s[s]*muSC_syth_up[s,yi,t,h] + (1-uS_syth[s,yi,t,h])*PSD_s[s]*muSD_syth_up[s,yi,t,h] - ES_s_min[s]*muS_syth_lo[s,yi,t,h] + ES_s_max[s]*muS_syth_up[s,yi,t,h])\
+                    +Sum(g, uG_gyth[g,yi,t,h]*(PG_g_min[g]*muG_gyth_lo[g,yi,t,h] - (PG_g_fc[g]*power(1-zetaGP_g_fc[g], yi-1)*muG_gyth_up[g,yi,t,h] - PG_g_max[g]*power(1+zetaGP_g_max[g], yi-1)*alphaGP_gyth_up[g,yi,t,h])))\
+                    -Sum(r, gammaR_ryth[r,yi,t,h]*(PR_r_fc[r]*power(1+zetaR_r_fc, yi-1)*muR_ryth_up[r,yi,t,h] - PR_r_max[r]*power(1+zetaR_r_max, yi-1)*alphaR_ryth_up[r,yi,t,h]))\
+                    +Sum(r, sigma_yt[yi,t]*tau_yth[yi,t,h]*CR_r[r]*gammaR_ryth[r,yi,t,h]*(PR_r_fc[r]*power(1+zetaR_r_fc, yi-1) - PR_r_max[r]*power(1+zetaR_r_max, yi-1)*zR_ry[r,yi]))\
+                    -Sum(d, gammaD_dyth[d,yi,t,h]*(PD_d_fc[d]*power(1+zetaD_d_fc[d], yi-1)*muD_dyth_up[d,yi,t,h] + PD_d_max[d]*power(1+zetaD_d_max[d], yi-1)*alphaD_dyth_up[d,yi,t,h])))\
+                    +Sum(s, ES_syt0[s,yi,t] * (PhiS_syt[s,yi,t] + PhiS_syt_lo[s,yi,t]))\
+                    -Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g]*muGD_gyth[g,yi,t,h] + RGU_g[g]*muGU_gyth[g,yi,t,h])))
+con_5c_lin_b1 = Equation(m, name="con_5c_lin_b1", domain=[d, t, h])
+con_5c_lin_b1[d,t,h] = alphaD_dyth[d,yi,t,h] <= zD_dy[d,yi]*FD
+con_5c_lin_b2 = Equation(m, name="con_5c_lin_b2", domain=[d, t, h])
+con_5c_lin_b2[d,t,h] = alphaD_dyth[d,yi,t,h] >= -zD_dy[d,yi]*FD
+con_5c_lin_c1 = Equation(m, name="con_5c_lin_c1", domain=[d, t, h])
+con_5c_lin_c1[d,t,h] = Sum(n.where[d_n[d,n]], lambdaN_nyth[n,yi,t,h]) - alphaD_dyth[d,yi,t,h] <= (1-zD_dy[d,yi])*FD
+con_5c_lin_c2 = Equation(m, name="con_5c_lin_c2", domain=[d, t, h])
+con_5c_lin_c2[d,t,h] = Sum(n.where[d_n[d,n]], lambdaN_nyth[n,yi,t,h]) - alphaD_dyth[d,yi,t,h] >= -(1-zD_dy[d,yi])*FD
+con_5c_lin_d = Equation(m, name="con_5c_lin_d", domain=[d, t, h])
+con_5c_lin_d[d,t,h] = alphaD_dyth_up[d,yi,t,h] <= zD_dy[d,yi]*FD_up
+con_5c_lin_e1 = Equation(m, name="con_5c_lin_e1", domain=[d, t, h])
+con_5c_lin_e1[d,t,h] = muD_dyth_up[d,yi,t,h] - alphaD_dyth_up[d,yi,t,h] <= (1-zD_dy[d,yi])*FD_up
+con_5c_lin_e2 = Equation(m, name="con_5c_lin_e2", domain=[d, t, h])
+con_5c_lin_e2[d,t,h] = muD_dyth_up[d,yi,t,h] - alphaD_dyth_up[d,yi,t,h] >= 0
+con_5c_lin_f = Equation(m, name="con_5c_lin_f", domain=[g, t, h])
+con_5c_lin_f[g,t,h] = alphaGP_gyth_up[g,yi,t,h] <= zGP_gy[g,yi]*FG_up
+con_5c_lin_g1 = Equation(m, name="con_5c_lin_g1", domain=[g, t, h])
+con_5c_lin_g1[g,t,h] = muG_gyth_up[g,yi,t,h] - alphaGP_gyth_up[g,yi,t,h] <= (1-zGP_gy[g,yi])*FG_up
+con_5c_lin_g2 = Equation(m, name="con_5c_lin_g2", domain=[g, t, h])
+con_5c_lin_g2[g,t,h] = muG_gyth_up[g,yi,t,h] - alphaGP_gyth_up[g,yi,t,h] >= 0
+con_5c_lin_h = Equation(m, name="con_5c_lin_h", domain=[r, t, h])
+con_5c_lin_h[r,t,h] = alphaR_ryth_up[r,yi,t,h] <= zR_ry[r,yi]*FR_up
+con_5c_lin_i1 = Equation(m, name="con_5c_lin_i1", domain=[r, t, h])
+con_5c_lin_i1[r,t,h] = muR_ryth_up[r,yi,t,h] - alphaR_ryth_up[r,yi,t,h] <= (1-zR_ry[r,yi])*FR_up
+con_5c_lin_i2 = Equation(m, name="con_5c_lin_i2", domain=[r, t, h])
+con_5c_lin_i1[r,t,h] = muR_ryth_up[r,yi,t,h] - alphaR_ryth_up[r,yi,t,h] >= 0
+
 con_5def = Equation(m, name="con_5d", domain=[g, t, h])
 con_5def[g,t,h] = Sum(n.where[g_n[g,n]], lambdaN_nyth[n,yi,t,h]) + muG_gyth_lo[g,yi,t,h] - muG_gyth_up[g,yi,t,h] + muGD_gyth[g,yi,t,h] - \
                   muGD_gyth[g,yi,t,h.lead(1)] - muGU_gyth[g,yi,t,h] + muGU_gyth[g,yi,t,h.lead(1)] == sigma_yt[yi,t] * tau_yth[yi,t,h] * cG_gy[g,yi]
