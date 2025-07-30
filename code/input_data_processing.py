@@ -34,6 +34,7 @@ loads = rts_24['loads']
 UB = rts_24['UB']
 
 years_data = range(1,2)
+tol = 0.005
 
 SEl_data = []
 for line, rel in zip(lines['Transmission line'], lines['From bus']):
