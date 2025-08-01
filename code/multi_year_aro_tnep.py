@@ -1,6 +1,9 @@
+from pandas.core.dtypes.inference import is_re
+
 from input_data_processing import weights, RD1, lines, buses, ESS, CG, RES, loads, years_data, sigma_yt_data, tau_yth_data, gamma_dyth_data, gamma_ryth_data, ES_syt0_data, tol
 from gamspy import Alias, Container, Domain, Equation, Model, Options, Ord, Card, Parameter, Set, Smax, Sum, Variable
 from gamspy.math import power
+import pandas as pd
 import sys
 
 def reformat_df(dataframe):
@@ -35,8 +38,8 @@ rel_n = Set(m, name="rel_n", domain=[l, n], records=lines[['Transmission line', 
 sel_n = Set(m, name="sel_n", domain=[l, n], records=lines[['Transmission line', 'From bus']], description="Sending bus of transmission line l")
 
 # Sets of indices for the outer and inner loop problems
-i = Set(m, name="i", records=[1], description="Iteration of the outer loop")
-# j = Set(m, name="j", records=[1], description="Iteration of the outer loop")
+j = Set(m, name="j", records=[1, 2, 3, 4, 5], description="Iteration of the outer loop")
+i = Set(m, name="i", domain=[j], description="Subset of iteration of the outer loop for relaxation")
 v = Set(m, name="v", records=[1], description="Iteration of the inner loop")
 # k = Set(m, name="k", records=[1], description="Iteration of the outer loop")
 
@@ -97,12 +100,16 @@ RGU_g = Parameter(m, name="RGU_g", domain=[g], records=CG[['Generating unit', 'R
 X_l = Parameter(m, name="X_l", domain=[l], records=lines[['Transmission line', 'X_l']], description="Reactance of transmission line l")
 
 # Parameters used to represent given results for certain variables
-cG_gyi = Parameter(m, name='cG_gyi', domain=[g, y, i], description="Worst-case realization of the marginal production cost of conventional generating unit g for uncertainty realization i")
-
+CG_gyi = Parameter(m, name='CG_gyi', domain=[g, y, i], description="Worst-case realization of the marginal production cost of conventional generating unit g for uncertainty realization i")
+PD_dyi = Parameter(m, name='PD_dyi', domain=[d, y, i], description="Worst-case realization of the peak power consumption of load d for uncertainty realization i")
+PG_gyi = Parameter(m, name='PG_gyi', domain=[g, y, i], description="Worst-case realization of the capacity of conventional generating unit g for uncertainty realization i")
+PR_ryi = Parameter(m, name='PR_ryi', domain=[r, y, i], description="Worst-case realization of the capacity of renewable generating unit r for uncertainty realization i")
+VL_lyj = Parameter(m, name='VL_lyj', domain=[lc, y, j], description="Binary variable that is equal to 1 if candidate transmission line l is built in year y, which is otherwise 0, for outer loop iteration j")
+VL_lyj_prev = Parameter(m, name='VL_lyj_prev', domain=[lc, y, j], description="Binary variable that is equal to 1 if candidate transmission line l is built in year y or in previous years, which is otherwise 0, for outer loop iteration j")
 
 # VARIABLES #
 # Optimization variables
-theta_nyth = Variable(m, name="theta_nyth", domain=[n, y, t, h], description="Voltage angle at bus n")
+theta_nythi = Variable(m, name="theta_nythi", domain=[n, y, t, h, i], description="Voltage angle at bus n")
 xi_y = Variable(m, name='xi_y', domain=[y], description="Auxiliary variable of the inner-loop master problem")
 xiP_y = Variable(m, name='xiP_y', domain=[y], description="Auxiliary variable of the first problem solved at each iteration of the ADA when it is applied to the inner-loop master problem")
 xiQ_y = Variable(m, name='xiQ_y', domain=[y], description="Auxiliary variable of the second problem solved at each iteration of the ADA when it is applied to the inner-loop master problem")
@@ -114,16 +121,16 @@ aR_ry = Variable(m, type='positive', name='aR_ry', domain=[r, y], description="C
 cG_gy = Variable(m, name='cG_gy', domain=[g, y], description="Worst-case realization of the marginal production cost of conventional generating unit g")
 cO_y = Variable(m, name='cO_y', domain=[y], description="Operating costs")
 cOWC_y = Variable(m, name='cOWC_y', domain=[y], description="Worst case operating costs")
-eS_syth = Variable(m, name='eS_syth', domain=[s, y, t, h], description="Energy stored in storage facility s")
+eS_sythi = Variable(m, name='eS_sythi', domain=[s, y, t, h, i], description="Energy stored in storage facility s")
 pD_dy = Variable(m, name='pD_dy', domain=[d, y], description="Worst-case realization of the peak power consumption of load d")
-pG_gyth = Variable(m, name='pG_gyth', domain=[g, y, t, h], description="Power produced by conventional generating unit g")
+pG_gythi = Variable(m, name='pG_gythi', domain=[g, y, t, h, i], description="Power produced by conventional generating unit g")
 pG_gy = Variable(m, name='pG_gy', domain=[g, y], description="Worst-case realization of the capacity of conventional generating unit g")
-pL_lyth = Variable(m, name='pL_lyth', domain=[l, y, t, h], description="Power flow through transmission line l")
-pLS_dyth = Variable(m, type='positive', name='pLS_dyth', domain=[d, y, t, h], description="Unserved demand of load d")
-pR_ryth = Variable(m, type='positive', name='pR_ryth', domain=[r, y, t, h], description="Power produced by renewable generating unit r")
+pL_lythi = Variable(m, name='pL_lythi', domain=[l, y, t, h, i], description="Power flow through transmission line l")
+pLS_dythi = Variable(m, type='positive', name='pLS_dythi', domain=[d, y, t, h, i], description="Unserved demand of load d")
+pR_rythi = Variable(m, type='positive', name='pR_rythi', domain=[r, y, t, h, i], description="Power produced by renewable generating unit r")
 pR_ry = Variable(m, name='pR_ry', domain=[r, y], description="Worst-case realization of the capacity of renewable generating unit r")
-pSC_syth = Variable(m, type='positive', name='pSC_syth', domain=[s, y, t, h], description="Charging power of storage facility s")
-pSD_syth = Variable(m, type='positive', name='pSD_syth', domain=[s, y, t, h], description="Discharging power of storage facility s")
+pSC_sythi = Variable(m, type='positive', name='pSC_sythi', domain=[s, y, t, h, i], description="Charging power of storage facility s")
+pSD_sythi = Variable(m, type='positive', name='pSD_sythi', domain=[s, y, t, h, i], description="Discharging power of storage facility s")
 uG_gyth = Variable(m, name='uG_gyth', type='binary', domain=[g, y, t, h], description="Binary variable used to model the commitment status of conventional unit g")
 uS_syth = Variable(m, name='uS_syth', type='binary', domain=[s, y, t, h], description="Binary variable used to used to avoid the simultaneous charging and discharging of storage facility s")
 vL_ly = Variable(m, name='vL_ly', type='binary', domain=[lc, y], description="Binary variable that is equal to 1 if candidate transmission line l is built in year y, which is otherwise 0")
@@ -181,66 +188,76 @@ con_1d[lc] = Sum(y, vL_ly[lc,y]) <= 1
 con_1e = Equation(m, name="con_1e", domain=[lc, y])
 con_1e[lc,y] = vL_ly_prev[lc,y] == Sum(yp.where[yp.val <= y.val], vL_ly[lc,yp])
 
-con_4c = Equation(m, name="con_4c", domain=[y])
-con_4c[y] = rho_y[y] >= Sum(t, sigma_yt[y,t] * Sum(h, tau_yth[y,t,h] * (Sum(g, CG_g_fc[g] * pG_gyth[g,y,t,h]) + \
-                        Sum(r, CR_r[r] * (gammaR_ryth[r,y,t,h] * PR_r_fc[r] - pR_ryth[r,y,t,h])) + Sum(d, CLS_d[d] * pLS_dyth[d,y,t,h]))))
-con_4d = Equation(m, name="con_4d", domain=[n, y, t, h])
-con_4d[n,y,t,h] = Sum(g.where[g_n[g,n]], pG_gyth[g,y,t,h]) + Sum(r.where[r_n[r,n]], pR_ryth[r,y,t,h]) + \
-                  Sum(l.where[sel_n[l,n]], pL_lyth[l,y,t,h]) - Sum(l.where[rel_n[l,n]], pL_lyth[l,y,t,h]) + \
-                  Sum(s.where[s_n[s,n]], pSD_syth[s,y,t,h] - pSC_syth[s,y,t,h]) == \
-                  Sum(d.where[d_n[d,n]], gammaD_dyth[d,y,t,h] * PD_d_fc[d] - pLS_dyth[d,y,t,h])
-con_4e = Equation(m, name="con_4e", domain=[le, y, t, h])
-con_4e[le,y,t,h] = pL_lyth[le,y,t,h] == (1.0 / X_l[le]) * (Sum(n.where[sel_n[le,n]], theta_nyth[n,y,t,h]) - Sum(n.where[rel_n[le,n]], theta_nyth[n,y,t,h]))
-con_4f_lin1 = Equation(m, name="con_4f_lin1", domain=[lc, y, t, h]) # Linearized
-con_4f_lin1[lc,y,t,h] = pL_lyth[lc,y,t,h] - (1 / X_l[lc]) * (Sum(n.where[sel_n[lc,n]], theta_nyth[n,y,t,h]) - Sum(n.where[rel_n[lc,n]], theta_nyth[n,y,t,h])) <= (1 - vL_ly_prev[lc,y]) * FL
-con_4f_lin2 = Equation(m, name="con_4f_lin2", domain=[lc, y, t, h]) # Linearized
-con_4f_lin2[lc,y,t,h] = pL_lyth[lc,y,t,h] - (1 / X_l[lc]) * (Sum(n.where[sel_n[lc,n]], theta_nyth[n,y,t,h]) - Sum(n.where[rel_n[lc,n]], theta_nyth[n,y,t,h])) >= -(1 - vL_ly_prev[lc,y]) * FL
-con_4g_exist_lin1 = Equation(m, name="con_4g_exist_lin1", domain=[le, y, t, h])
-con_4g_exist_lin1[le,y,t,h] = pL_lyth[le,y,t,h] <= PL_l[le]
-con_4g_exist_lin2 = Equation(m, name="con_4g_exist_lin2", domain=[le, y, t, h])
-con_4g_exist_lin2[le,y,t,h] = pL_lyth[le,y,t,h] >= -PL_l[le]
-con_4g_can_lin1 = Equation(m, name="con_4g_can_lin1", domain=[lc, y, t, h])
-con_4g_can_lin1[lc,y,t,h] = pL_lyth[lc,y,t,h] <= vL_ly_prev[lc,y] * PL_l[lc]
-con_4g_can_lin2 = Equation(m, name="con_4g_can_lin2", domain=[lc, y, t, h])
-con_4g_can_lin2[lc,y,t,h] = pL_lyth[lc,y,t,h] >= -vL_ly_prev[lc,y] * PL_l[lc]
-con_4h = Equation(m, name="con_4h", domain=[s, y, t]) # H == 1
-con_4h[s,y,t] = eS_syth[s,y,t,1] == ES_syt0[s,y,t] + (pSC_syth[s,y,t,1] * etaSC_s[s] - (pSD_syth[s,y,t,1] / etaSD_s[s])) * tau_yth[y,t,1]
-con_4i = Equation(m, name="con_4i", domain=[s, y, t, h]) # H =/= 1
-con_4i[s,y,t,h].where[Ord(h) > 1] = eS_syth[s,y,t,h] == eS_syth[s,y,t,h.lag(1)] + (pSC_syth[s,y,t,h] * etaSC_s[s] - (pSD_syth[s,y,t,h] / etaSD_s[s])) * tau_yth[y,t,h]
-con_4j = Equation(m, name="con_4j", domain=[s, y, t, h]) # H == Hmax
-con_4j[s,y,t,h].where[Ord(h) == Card(h)] = ES_syt0[s,y,t] <= eS_syth[s,y,t,h]
-con_4k1 = Equation(m, name="con_4k1", domain=[s, y, t, h])
-con_4k1[s,y,t,h] = eS_syth[s,y,t,h] <= ES_s_max[s]
-con_4k2 = Equation(m, name="con_4k2", domain=[s, y, t, h])
-con_4k2[s,y,t,h] = eS_syth[s,y,t,h] >= ES_s_min[s]
+con_4c = Equation(m, name="con_4c", domain=[y, i])
+con_4d = Equation(m, name="con_4d", domain=[n, y, t, h, i])
+con_4e = Equation(m, name="con_4e", domain=[le, y, t, h, i])
+con_4f_lin1 = Equation(m, name="con_4f_lin1", domain=[lc, y, t, h, i]) # Linearized
+con_4f_lin2 = Equation(m, name="con_4f_lin2", domain=[lc, y, t, h, i]) # Linearized
+con_4g_exist_lin1 = Equation(m, name="con_4g_exist_lin1", domain=[le, y, t, h, i])
+con_4g_exist_lin2 = Equation(m, name="con_4g_exist_lin2", domain=[le, y, t, h, i])
+con_4g_can_lin1 = Equation(m, name="con_4g_can_lin1", domain=[lc, y, t, h, i])
+con_4g_can_lin2 = Equation(m, name="con_4g_can_lin2", domain=[lc, y, t, h, i])
+con_4h = Equation(m, name="con_4h", domain=[s, y, t, i]) # H == 1
+con_4i = Equation(m, name="con_4i", domain=[s, y, t, h, i]) # H =/= 1
+con_4j = Equation(m, name="con_4j", domain=[s, y, t, h, i]) # H == Hmax
+con_4k1 = Equation(m, name="con_4k1", domain=[s, y, t, h, i])
+con_4k2 = Equation(m, name="con_4k2", domain=[s, y, t, h, i])
 # con_4l = Equation(m, name="con_4l", domain=[S,T,H,Y])
-con_4m1 = Equation(m, name="con_4m1", domain=[s, y, t, h])
-con_4m1[s,y,t,h] = pSC_syth[s,y,t,h] <= uS_syth[s,y,t,h] * PSC_s[s]
-con_4m2 = Equation(m, name="con_4m2", domain=[s, y, t, h])
-con_4m2[s,y,t,h] = pSC_syth[s,y,t,h] >= 0
-con_4n1 = Equation(m, name="con_4n1", domain=[s, y, t, h])
-con_4n1[s,y,t,h] = pSD_syth[s,y,t,h] <= (1 - uS_syth[s,y,t,h]) * PSD_s[s]
-con_4n2 = Equation(m, name="con_4n2", domain=[s, y, t, h])
-con_4n2[s,y,t,h] = pSD_syth[s,y,t,h] >= 0
-con_4o1 = Equation(m, name="con_4o1", domain=[d, y, t, h])
-con_4o1[d,y,t,h] = pLS_dyth[d,y,t,h] <= gammaD_dyth[d,y,t,h] * PD_d_fc[d]#pD_dy[D,Y]
-con_4o2 = Equation(m, name="con_4o2", domain=[d, y, t, h])
-con_4o2[d,y,t,h] = pLS_dyth[d,y,t,h] >= 0
+con_4m1 = Equation(m, name="con_4m1", domain=[s, y, t, h, i])
+con_4m2 = Equation(m, name="con_4m2", domain=[s, y, t, h, i])
+con_4n1 = Equation(m, name="con_4n1", domain=[s, y, t, h, i])
+con_4n2 = Equation(m, name="con_4n2", domain=[s, y, t, h, i])
+con_4o1 = Equation(m, name="con_4o1", domain=[d, y, t, h, i])
+con_4o2 = Equation(m, name="con_4o2", domain=[d, y, t, h, i])
 # con_4p = Equation(m, name="con_4p", domain=[G,T,H,Y])
-con_4q1 = Equation(m, name="con_4q1", domain=[g, y, t, h])
-con_4q1[g,y,t,h] = pG_gyth[g,y,t,h] <= uG_gyth[g,y,t,h] * PG_g_fc[g]#pG_gy[G,Y]
-con_4q2 = Equation(m, name="con_4q2", domain=[g, y, t, h])
-con_4q2[g,y,t,h] = pG_gyth[g,y,t,h] >= uG_gyth[g,y,t,h] * PG_g_min[g]
-con_4r1 = Equation(m, name="con_4r1", domain=[g, y, t, h]) # H =/= 1
-con_4r1[g,y,t,h].where[Ord(h) > 1] = pG_gyth[g,y,t,h] - pG_gyth[g,y,t,h.lag(1)] <= RGU_g[g]
-con_4r2 = Equation(m, name="con_4r2", domain=[g, y, t, h]) # H =/= 1
-con_4r2[g,y,t,h].where[Ord(h) > 1] = pG_gyth[g,y,t,h] - pG_gyth[g,y,t,h.lag(1)] >= -RGD_g[g]
-con_4s1 = Equation(m, name="con_4s1", domain=[r, y, t, h])
-con_4s1[r,y,t,h] = pR_ryth[r,y,t,h] <= gammaR_ryth[r,y,t,h] * PR_r_fc[r]#pR_ry[R,Y]
-con_4s2 = Equation(m, name="con_4s2", domain=[r, y, t, h])
-con_4s2[r,y,t,h] = pR_ryth[r,y,t,h] >= 0
-con_4t = Equation(m, name="con_4t", domain=[n, y, t, h]) # N == ref bus
-con_4t[n,y,t,h].where[Ord(n)==1] = theta_nyth[n,y,t,h] == 0
+con_4q1 = Equation(m, name="con_4q1", domain=[g, y, t, h, i])
+con_4q2 = Equation(m, name="con_4q2", domain=[g, y, t, h,i])
+con_4r1 = Equation(m, name="con_4r1", domain=[g, y, t, h, i]) # H =/= 1
+con_4r2 = Equation(m, name="con_4r2", domain=[g, y, t, h, i]) # H =/= 1
+con_4s1 = Equation(m, name="con_4s1", domain=[r, y, t, h, i])
+con_4s2 = Equation(m, name="con_4s2", domain=[r, y, t, h, i])
+con_4t = Equation(m, name="con_4t", domain=[n, y, t, h, i]) # N == ref bus
+
+
+def rebuild_i_dependent_olmp_eqns():
+    con_4c[y, i] = rho_y[y] >= Sum(t, sigma_yt[y, t] * Sum(h, tau_yth[y, t, h] * (Sum(g, CG_gyi[g,y,i] * pG_gythi[g, y, t, h, i]) \
+                + Sum(r, CR_r[r] * (gammaR_ryth[r, y, t, h] * PR_ryi[r,y,i] - pR_rythi[r, y, t, h, i])) \
+                + Sum(d, CLS_d[d] * pLS_dythi[d, y, t, h, i]))))
+    con_4d[n, y, t, h, i] = Sum(g.where[g_n[g, n]], pG_gythi[g, y, t, h, i]) + Sum(r.where[r_n[r, n]], pR_rythi[r, y, t, h, i]) \
+                            + Sum(l.where[sel_n[l, n]], pL_lythi[l, y, t, h, i]) - Sum(l.where[rel_n[l, n]], pL_lythi[l, y, t, h, i]) \
+                            + Sum(s.where[s_n[s, n]], pSD_sythi[s, y, t, h, i] - pSC_sythi[s, y, t, h, i]) \
+                            == Sum(d.where[d_n[d, n]], gammaD_dyth[d, y, t, h] * PD_dyi[d,y,i] - pLS_dythi[d, y, t, h, i])
+    con_4e[le, y, t, h, i] = pL_lythi[le, y, t, h, i] == (1.0 / X_l[le]) * (Sum(n.where[sel_n[le, n]], theta_nythi[n, y, t, h, i]) \
+                           - Sum(n.where[rel_n[le, n]], theta_nythi[n, y, t, h, i]))
+    con_4f_lin1[lc, y, t, h, i] = pL_lythi[lc, y, t, h, i] - (1 / X_l[lc]) * (Sum(n.where[sel_n[lc, n]], theta_nythi[n, y, t, h, i]) \
+                                - Sum(n.where[rel_n[lc, n]], theta_nythi[n, y, t, h, i])) <= (1 - vL_ly_prev[lc, y]) * FL
+    con_4f_lin2[lc, y, t, h, i] = pL_lythi[lc, y, t, h, i] - (1 / X_l[lc]) * (Sum(n.where[sel_n[lc, n]], theta_nythi[n, y, t, h, i]) \
+                                - Sum(n.where[rel_n[lc, n]], theta_nythi[n, y, t, h, i])) >= -(1 - vL_ly_prev[lc, y]) * FL
+    con_4g_exist_lin1[le, y, t, h, i] = pL_lythi[le, y, t, h, i] <= PL_l[le]
+    con_4g_exist_lin2[le, y, t, h, i] = pL_lythi[le, y, t, h, i] >= -PL_l[le]
+    con_4g_can_lin1[lc, y, t, h, i] = pL_lythi[lc, y, t, h, i] <= vL_ly_prev[lc, y] * PL_l[lc]
+    con_4g_can_lin2[lc, y, t, h, i] = pL_lythi[lc, y, t, h, i] >= -vL_ly_prev[lc, y] * PL_l[lc]
+    con_4h[s, y, t, i] = eS_sythi[s, y, t, 1, i] == ES_syt0[s, y, t] + (pSC_sythi[s, y, t, 1, i] * etaSC_s[s] \
+                       - (pSD_sythi[s, y, t, 1, i] / etaSD_s[s])) * tau_yth[y, t, 1]
+    con_4i[s, y, t, h, i].where[Ord(h) > 1] = eS_sythi[s, y, t, h, i] == eS_sythi[s, y, t, h.lag(1), i] \
+                + (pSC_sythi[s, y, t, h, i] * etaSC_s[s] - (pSD_sythi[s, y, t, h, i] / etaSD_s[s])) * tau_yth[y, t, h]
+    con_4j[s, y, t, h, i].where[Ord(h) == Card(h)] = ES_syt0[s, y, t] <= eS_sythi[s, y, t, h, i]
+    con_4k1[s, y, t, h, i] = eS_sythi[s, y, t, h, i] <= ES_s_max[s]
+    con_4k2[s, y, t, h, i] = eS_sythi[s, y, t, h, i] >= ES_s_min[s]
+    con_4m1[s, y, t, h, i] = pSC_sythi[s, y, t, h, i] <= uS_syth[s, y, t, h] * PSC_s[s]
+    con_4m2[s, y, t, h, i] = pSC_sythi[s, y, t, h, i] >= 0
+    con_4n1[s, y, t, h, i] = pSD_sythi[s, y, t, h, i] <= (1 - uS_syth[s, y, t, h]) * PSD_s[s]
+    con_4n2[s, y, t, h, i] = pSD_sythi[s, y, t, h, i] >= 0
+    con_4o1[d, y, t, h, i] = pLS_dythi[d, y, t, h, i] <= gammaD_dyth[d, y, t, h] * PD_dyi[d,y,i]  # pD_dy[D,Y]
+    con_4o2[d, y, t, h, i] = pLS_dythi[d, y, t, h, i] >= 0
+    con_4q1[g, y, t, h, i] = pG_gythi[g, y, t, h, i] <= uG_gyth[g, y, t, h] * PG_gyi[g,y,i]  # pG_gy[G,Y]
+    con_4q2[g, y, t, h, i] = pG_gythi[g, y, t, h, i] >= uG_gyth[g, y, t, h] * PG_g_min[g]
+    con_4r1[g, y, t, h, i].where[Ord(h) > 1] = pG_gythi[g, y, t, h, i] - pG_gythi[g, y, t, h.lag(1), i] <= RGU_g[g]
+    con_4r2[g, y, t, h, i].where[Ord(h) > 1] = pG_gythi[g, y, t, h, i] - pG_gythi[g, y, t, h.lag(1), i] >= -RGD_g[g]
+    con_4s1[r, y, t, h, i] = pR_rythi[r, y, t, h, i] <= gammaR_ryth[r, y, t, h] * PR_ryi[r,y,i]  # pR_ry[R,Y]
+    con_4s2[r, y, t, h, i] = pR_rythi[r, y, t, h, i] >= 0
+    con_4t[n, y, t, h, i].where[Ord(n) == 1] = theta_nythi[n, y, t, h, i] == 0
+
 
 olmp_eqns = [OF_olmp, con_1c, con_1d, con_1e, con_4c, con_4d, con_4e, con_4f_lin1, con_4f_lin2, con_4g_exist_lin1,
              con_4g_exist_lin2, con_4g_can_lin1, con_4g_can_lin2, con_4h, con_4i, con_4j, con_4k1, con_4k2, con_4m1,
@@ -370,56 +387,56 @@ ilmp_eqns = [con_2b, con_2c, con_2d, con_2e, con_2j, con_2k, con_2l, con_2m, con
              con_5j, con_5k, con_5l, con_5m, con_5n, con_5o, con_5p, con_5qrs]
 
 # Inner-loop subproblem OF and constraints
-OF_ilsp = Equation(m, name="OF_ilsp", type="regular") # Double-check
-OF_ilsp[...] = min_op_cost_y == Sum(t, Sum(h, sigma_yt[yi,t]*tau_yth[yi,t,h]*(Sum(g, cG_gy[g,yi]*pG_gyth[g,yi,t,h]) +\
-          Sum(r, CR_r[r]*(gammaR_ryth[r,yi,t,h]*pR_ry[r,yi]-pR_ryth[r,yi,t,h])) + Sum(d, CLS_d[d]*pLS_dyth[d,yi,t,h]))))
-con_6b = Equation(m, name="con_6b", domain=[n, t, h])
-con_6b[n,t,h] = Sum(g, pG_gyth[g,yi,t,h]) + Sum(r, pR_ryth[r,yi,t,h]) + Sum(l.where[rel_n[l,n]], pL_lyth[l,yi,t,h]) -\
-                Sum(l.where[sel_n[l,n]], pL_lyth[l,yi,t,h]) + Sum(s, pSD_syth[s,yi,t,h]-pSC_syth[s,yi,t,h]) ==\
-                Sum(d, gammaD_dyth[d,yi,t,h]*pD_dy[d,yi]-pLS_dyth[d,yi,t,h])
-con_6c = Equation(m, name="con_6c", domain=[lc, t, h])
-con_6c[lc,t,h] = pL_lyth[lc,yi,t,h] == (vL_ly_prev[lc,yi]/X_l[lc])*(Sum(n.where[sel_n[lc,n]], theta_nyth[n,yi,t,h])-\
-                 Sum(n.where[rel_n[lc,n]], theta_nyth[n,yi,t,h]))
-con_6d = Equation(m, name="con_6d", domain=[d, t, h])
-con_6d[d,t,h] = pLS_dyth[d,yi,t,h] <= gammaD_dyth[d,yi,t,h]*pD_dy[d,yi]
-con_6e1 = Equation(m, name="con_6e1", domain=[g, t, h])
-con_6e1 = pG_gyth[g,yi,t,h] <= uG_gyth[g,yi,t,h]*pG_gy[g,yi]
-con_6e2 = Equation(m, name="con_6e2", domain=[g, t, h])
-con_6e2 = pG_gyth[g,yi,t,h] >= uG_gyth[g,yi,t,h]*PG_g_min[g]
-con_6f = Equation(m, name="con_6f", domain=[r, t, h])
-con_6f[r,t,h] = pR_ryth[r,yi,t,h] <= gammaR_ryth[r,yi,t,h]*pR_ry[r,yi]
+# OF_ilsp = Equation(m, name="OF_ilsp", type="regular") # Double-check
+# OF_ilsp[...] = min_op_cost_y == Sum(t, Sum(h, sigma_yt[yi,t] * tau_yth[yi,t,h] * (Sum(g, cG_gy[g,yi] * pG_gythi[g,yi,t,h,i_il]) + \
+#                                                                                   Sum(r, CR_r[r] * (gammaR_ryth[r,yi,t,h] * pR_ry[r,yi] - pR_rythi[r,yi,t,h,i_il])) + Sum(d, CLS_d[d] * pLS_dythi[d,yi,t,h,i_il]))))
+# con_6b = Equation(m, name="con_6b", domain=[n, t, h])
+# con_6b[n,t,h] = Sum(g, pG_gythi[g,yi,t,h]) + Sum(r, pR_rythi[r,yi,t,h]) + Sum(l.where[rel_n[l,n]], pL_lythi[l,yi,t,h]) - \
+#                 Sum(l.where[sel_n[l,n]], pL_lythi[l,yi,t,h]) + Sum(s, pSD_sythi[s,yi,t,h] - pSC_sythi[s,yi,t,h]) == \
+#                 Sum(d, gammaD_dyth[d,yi,t,h] * pD_dy[d,yi] - pLS_dythi[d,yi,t,h])
+# con_6c = Equation(m, name="con_6c", domain=[lc, t, h])
+# con_6c[lc,t,h] = pL_lythi[lc,yi,t,h] == (vL_ly_prev[lc,yi] / X_l[lc]) * (Sum(n.where[sel_n[lc,n]], theta_nythi[n,yi,t,h]) - \
+#                                                                          Sum(n.where[rel_n[lc,n]], theta_nythi[n,yi,t,h]))
+# con_6d = Equation(m, name="con_6d", domain=[d, t, h])
+# con_6d[d,t,h] = pLS_dythi[d,yi,t,h] <= gammaD_dyth[d,yi,t,h] * pD_dy[d,yi]
+# con_6e1 = Equation(m, name="con_6e1", domain=[g, t, h])
+# con_6e1 = pG_gythi[g,yi,t,h] <= uG_gyth[g,yi,t,h] * pG_gy[g,yi]
+# con_6e2 = Equation(m, name="con_6e2", domain=[g, t, h])
+# con_6e2 = pG_gythi[g,yi,t,h] >= uG_gyth[g,yi,t,h] * PG_g_min[g]
+# con_6f = Equation(m, name="con_6f", domain=[r, t, h])
+# con_6f[r,t,h] = pR_rythi[r,yi,t,h] <= gammaR_ryth[r,yi,t,h] * pR_ry[r,yi]
+#
+# con_3c = Equation(m, name="con_3c", domain=[lc, t, h])
+# con_3c[lc,t,h] = pL_lythi[lc,yi,t,h] == (1.0 / X_l[lc]) * (Sum(n.where[sel_n[lc,n]], theta_nythi[n,yi,t,h]) - \
+#                                                            Sum(n.where[rel_n[lc,n]], theta_nythi[n,yi,t,h]))
+# con_3e1 = Equation(m, name="con_3e1", domain=[l, t, h])
+# con_3e1[l,t,h] = pL_lythi[l,yi,t,h] <= PL_l[l]
+# con_3e2 = Equation(m, name="con_3e2", domain=[l, t, h])
+# con_3e2[l,t,h] = pL_lythi[l,yi,t,h] <= -PL_l[l]
+# con_3fg = Equation(m, name="con_3fg", domain=[s, t, h])
+# con_3fg[s,t,h] = eS_sythi[s,yi,t,h] == eS_sythi[s,yi,t,h.lag(1)] + (pSC_sythi[s,yi,t,h] * etaSC_s[s] - (pSD_sythi[s,yi,t,h] / etaSD_s[s])) * tau_yth[yi,t,h]
+# con_3fg[s,t,h].where[Ord(h)==1] = eS_sythi[s,yi,t,h] == ES_syt0[s,yi,t] + (pSC_sythi[s,yi,t,h] * etaSC_s[s] - (pSD_sythi[s,yi,t,h] / etaSD_s[s])) * tau_yth[yi,t,h]
+# con_3h = Equation(m, name="con_3h", domain=[s, t, h])
+# con_3h[s,t,h] = eS_sythi[s,yi,t,h] >= ES_syt0[s,yi,t]
+# con_3i1 = Equation(m, name="con_3i1", domain=[s, t, h])
+# con_3i1[s,t,h] = eS_sythi[s,yi,t,h] <= ES_s_max[s]
+# con_3i2 = Equation(m, name="con_3i2", domain=[s, t, h])
+# con_3i2[s,t,h] = eS_sythi[s,yi,t,h] >= ES_s_min[s]
+# # con_3j = Equation(m, name="con_3j", domain=[n, t, h])
+# con_3k = Equation(m, name="con_3k", domain=[s, t, h])
+# con_3k[s,t,h] = pSC_sythi[s,yi,t,h] <= uS_syth[s,yi,t,h] * PSC_s[s]
+# con_3l = Equation(m, name="con_3l", domain=[s, t, h])
+# con_3l[s,t,h] = pSD_sythi[s,yi,t,h] <= (1 - uS_syth[s,yi,t,h]) * PSD_s[s]
+# # con_3n = Equation(m, name="con_3n", domain=[n, t, h])
+# con_3p1 = Equation(m, name="con_3p1", domain=[g, t, h])
+# con_3p1[g,t,h] = pG_gythi[g,yi,t,h] - pG_gythi[g,yi,t,h.lag(1)] <= RGU_g[g]
+# con_3p2 = Equation(m, name="con_3p2", domain=[g, t, h])
+# con_3p2[g,t,h] = pG_gythi[g,yi,t,h] - pG_gythi[g,yi,t,h.lag(1)] >= -RGD_g[g]
+# con_3r = Equation(m, name="con_3r", domain=[n, t, h]) # n == ref bus
+# con_3r[n,t,h].where[Ord(n)==1] = theta_nythi[n,yi,t,h] == 0
 
-con_3c = Equation(m, name="con_3c", domain=[lc, t, h])
-con_3c[lc,t,h] = pL_lyth[lc,yi,t,h] == (1.0/X_l[lc])*(Sum(n.where[sel_n[lc,n]], theta_nyth[n,yi,t,h])-\
-                 Sum(n.where[rel_n[lc,n]], theta_nyth[n,yi,t,h]))
-con_3e1 = Equation(m, name="con_3e1", domain=[l, t, h])
-con_3e1[l,t,h] = pL_lyth[l,yi,t,h] <= PL_l[l]
-con_3e2 = Equation(m, name="con_3e2", domain=[l, t, h])
-con_3e2[l,t,h] = pL_lyth[l,yi,t,h] <= -PL_l[l]
-con_3fg = Equation(m, name="con_3fg", domain=[s, t, h])
-con_3fg[s,t,h] = eS_syth[s,yi,t,h] == eS_syth[s,yi,t,h.lag(1)] + (pSC_syth[s,yi,t,h]*etaSC_s[s]-(pSD_syth[s,yi,t,h]/etaSD_s[s]))*tau_yth[yi,t,h]
-con_3fg[s,t,h].where[Ord(h)==1] = eS_syth[s,yi,t,h] == ES_syt0[s,yi,t] + (pSC_syth[s,yi,t,h]*etaSC_s[s]-(pSD_syth[s,yi,t,h]/etaSD_s[s]))*tau_yth[yi,t,h]
-con_3h = Equation(m, name="con_3h", domain=[s, t, h])
-con_3h[s,t,h] = eS_syth[s,yi,t,h] >= ES_syt0[s,yi,t]
-con_3i1 = Equation(m, name="con_3i1", domain=[s, t, h])
-con_3i1[s,t,h] = eS_syth[s,yi,t,h] <= ES_s_max[s]
-con_3i2 = Equation(m, name="con_3i2", domain=[s, t, h])
-con_3i2[s,t,h] = eS_syth[s,yi,t,h] >= ES_s_min[s]
-# con_3j = Equation(m, name="con_3j", domain=[n, t, h])
-con_3k = Equation(m, name="con_3k", domain=[s, t, h])
-con_3k[s,t,h] = pSC_syth[s,yi,t,h] <= uS_syth[s,yi,t,h]*PSC_s[s]
-con_3l = Equation(m, name="con_3l", domain=[s, t, h])
-con_3l[s,t,h] = pSD_syth[s,yi,t,h] <= (1-uS_syth[s,yi,t,h])*PSD_s[s]
-# con_3n = Equation(m, name="con_3n", domain=[n, t, h])
-con_3p1 = Equation(m, name="con_3p1", domain=[g, t, h])
-con_3p1[g,t,h] = pG_gyth[g,yi,t,h] - pG_gyth[g,yi,t,h.lag(1)] <= RGU_g[g]
-con_3p2 = Equation(m, name="con_3p2", domain=[g, t, h])
-con_3p2[g,t,h] = pG_gyth[g,yi,t,h] - pG_gyth[g,yi,t,h.lag(1)] >= -RGD_g[g]
-con_3r = Equation(m, name="con_3r", domain=[n, t, h]) # n == ref bus
-con_3r[n,t,h].where[Ord(n)==1] = theta_nyth[n,yi,t,h] == 0
-
-ilsp_eqns = [OF_ilsp, con_6b, con_6c, con_6d, con_6e1, con_6e2, con_6f, con_3c, con_3e1, con_3e2, con_3fg, con_3h,
-             con_3i1, con_3i2, con_3k, con_3l, con_3p1, con_3p2, con_3r]
+# ilsp_eqns = [OF_ilsp, con_6b, con_6c, con_6d, con_6e1, con_6e2, con_6f, con_3c, con_3e1, con_3e2, con_3fg, con_3h,
+#              con_3i1, con_3i2, con_3k, con_3l, con_3p1, con_3p2, con_3r]
 
 ## ADA-based initialization of the inner loop
 # First linear problem OF and constraints
@@ -486,20 +503,72 @@ OLMP_model = Model(
 )
 
 # Test solve for the outer loop master problem
-summary = OLMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_debug.txt"), output=sys.stdout)
-#redirect output to a file
-print("Objective Function Value:  ", round(OLMP_model.objective_value, 3))
-print(vL_ly.records)
-m.write(r'C:\Users\Kevin\OneDrive - McGill University\Research\Sandbox\optimization\multi-year_AROTNEP\results\aro_tnep_results.gdx')
+# summary = OLMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_debug.txt"), output=sys.stdout)
+# #redirect output to a file
+# print("Objective Function Value:  ", round(OLMP_model.objective_value, 3))
+# print(vL_ly.records)
+# m.write(r'C:\Users\Kevin\OneDrive - McGill University\Research\Sandbox\optimization\multi-year_AROTNEP\results\aro_tnep_results.gdx')
+
+# Set values of the uncertain parameters for the given outer loop iteration
+def set_uncertain_params_olmp(j_iter):
+    # At the first iteration, uncertain parameters equal their forecast values
+    if j_iter == 1:
+        CG_gyi[g,y,1] = CG_g_fc[g]
+        PD_dyi[d,y,1] = PD_d_fc[d]
+        PG_gyi[g,y,1] = PG_g_fc[g]
+        PR_ryi[r,y,1] = PR_r_fc[r]
+
+# Solve the relaxed outer-loop master problem
+def solve_olmp_at2(j_iter, lb_o):
+    ro = 1 # Initialize relaxed iteration counter
+    # Solve at least once, until ro == j
+    while ro <= j_iter:
+        # Determine the subset i as a function of j and ro
+        i_range = list(range(j_iter - ro + 1, j_iter + 1))
+        i.records = i_range
+        # Solve the outer-loop master problem
+        rebuild_i_dependent_olmp_eqns() # Rebuild the olmp equations to account for the change in set i
+        summary = OLMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_olmp.txt"),output=sys.stdout)
+        olmp_ov = OLMP_model.objective_value
+        # Exit if ro == j or if optimal value exceeds lb_o, else increment ro and iterate again
+        if ro == j_iter or olmp_ov > lb_o:
+            pass
+        else:
+            ro += 1
+
+    return olmp_ov
 
 
 # SOLUTION PROCEDURE #
-lbo = -999999999999
-ubo = 999999999999
-ol_error = (ubo - lbo) / lbo
-j = 0
-for ol_iter in range(0,5):
-    if ol_error < tol:
+lb_o = -999999999999
+ub_o = 999999999999
+j_iter = 1
+i.setRecords(j.records)
+ol_error = (ub_o - lb_o) / lb_o
+for ol_iter in range(len(j.records)):
+    if ol_error >= tol:
+        # set_uncertain_params_olmp(j_iter)
+        # olmp_ov = solve_olmp_at2(j_iter, lb_o)
+        olmp_ov = 0
+        lb_o = olmp_ov
+        # VL_lyj[l,y,j_iter] = vL_ly.records.level()
+        # VL_lyj[l,y,j_iter] = vL_ly_prev.records.level()
+
+        j_iter += 1
+    elif ol_error < tol:
         pass
-    elif ol_error >= tol:
-        j += 1
+
+j_iter = 1
+ro = 1
+i.setRecords(j.records)
+set_uncertain_params_olmp(j_iter)
+
+i_range = list(range(j_iter - ro + 1, j_iter + 1))
+i.setRecords(i_range)
+# # solve olmp
+rebuild_i_dependent_olmp_eqns()
+summary = OLMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_olmp.txt"),output=sys.stdout)
+print(vL_ly.records.level)
+# vl_vals = vL_ly.records.level
+# VL_lyj[lc,y,j_iter] = vL_ly.records.level
+# VL_lyj_prev[lc,y,j_iter] = vL_ly_prev.records.level()
