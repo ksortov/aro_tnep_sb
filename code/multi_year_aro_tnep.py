@@ -114,6 +114,20 @@ PD_dyo = Parameter(m, name='PD_dyo', domain=[d, y], description="Worst-case real
 PG_gyo = Parameter(m, name='PG_gyo', domain=[g, y], description="Worst-case realization of the capacity of conventional generating unit g for ADA iteration o")
 PR_ryo = Parameter(m, name='PR_ryo', domain=[r, y], description="Worst-case realization of the capacity of renewable generating unit r for ADA iteration o")
 LambdaN_nythvo = Parameter(m, name='LambdaN_nythvo', domain=[n, y, t, h, v], description="Dual variable associated with the power balance equation at bus n for ADA iteration o")
+muD_dythvo_up = Parameter(m, name='muD_dythvo_up', domain=[d, y, t, h, v], description="Dual variable associated with the constraint imposing the upper bound for the unserved demand of load d for ADA iteration o")
+muG_gythvo_lo = Parameter(m, name='muG_gythvo_lo', domain=[g, y, t, h, v], description="Dual variable associated with the constraint imposing the lower bound for the power produced by conventional generating unit g for ADA iteration o")
+muG_gythvo_up = Parameter(m, name='muG_gythvo_up', domain=[g, y, t, h, v], description="Dual variable associated with the constraint imposing the upper bound for the power produced by conventional generating unit g for ADA iteration o")
+muGD_gythvo = Parameter(m, name='muGD_gythvo', domain=[g, y, t, h, v], description="Dual variable associated with the constraint imposing the ramp-down limit of conventional generating unit g, being ℎ greater than 1 for ADA iteration o")
+muGU_gythvo = Parameter(m, name='muGU_gythvo', domain=[g, y, t, h, v], description="Dual variable associated with the constraint imposing the ramp-up limit of conventional generating unit g, being ℎ greater than 1 for ADA iteration o")
+muL_lythvo_lo = Parameter(m, name='muL_lythvo_lo', domain=[l, y, t, h, v], description="Dual variable associated with the constraint imposing the lower bound for the power flow through transmission line l for ADA iteration o")
+muL_lythvo_up = Parameter(m, name='muL_lythvo_up', domain=[l, y, t, h, v], description="Dual variable associated with the constraint imposing the upper bound for the power flow through transmission line l for ADA iteration o")
+muR_rythvo_up = Parameter(m, name='muR_rythvo_up', domain=[r, y, t, h, v], description="Dual variable associated with the constraint imposing the upper bound for the power produced by renewable generating unit r for ADA iteration o")
+muS_sythvo_lo = Parameter(m, name='muS_sythvo_lo', domain=[s, y, t, h, v], description="Dual variable associated with the constraint imposing the lower bound for the energy stored in storage facility s for ADA iteration o")
+muS_sythvo_up = Parameter(m, name='muS_sythvo_up', domain=[s, y, t, h, v], description="Dual variable associated with the constraint imposing the upper bound for the energy stored in storage facility s for ADA iteration o")
+muSC_sythvo_up = Parameter(m, name='muSC_sythvo_up', domain=[s, y, t, h, v], description="Dual variable associated with the constraint imposing the upper bound for the charging power of storage facility s for ADA iteration o")
+muSD_sythvo_up = Parameter(m, name='muSD_sythvo_up', domain=[s, y, t, h, v], description="Dual variable associated with the constraint imposing the upper bound for the discharging power of storage facility s for ADA iteration o")
+PhiS_sytvo = Parameter(m, name='PhiS_sytvo', domain=[s, y, t, v], description="Dual variable associated with the energy stored in storage facility s at the first RTP of RD for ADA iteration o")
+PhiS_sytvo_lo = Parameter(m, name='PhiS_sytvo_lo', domain=[s, y, t, v], description="Dual variable associated with the constraint imposing the lower bound for the energy stored in storage facility s at the last RTP of RD for ADA iteration o")
 VL_lyj = Parameter(m, name='VL_lyj', domain=[lc, y], description="Binary variable that is equal to 1 if candidate transmission line l is built in year y, which is otherwise 0, for outer loop iteration j")
 VL_lyj_prev = Parameter(m, name='VL_lyj_prev', domain=[lc, y], description="Binary variable that is equal to 1 if candidate transmission line l is built in year y or in previous years, which is otherwise 0, for outer loop iteration j")
 UG_gythv = Parameter(m, name='UG_gythv', domain=[g, y, t, h, v], description="Binary variable used to model the commitment status of conventional unit g, for relaxed inner loop iteration v")
@@ -123,9 +137,11 @@ US_sythv = Parameter(m, name='US_sythv', domain=[s, y, t, h, v], description="Bi
 # Optimization variables
 theta_nythi = Variable(m, name="theta_nythi", domain=[n, y, t, h, i], description="Voltage angle at bus n")
 xi_y = Variable(m, name='xi_y', domain=[y], description="Auxiliary variable of the inner-loop master problem")
+xi = Variable(m, name='xi', description="Auxiliary variable of the inner-loop master problem")
 xiP_y = Variable(m, name='xiP_y', domain=[y], description="Auxiliary variable of the first problem solved at each iteration of the ADA when it is applied to the inner-loop master problem")
 xiP = Variable(m, name='xiP', description="Auxiliary variable of the first problem solved at each iteration of the ADA when it is applied to the inner-loop master problem")
 xiQ_y = Variable(m, name='xiQ_y', domain=[y], description="Auxiliary variable of the second problem solved at each iteration of the ADA when it is applied to the inner-loop master problem")
+xiQ = Variable(m, name='xiQ', description="Auxiliary variable of the second problem solved at each iteration of the ADA when it is applied to the inner-loop master problem")
 rho_y = Variable(m, name='rho_y', domain=[y], description="Auxiliary variable of the outer-loop master problem")
 aD_dy = Variable(m, type='positive', name='aD_dy', domain=[d, y], description="Continuous variable associated with the deviation that the peak power consumption of load d can experience from its forecast value in year y")
 aGC_gy = Variable(m, type='positive', name='aGC_gy', domain=[g, y], description="Continuous variable associated with the deviation that the marginal production cost of conventional generating unit g can experience from its forecast value in year y")
@@ -288,10 +304,7 @@ con_2d = Equation(m, name="con_2d", domain=[g, y])
 con_2d[g,y] = pG_gy[g,y] == PG_g_fc[g] * power(1 + zetaGP_g_fc[g], y.val - 1) - PG_g_max[g] * power(1 + zetaGP_g_max[g], y.val - 1) * zGP_gy[g,y]
 con_2e = Equation(m, name="con_2e", domain=[r, y])
 con_2e[r,y] = pR_ry[r,y] == PR_r_fc[r] * power(1 + zetaR_r_fc[r], y.val - 1) - PR_r_max[r] * power(1 + zetaR_r_max[r], y.val - 1) * zR_ry[r,y]
-# con_2f = Equation(m, name="con_2f", domain=[G,Y])
-# con_2g = Equation(m, name="con_2g", domain=[D,Y])
-# con_2h = Equation(m, name="con_2h", domain=[G,Y])
-# con_2i = Equation(m, name="con_2i", domain=[R,Y])
+# con_2f, con_2g, con_2h, con_2i set z variables to binary type
 con_2j = Equation(m, name="con_2j", domain=[y])
 con_2j[y] = Sum(g, zGC_gy[g,y]) <= GammaGC
 con_2k = Equation(m, name="con_2k", domain=[y])
@@ -330,7 +343,6 @@ con_5c_lin_i2 = Equation(m, name="con_5c_lin_i2", domain=[r, t, h, v])
 con_5d = Equation(m, name="con_5d", domain=[g, t, v])
 con_5e = Equation(m, name="con_5e", domain=[g, t, h, v])
 con_5f = Equation(m, name="con_5f", domain=[g, t, v])
-con_5def = Equation(m, name="con_5def", domain=[g, t, h, v])
 con_5g = Equation(m, name="con_5g", domain=[d, t, h, v])
 con_5h = Equation(m, name="con_5h", domain=[r, t, h, v])
 con_5i = Equation(m, name="con_5i", domain=[le, t, h, v])
@@ -344,19 +356,15 @@ con_5p = Equation(m, name="con_5p", domain=[n,t,h,v]) # N == ref bus
 con_5q = Equation(m, name="con_5q", domain=[s,t,v])
 con_5r = Equation(m, name="con_5r", domain=[s,t,h,v])
 con_5s = Equation(m, name="con_5s", domain=[s,t,v])
-con_5qrs = Equation(m, name="con_5qrs", domain=[s,t,h,v])
-
-ilmp_eqns = [con_2b, con_2c, con_2d, con_2e, con_2j, con_2k, con_2l, con_2m, con_2n, con_5c_lin_a, con_5c_lin_b1,
-             con_5c_lin_b2, con_5c_lin_c1, con_5c_lin_c2, con_5c_lin_d, con_5c_lin_e1, con_5c_lin_e2, con_5c_lin_f,
-             con_5c_lin_g1, con_5c_lin_g2, con_5c_lin_h, con_5c_lin_i1, con_5c_lin_i2, con_5def, con_5g, con_5h, con_5i,
-             con_5j, con_5k, con_5l, con_5m, con_5n, con_5o, con_5p, con_5qrs]
+ilmp_obj_var = Equation(m, name="ilmp_obj_var")
 
 def build_ilmp_eqns(yi):
-    con_5c_lin_a[v] = xi_y[yi] <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h] * (PD_d_fc[d]*power(1+zetaD_d_fc[d], yi-1)\
+    ilmp_obj_var[...] = xi_y[yi] == xi
+    con_5c_lin_a[v] = xi <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h] * (PD_d_fc[d]*power(1+zetaD_d_fc[d], yi-1)\
     * Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,v]) + PD_d_max[d]*power(1+zetaD_d_max[d], yi-1) * alphaD_dyth[d,yi,t,h]))\
     - Sum(l, PL_l[l]*(muL_lythv_lo[l,yi,t,h,v] + muL_lythv_up[l,yi,t,h,v])) \
-    - Sum(s, uS_syth[s,yi,t,h]*PSC_s[s]*muSC_sythv_up[s,yi,t,h,v] + (1-uS_syth[s,yi,t,h])*PSD_s[s]*muSD_sythv_up[s,yi,t,h,v] - ES_s_min[s]*muS_sythv_lo[s,yi,t,h,v] + ES_s_max[s]*muS_sythv_up[s,yi,t,h,v])\
-    + Sum(g, uG_gyth[g,yi,t,h]*(PG_g_min[g]*muG_gythv_lo[g,yi,t,h,v] - (PG_g_fc[g]*power(1-zetaGP_g_fc[g], yi-1)*muG_gythv_up[g,yi,t,h,v] - PG_g_max[g]*power(1+zetaGP_g_max[g], yi-1)*alphaGP_gyth_up[g,yi,t,h]))) \
+    - Sum(s, US_sythv[s,yi,t,h,v]*PSC_s[s]*muSC_sythv_up[s,yi,t,h,v] + (1-US_sythv[s,yi,t,h,v])*PSD_s[s]*muSD_sythv_up[s,yi,t,h,v] - ES_s_min[s]*muS_sythv_lo[s,yi,t,h,v] + ES_s_max[s]*muS_sythv_up[s,yi,t,h,v])\
+    + Sum(g, UG_gythv[g,yi,t,h,v]*(PG_g_min[g]*muG_gythv_lo[g,yi,t,h,v] - (PG_g_fc[g]*power(1-zetaGP_g_fc[g], yi-1)*muG_gythv_up[g,yi,t,h,v] - PG_g_max[g]*power(1+zetaGP_g_max[g], yi-1)*alphaGP_gyth_up[g,yi,t,h]))) \
     - Sum(r, gammaR_ryth[r,yi,t,h]*(PR_r_fc[r]*power(1+zetaR_r_fc, yi-1)*muR_rythv_up[r,yi,t,h,v] - PR_r_max[r]*power(1+zetaR_r_max, yi-1)*alphaR_ryth_up[r,yi,t,h]))\
     + Sum(r, sigma_yt[yi,t]*tau_yth[yi,t,h]*CR_r[r]*gammaR_ryth[r,yi,t,h]*(PR_r_fc[r]*power(1+zetaR_r_fc, yi-1) - PR_r_max[r]*power(1+zetaR_r_max, yi-1) * zR_ry[r,yi]))\
     - Sum(d, gammaD_dyth[d,yi,t,h]*(PD_d_fc[d]*power(1+zetaD_d_fc[d], yi-1)*muD_dythv_up[d,yi,t,h,v] + PD_d_max[d]*power(1+zetaD_d_max[d], yi-1)*alphaD_dyth_up[d,yi,t,h]))) \
@@ -376,15 +384,15 @@ def build_ilmp_eqns(yi):
     con_5c_lin_i1[r, t, h, v] = muR_rythv_up[r, yi, t, h, v] - alphaR_ryth_up[r, yi, t, h] <= (1 - zR_ry[r, yi]) * FR_up
     con_5c_lin_i2[r, t, h, v] = muR_rythv_up[r, yi, t, h, v] - alphaR_ryth_up[r, yi, t, h] >= 0
 
-    con_5def[g,t,h,v] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,h,v]) + muG_gythv_lo[g,yi,t,h,v]\
-    - muG_gythv_up[g,yi,t,h,v] + muGD_gythv[g,yi,t,h,v] - muGD_gythv[g,yi,t,h.lead(1),v]\
+    con_5d[g,t,v] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,1,v]) + muG_gythv_lo[g,yi,t,1,v]\
+    - muG_gythv_up[g,yi,t,1,v] - muGD_gythv[g,yi,t,2,v] + muGU_gythv[g,yi,t,2,v]\
+    == sigma_yt[yi,t] * tau_yth[yi, t, 1] * cG_gy[g, yi]
+    con_5e[g,t,h,v].where[(Ord(h)!=1) & (Ord(h)!=Card(h))] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,h,v])\
+    + muG_gythv_lo[g,yi,t,h,v]- muG_gythv_up[g,yi,t,h,v] + muGD_gythv[g,yi,t,h,v] - muGD_gythv[g,yi,t,h.lead(1),v]\
     - muGU_gythv[g,yi,t,h,v] + muGU_gythv[g,yi,t,h.lead(1),v] == sigma_yt[yi,t]*tau_yth[yi,t,h]*cG_gy[g, yi]
-    con_5def[g,t,h,v].where[Ord(h)==1] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,h,v]) + muG_gythv_lo[g,yi,t,h,v]\
-    - muG_gythv_up[g,yi,t,h,v] - muGD_gythv[g,yi,t,h.lead(1),v] + muGU_gythv[g,yi,t,h.lead(1),v]\
-    == sigma_yt[yi,t] * tau_yth[yi, t, h] * cG_gy[g, yi]
-    con_5def[g,t,h,v].where[Ord(h)==Card(h)] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,h,v]) +  muG_gythv_lo[g,yi,t,h,v]\
-    - muG_gythv_up[g,yi,t,h,v] + muGD_gythv[g,yi,t,h,v] - muGU_gythv[g, yi, t, h, v]\
-    == sigma_yt[yi, t] * tau_yth[yi, t, h] * cG_gy[g, yi]
+    con_5f[g,t,v] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,8,v]) +  muG_gythv_lo[g,yi,t,8,v]\
+    - muG_gythv_up[g,yi,t,8,v] + muGD_gythv[g,yi,t,8,v] - muGU_gythv[g, yi, t, 8, v]\
+    == sigma_yt[yi, t] * tau_yth[yi, t, 8] * cG_gy[g, yi]
     con_5g[d,t,h,v] = Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,v])-muD_dythv_up[d, yi, t, h, v]\
     <= sigma_yt[yi, t] * tau_yth[yi, t, h] * CLS_d[d]
     con_5h[r,t,h,v] = Sum(n.where[r_n[r,n]], lambdaN_nythv[n,yi,t,h,v]) - muR_rythv_up[r,yi,t,h,v]\
@@ -393,12 +401,12 @@ def build_ilmp_eqns(yi):
     + muL_lythv_exist[le, yi, t, h, v] + muL_lythv_lo[le, yi, t, h, v] - muL_lythv_up[le, yi, t, h, v] == 0
     con_5j[lc,t,h,v] = Sum(n.where[rel_n[lc,n]], lambdaN_nythv[n,yi,t,h,v]) - Sum(n.where[sel_n[lc,n]], lambdaN_nythv[n,yi,t,h,v]) \
     + muL_lythv_can[lc,yi,t,h,v] + muL_lythv_lo[lc,yi,t,h,v] - muL_lythv_up[lc,yi,t,h,v] == 0
-    con_5k[s,t,h,v].where[Ord(h)==1] = Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,h,v])\
-    + (tau_yth[yi,t,h]/etaSD_s[s])*PhiS_sytv[s,yi,t,v] - muSD_sythv_up[s,yi,t,h,v] <= 0
+    con_5k[s,t,v] = Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,1,v])\
+    + (tau_yth[yi,t,1]/etaSD_s[s])*PhiS_sytv[s,yi,t,v] - muSD_sythv_up[s,yi,t,1,v] <= 0
     con_5l[s,t,h,v].where[Ord(h)>1] = Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,h,v])\
     + (tau_yth[yi,t,h]/etaSD_s[s])*muS_sythv[s,yi,t,h,v] - muSD_sythv_up[s,yi,t,h,v] <= 0
-    con_5m[s,t,h,v].where[Ord(h)==1] = -Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,h,v])\
-    - etaSC_s[s]*tau_yth[yi,t,h]*PhiS_sytv[s,yi,t,v] - muSC_sythv_up[s,yi,t,h,v] <= 0
+    con_5m[s,t,v] = -Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,1,v])\
+    - etaSC_s[s]*tau_yth[yi,t,1]*PhiS_sytv[s,yi,t,v] - muSC_sythv_up[s,yi,t,1,v] <= 0
     con_5n[s,t,h,v].where[Ord(h)>1] = -Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,h,v])\
     - etaSC_s[s]*tau_yth[yi,t,h]*muS_sythv[s,yi,t,h,v] - muSC_sythv_up[s,yi,t,h,v] <= 0
     con_5o[n, t, h, v].where[Ord(n) > 1] = -Sum(le.where[sel_n[le, n]], muL_lythv_exist[le, yi, t, h, v] / X_l[le])\
@@ -410,9 +418,14 @@ def build_ilmp_eqns(yi):
     - Sum(lc.where[sel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, v])\
     + Sum(lc.where[rel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, v])\
     + phiN_nythv[n, yi, t, h, v] == 0)
-    con_5qrs[s,t,h,v] = muS_sythv[s,yi,t,h,v] - muS_sythv[s,yi,t,h.lead(1),v] + muS_sythv_lo[s,yi,t,h,v] - muS_sythv_up[s,yi,t,h,v] == 0
-    con_5qrs[s,t,h,v].where[Ord(h)==1] = PhiS_sytv[s,yi,t,v] - muS_sythv[s,yi,t,h.lead(1),v] + muS_sythv_lo[s,yi,t,h,v] - muS_sythv_up[s,yi,t,h,v] == 0
-    con_5qrs[s,t,h,v].where[Ord(h)==Card(h)] = muS_sythv[s,yi,t,h,v] + PhiS_sytv_lo[s,yi,t,v] + muS_sythv_lo[s,yi,t,h,v] - muS_sythv_up[s,yi,t,h,v] == 0
+    con_5q[s,t,v] = PhiS_sytv[s,yi,t,v] - muS_sythv[s,yi,t,2,v] + muS_sythv_lo[s,yi,t,1,v] - muS_sythv_up[s,yi,t,1,v] == 0
+    con_5r[s,t,h,v].where[(Ord(h)!=1) & (Ord(h)!=Card(h))] = muS_sythv[s,yi,t,h,v] - muS_sythv[s,yi,t,h.lead(1),v] + muS_sythv_lo[s,yi,t,h,v] - muS_sythv_up[s,yi,t,h,v] == 0
+    con_5s[s,t,v] = muS_sythv[s,yi,t,8,v] + PhiS_sytv_lo[s,yi,t,v] + muS_sythv_lo[s,yi,t,8,v] - muS_sythv_up[s,yi,t,8,v] == 0
+
+ilmp_eqns = [con_2b, con_2c, con_2d, con_2e, con_2j, con_2k, con_2l, con_2m, con_2n, con_5c_lin_a, con_5c_lin_b1,
+             con_5c_lin_b2, con_5c_lin_c1, con_5c_lin_c2, con_5c_lin_d, con_5c_lin_e1, con_5c_lin_e2, con_5c_lin_f,
+             con_5c_lin_g1, con_5c_lin_g2, con_5c_lin_h, con_5c_lin_i1, con_5c_lin_i2, con_5d, con_5e, con_5f, con_5g,
+             con_5h, con_5i, con_5j, con_5k, con_5l, con_5m, con_5n, con_5o, con_5p, con_5q, con_5r, con_5s]
 
 # Inner-loop subproblem OF and constraints
 OF_ilsp = Equation(m, name="OF_ilsp", type="regular") # Double-check
@@ -495,7 +508,6 @@ def build_lp1_eqns(yi):
     + Sum(s, ES_syt0[s,yi,t]*(PhiS_sytv[s,yi,t,v] + PhiS_sytv_lo[s,yi,t,v])) \
     - Sum(h.where[Ord(h)>1], Sum(g, RGD_g[g]*muGD_gythv[g,yi,t,h,v] + RGU_g[g]*muGU_gythv[g,yi,t,h,v])))
 
-    print(min(h.records))
     con_5d[g,t,v] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,1,v]) + muG_gythv_lo[g,yi,t,1,v]\
     - muG_gythv_up[g,yi,t,1,v] - muGD_gythv[g,yi,t,2,v] + muGU_gythv[g,yi,t,2,v]\
     == sigma_yt[yi,t] * tau_yth[yi, t, 1] * cG_gy[g, yi]
@@ -549,10 +561,12 @@ con_8i = Equation(m, name="con_8i")
 con_8j = Equation(m, name="con_8j")
 con_8k = Equation(m, name="con_8k")
 con_8l = Equation(m, name="con_8l", domain=[v])
+lp2_obj_var = Equation(m, name="lp2_obj_var")
 
 lp2_eqns = [con_8b, con_8c, con_8d, con_8e, con_8f, con_8g, con_8h, con_8i, con_8j, con_8k, con_8l]
 
 def build_lp2_eqns(yi):
+    lp2_obj_var[...] = xiQ_y[yi] == xiQ
     con_8b[d] = pD_dy[d, yi] == PD_d_fc[d] * power(1 + zetaD_d_fc[d], yi - 1) + PD_d_max[d] * power(1 + zetaD_d_max[d], yi - 1) * aD_dy[d, yi]
     con_8c[g] = pG_gy[g, yi] == PG_g_fc[g] * power(1 - zetaGP_g_fc[g], yi - 1) - PG_g_max[g] * power(1 + zetaGP_g_max[g], yi - 1) * aGP_gy[g, yi]
     con_8d[r] = pR_ry[r, yi] == PR_r_fc[r] * power(1 + zetaR_r_fc[r], yi - 1) - PR_r_max[r] * power(1 + zetaR_r_max[r], yi - 1) * aR_ry[r, yi]
@@ -563,13 +577,13 @@ def build_lp2_eqns(yi):
     con_8i[...] = Sum(g, aGP_gy[g, yi]) <= GammaGP
     con_8j[...] = Sum(rs, aR_ry[rs, yi]) <= GammaRS
     con_8k[...] = Sum(rw, aR_ry[rw, yi]) <= GammaRW
-    con_8l[v] = xiQ_y[yi] <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d, yi, t, h] * pD_dy[d, yi] * Sum(n.where[d_n[d, n]], LambdaN_nythvo[n, yi, t, h, v]))\
-    - Sum(l, PL_l[l] * (muL_lythv_lo[l, yi, t, h, v] + muL_lythv_up[l, yi, t, h, v])) - Sum(s, uS_syth[s, yi, t, h] * PSC_s[s] * muSC_sythv_up[s, yi, t, h, v]\
-    + (1 - uS_syth[s, yi, t, h]) * PSD_s[s] * muSD_sythv_up[s, yi, t, h, v] - ES_s_min[s] * muS_sythv_lo[s, yi, t, h, v]\
-    + ES_s_max[s] * muS_sythv_up[s, yi, t, h, v]) + Sum(g, uG_gyth[g, yi, t, h] * (PG_g_min[g] * muG_gythv_lo[g, yi, t, h, v] - pG_gy[g, yi] * muG_gythv_up[g, yi, t, h, v]))\
-    - Sum(r, gammaR_ryth[r, yi, t, h] * pR_ry[r, yi] * (muR_rythv_up[r, yi, t, h, v] - sigma_yt[yi, t] * tau_yth[yi, t, h] * CR_r[r]))\
-    - Sum(d, gammaD_dyth[d, yi, t, h] * pD_dy[d, yi] * muD_dythv_up[d, yi, t, h, v])) + Sum(s, ES_syt0[s, yi, t] * (PhiS_sytv[s, yi, t, v] + PhiS_sytv_lo[s, yi, t, v]))\
-    - Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g] * muGD_gythv[g, yi, t, h, v] + RGU_g[g] * muGU_gythv[g, yi, t, h, v])))
+    con_8l[v] = xiQ <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d, yi, t, h] * pD_dy[d, yi] * Sum(n.where[d_n[d, n]], LambdaN_nythvo[n, yi, t, h, v]))\
+    - Sum(l, PL_l[l] * (muL_lythvo_lo[l, yi, t, h, v] + muL_lythvo_up[l, yi, t, h, v])) - Sum(s, US_sythv[s, yi, t, h, v] * PSC_s[s] * muSC_sythvo_up[s, yi, t, h, v]\
+    + (1 - US_sythv[s, yi, t, h, v]) * PSD_s[s] * muSD_sythvo_up[s, yi, t, h, v] - ES_s_min[s] * muS_sythvo_lo[s, yi, t, h, v]\
+    + ES_s_max[s] * muS_sythvo_up[s, yi, t, h, v]) + Sum(g, UG_gythv[g, yi, t, h, v] * (PG_g_min[g] * muG_gythvo_lo[g, yi, t, h, v] - pG_gy[g, yi] * muG_gythvo_up[g, yi, t, h, v]))\
+    - Sum(r, gammaR_ryth[r, yi, t, h] * pR_ry[r, yi] * (muR_rythvo_up[r, yi, t, h, v] - sigma_yt[yi, t] * tau_yth[yi, t, h] * CR_r[r]))\
+    - Sum(d, gammaD_dyth[d, yi, t, h] * pD_dy[d, yi] * muD_dythvo_up[d, yi, t, h, v])) + Sum(s, ES_syt0[s, yi, t] * (PhiS_sytvo[s, yi, t, v] + PhiS_sytvo_lo[s, yi, t, v]))\
+    - Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g] * muGD_gythvo[g, yi, t, h, v] + RGU_g[g] * muGU_gythvo[g, yi, t, h, v])))
 
 # MODELS #
 OLMP_model = Model(
@@ -606,16 +620,16 @@ LP2_model = Model(
     equations=lp2_eqns,
     problem='MIP',
     sense='max',
-    objective=xiQ_y,
+    objective=xiQ,
 )
 ILMP_model = Model(
     m,
-    name="ILSP",
+    name="ILMP",
     description="Inner-loop mster problem",
     equations=ilmp_eqns,
     problem='MIP',
     sense='max',
-    objective=xi_y,
+    objective=xi,
 )
 
 # Test solve for the outer loop master problem
@@ -633,30 +647,55 @@ def set_uncertain_params_olmp(j_iter):
         PD_dyi[d,y,j_iter] = PD_d_fc[d]
         PG_gyi[g,y,j_iter] = PG_g_fc[g]
         PR_ryi[r,y,j_iter] = PR_r_fc[r]
+    else:
+        df_cG = cG_gy.l.records
+        df_pD = pD_dy.l.records
+        df_pG = pG_gy.l.records
+        df_pR = pR_ry.l.records
+        df_cG['i'] = str(j_iter)
+        df_pD['i'] = str(j_iter)
+        df_pG['i'] = str(j_iter)
+        df_pR['i'] = str(j_iter)
+        df_cG_ord = df_cG[['g', 'y', 'i', 'level']]
+        df_pD_ord = df_pD[['d', 'y', 'i', 'level']]
+        df_pG_ord = df_pG[['g', 'y', 'i', 'level']]
+        df_pR_ord = df_pR[['r', 'y', 'i', 'level']]
+        CG_gyi.setRecords(df_cG_ord[df_cG_ord['i'] == str(j_iter)])
+        PD_dyi.setRecords(df_pD_ord[df_pD_ord['i'] == str(j_iter)])
+        PG_gyi.setRecords(df_pG_ord[df_pG_ord['i'] == str(j_iter)])
+        PR_ryi.setRecords(df_pR_ord[df_pR_ord['i'] == str(j_iter)])
 
 # Set values of the uncertain parameters for the given inner loop iteration
-def set_uncertain_params_ilsp(k_iter):
+def set_uncertain_params_ilsp(k_iter, is_ada):
     # At the first iteration, uncertain parameters equal their forecast values
-    if k_iter == 1:
+    if is_ada and k_iter == 1:
         CG_gyk[g,y] = CG_g_fc[g]
         PD_dyk[d,y] = PD_d_fc[d]
         PG_gyk[g,y] = PG_g_fc[g]
         PR_ryk[r,y] = PR_r_fc[r]
+    else:
+        CG_gyk.setRecords(cG_gy.l.records)
+        PD_dyk.setRecords(pD_dy.l.records)
+        PG_gyk.setRecords(pG_gy.l.records)
+        PR_ryk.setRecords(pR_ry.l.records)
 
 # Solve the relaxed outer-loop master problem
-def solve_olmp_at2(j_iter, lb_o):
+def solve_olmp_relaxed(j_iter, lb_o):
     ro = 1 # Initialize relaxed iteration counter
     # Solve at least once, until ro == j
     while ro <= j_iter:
         # Determine the subset i as a function of j and ro
         i_range = list(range(j_iter - ro + 1, j_iter + 1))
-        i.records = i_range
+        i.setRecords(i_range)
         # Solve the outer-loop master problem
         build_olmp_eqns() # Rebuild the olmp equations to account for the change in set i
         OLMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_olmp.txt"),output=sys.stdout)
+        VL_lyj.setRecords(vL_ly.l.records)
+        VL_lyj_prev.setRecords(vL_ly_prev.l.records)
         olmp_ov = OLMP_model.objective_value
         # Exit if ro == j or if optimal value exceeds lb_o, else increment ro and iterate again
         if ro == j_iter or olmp_ov > lb_o:
+            print("Relaxed OLMP iteration equals outer-loop iteration or LBO has increased --> Exit OLMP")
             break
         else:
             ro += 1
@@ -664,16 +703,9 @@ def solve_olmp_at2(j_iter, lb_o):
     return olmp_ov
 
 # Solve the inner-loop subproblem
-def solve_ilsp(y_iter, j_iter):
+def solve_ilsp(y_iter, j_iter, k_iter):
     build_ilsp_eqns(y_iter, j_iter) # Rebuild the ilsp equations for the given year and outer loop iteration j
     ILSP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_ilsp.txt"),output=sys.stdout)
-    ilsp_ov = ILSP_model.objective_value
-
-    return ilsp_ov
-
-# Solve the inner-loop master problem by using ADA
-def solve_ilmp_ada(y_iter, k_iter, tol):
-    # Set binary decision variables to the last solved value for the given inner loop iteration
     df_uG = uG_gyth.l.records
     df_uS = uS_syth.l.records
     df_uG['v'] = str(k_iter)
@@ -681,8 +713,17 @@ def solve_ilmp_ada(y_iter, k_iter, tol):
     df_uG_ord = df_uG[['g', 'y', 't', 'h', 'v', 'level']]
     df_uS_ord = df_uS[['s', 'y', 't', 'h', 'v', 'level']]
     UG_gythv.setRecords(df_uG_ord[(df_uG_ord['y'] == str(y_iter)) & (df_uG_ord['v'] == str(k_iter))])
-    print(UG_gythv.records)
-    US_sythv.setRecords(df_uS[(df_uS['y'] == y_iter) & (df_uS['v'] == k_iter)])
+    US_sythv.setRecords(df_uS_ord[(df_uS_ord['y'] == str(y_iter)) & (df_uS_ord['v'] == str(k_iter))])
+    ilsp_ov = ILSP_model.objective_value
+
+    return ilsp_ov
+
+# Solve the inner-loop master problem by using ADA
+def solve_ilmp_ada(y_iter, k_iter, tol):
+    build_lp1_eqns(y_iter)
+    build_lp2_eqns(y_iter)
+    # Set binary decision variables to the last solved value for the given inner loop iteration
+    ada_ov = 0
     o_iter = 1
     for ada_iter in range(5):
         if o_iter == 1:
@@ -690,26 +731,65 @@ def solve_ilmp_ada(y_iter, k_iter, tol):
             PG_gyo[g,y] = PG_g_fc[g]
             PR_ryo[r,y] = PR_r_fc[r]
         LP1_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_lp1.txt"),output=sys.stdout)
-        LambdaN_nythvo[n,y_iter,t,h,k_iter] = lambdaN_nythv[n,y_iter,t,h,k_iter]
+        LambdaN_nythvo.setRecords(lambdaN_nythv.l.records)
+        muD_dythvo_up.setRecords(muD_dythv_up.l.records)
+        muG_gythvo_lo.setRecords(muG_gythv_lo.l.records)
+        muG_gythvo_up.setRecords(muG_gythv_up.l.records)
+        muGD_gythvo.setRecords(muGD_gythv.l.records)
+        muGU_gythvo.setRecords(muGU_gythv.l.records)
+        muL_lythvo_lo.setRecords(muL_lythv_lo.l.records)
+        muL_lythvo_up.setRecords(muL_lythv_up.l.records)
+        muR_rythvo_up.setRecords(muR_rythv_up.l.records)
+        muS_sythvo_lo.setRecords(muS_sythv_lo.l.records)
+        muS_sythvo_up.setRecords(muS_sythv_up.l.records)
+        muSC_sythvo_up.setRecords(muSC_sythv_up.l.records)
+        muSD_sythvo_up.setRecords(muSD_sythv_up.l.records)
+        PhiS_sytvo.setRecords(PhiS_sytv.l.records)
+        PhiS_sytvo_lo.setRecords(PhiS_sytv_lo.l.records)
         lp1_ov = LP1_model.objective_value
 
         LP2_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_lp2.txt"),output=sys.stdout)
-        PD_dyo[d,y] = pD_dy[d, y]
-        PG_gyo[g,y] = pG_gy[g, y]
-        PR_ryo[r,y] = pR_ry[r, y]
+        PD_dyo.setRecords(pD_dy.l.records)
+        PG_gyo.setRecords(pG_gy.l.records)
+        PR_ryo.setRecords(pR_ry.l.records)
         lp2_ov = LP2_model.objective_value
 
         if (abs(lp1_ov - lp2_ov) / min(lp1_ov, lp2_ov)) < tol:
             print("ADA finished in {} iterations".format(o_iter))
             break
         else:
+            print("ADA iteration {} finished, incrementing iteration counter".format(o_iter))
             o_iter += 1
-    return 42
+            if o_iter == max(range(5)):
+                print("ADA not solved in max number of iterations")
+        ada_ov = min(lp1_ov, lp2_ov)
+
+    return ada_ov
+
+# Solve the relaxed inner-loop master problem
+def solve_ilmp_relaxed(y_iter, k_iter, ub_i):
+    ri = 1 # Initialize relaxed iteration counter
+    # Solve at least once, until ri == k
+    while ri <= k_iter:
+        # Determine the subset v as a function of k and ri
+        v_range = list(range(k_iter - ri + 1, k_iter + 1))
+        v.setRecords(v_range)
+        # Solve the inner-loop master problem
+        build_ilmp_eqns(y_iter) # Rebuild the ilmp equations to account for the change in set v
+        ILMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_ilmp.txt"),output=sys.stdout)
+        ilmp_ov = ILMP_model.objective_value
+        # Exit if ri == k or if optimal value is less than ub_i, else increment ri and iterate again
+        if ri == k_iter or ilmp_ov < ub_i:
+            print("Relaxed ILMP iteration equals inner-loop iteration or UBI has decreased --> Exit ILMP")
+            break
+        else:
+            ri += 1
+
+    return ilmp_ov
 
 # SOLUTION PROCEDURE #
 lb_o = -999999999999
 ub_o = 999999999999
-ol_error = (ub_o - lb_o) / lb_o
 VL_lyjm1_rec = None
 VL_lyjm1_prev_rec = None
 j_iter = 1
@@ -717,68 +797,103 @@ j_iter = 1
 for ol_iter in range(5):
     j.setRecords(list(range(1, j_iter+1)))
     i.setRecords(j.records)
-    if ol_error >= tol:
-        # set_uncertain_params_olmp(j_iter)
-        # lb_o = solve_olmp_at2(j_iter, lb_o)
-        lb_o = 0
-        # VL_lyj.setRecords(vL_ly.l.records)
-        # VL_lyj_prev.setRecords(vL_ly_prev.l.records)
-        if j > 1:
-            if VL_lyj.records.equals(VL_lyjm1_rec) and VL_lyj_prev.records.equals(VL_lyjm1_prev_rec):
-                # No change in investment decision variables --> End outer loop
-                break
-        else:
-            # INNER LOOP #
-            lb_i = -999999999999
-            ub_i = 999999999999
-            y_iter = 1
-            k_iter = 1
-            for il_iter in range(5):
-                k.setRecords(list(range(1, k_iter+1)))
-                v.setRecords(k.records)
-                # set_uncertain_params_ilsp(k_iter)
-                # lb_i = solve_ilsp(y_iter, j_iter)
-                # Set u_gyth(k) to the optimal solution u_gyth*
-                il_error = (ub_i - lb_i) / lb_i
-                if il_error < tol:
-                    # Inner loop has converged --> End inner loop
-                    break
-                elif il_error >= tol:
-                    # Solve the inner-loop master problem by using ADA (AT1)
-                    break
+    set_uncertain_params_olmp(j_iter)
+    lb_o = solve_olmp_relaxed(j_iter, lb_o)
+    if j_iter > 1:
+        if VL_lyj.records.equals(VL_lyjm1_rec) and VL_lyj_prev.records.equals(VL_lyjm1_prev_rec):
+            print("No change in investment decision variables --> End outer loop")
+            break
+    # INNER LOOP: ILSP + ADA ILMP #
+    lb_i_ada = -999999999999
+    ub_i_ada = 999999999999
+    y_iter = 1
+    k_iter_ada = 1
+    for il_ada_iter in range(5):
+        k.setRecords(list(range(1, k_iter_ada + 1)))
+        v.setRecords(k.records)
+        set_uncertain_params_ilsp(k_iter_ada, is_ada=True)
+        lb_i_ada = solve_ilsp(y_iter, j_iter, k_iter_ada)
+        il_error = (ub_i_ada - lb_i_ada) / lb_i_ada
+        if il_error < tol:
+            print("Inner loop has converged after k = {} iterations --> End inner loop".format(k_iter_ada))
+            break
+        elif il_error >= tol:
+            print("Solve the inner-loop master problem by using ADA (AT1)")
+            ub_i_ada = solve_ilmp_ada(y_iter, k_iter_ada, tol)
+            k_iter_ada += 1
+    # INNER LOOP: ILSP + relaxed ILMP #
+    lb_i_rel = -999999999999
+    ub_i_rel = 999999999999
+    k_iter_rel = 1
+    for il_ada_iter in range(5):
+        k.setRecords(list(range(1, k_iter_rel + 1)))
+        v.setRecords(k.records)
+        set_uncertain_params_ilsp(k_iter_rel, is_ada=False)
+        lb_i_rel = solve_ilsp(y_iter, j_iter, k_iter_rel)
+        il_error = (ub_i_rel - lb_i_rel) / lb_i_rel
+        if il_error < tol:
+            print("Inner loop has converged after k = {} iterations --> End inner loop".format(k_iter_rel))
+            break
+        elif il_error >= tol:
+            print("Solve the inner-loop master problem by using ADA (AT1)")
+            ub_i_rel = solve_ilmp_relaxed(y_iter, k_iter_rel, tol)
+            k_iter_rel += 1
 
-
+    vL_vals = vL_ly.l.records
+    IL_vals = IL_l.records
+    IL_vals.columns = ['lc', 'value']
+    merge = pd.merge(vL_vals, IL_vals, on='lc')
+    merge['product'] = merge['level'] * merge['value']
+    inv_cost = merge['product'].sum()
+    ub_o = ub_i_rel + inv_cost
+    ol_error = (ub_o - lb_o) / lb_o
+    if ol_error < tol:
+        print("Outer loop has converged after j = {} iterations --> End problem".format(j_iter))
+        break
+    else:
         j_iter += 1
-    elif ol_error < tol:
-        # Outer loop has converged --> End outer loop
-        pass
 
 
 # Testing olmp stuff
-j_iter = 1
-ro = 1
-i.setRecords(j.records)
-set_uncertain_params_olmp(j_iter)
-
-i_range = list(range(j_iter - ro + 1, j_iter + 1))
-i.setRecords(i_range)
-# # solve olmp
-build_olmp_eqns()
-OLMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_olmp.txt"),output=sys.stdout)
-VL_lyj.setRecords(vL_ly.l.records)
-VL_lyj_prev.setRecords(vL_ly_prev.l.records)
-
-# Testing ilsp stuff
-k_iter = 1
-set_uncertain_params_ilsp(k_iter)
-build_ilsp_eqns(1, 1)
-ILSP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_ilsp.txt"),output=sys.stdout)
-
-k.setRecords(list(range(1, k_iter+1)))
-v.setRecords(k.records)
-print(v.records)
+# j_iter = 1
+# ro = 1
+# j.setRecords(list(range(1, j_iter+1)))
+# i.setRecords(j.records)
+# set_uncertain_params_olmp(j_iter)
+#
+# i_range = list(range(j_iter - ro + 1, j_iter + 1))
+# i.setRecords(i_range)
+# # # solve olmp
+# build_olmp_eqns()
+# OLMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_olmp.txt"),output=sys.stdout)
+# VL_lyj.setRecords(vL_ly.l.records)
+# VL_lyj_prev.setRecords(vL_ly_prev.l.records)
+#
+# # Testing ilsp stuff
+# k_iter_ada = 1
+# set_uncertain_params_ilsp(k_iter_ada, is_ada=True)
+# build_ilsp_eqns(1, 1)
+# ILSP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_ilsp.txt"),output=sys.stdout)
+#
+# k.setRecords(list(range(1, k_iter_ada + 1)))
+# v.setRecords(k.records)
+# print(v.records)
 # build_ilmp_eqns(1)
-build_lp1_eqns(1)
-build_lp2_eqns(1)
-solve_ilmp_ada(1,k_iter,tol)
+# build_lp1_eqns(1)
+# build_lp2_eqns(1)
+# solve_ilmp_ada(1, k_iter_ada, tol)
+#
+# set_uncertain_params_ilsp(k_iter_ada, is_ada=False)
+# build_ilsp_eqns(1, 1)
+# ILSP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_ilsp.txt"),output=sys.stdout)
+# solve_ilmp_relaxed(1, k_iter_ada, tol)
+#
+# vL_vals = vL_ly.l.records
+# IL_vals = IL_l.records
+# IL_vals.columns = ['lc', 'value']
+# merge = pd.merge(vL_vals, IL_vals, on='lc')
+# merge['product'] = merge['level']*merge['value']
+# print(kappa.records['value'])
+# cost = merge['product'].sum()
+# print(cost)
 
