@@ -3,6 +3,7 @@ from pandas.core.dtypes.inference import is_re
 from input_data_processing import weights, RD1, lines, buses, ESS, CG, RES, loads, years_data, sigma_yt_data, tau_yth_data, gamma_dyth_data, gamma_ryth_data, ES_syt0_data, tol
 from gamspy import Alias, Container, Domain, Equation, Model, Options, Ord, Card, Parameter, Set, Smax, Sum, Variable
 from gamspy.math import power
+from utils import logger
 import pandas as pd
 import sys
 
@@ -49,19 +50,19 @@ yp = Alias(m, name="yp", alias_with=y)
 
 # PARAMETERS #
 # Scalars
-GammaD = Parameter(m, name="GammaD", records=0, description="Uncertainty budget for increased loads")
-GammaGC = Parameter(m, name="GammaGC", records=0, description="Uncertainty budget for increased CG marginal cost")
-GammaGP = Parameter(m, name="GammaGP", records=0, description="Uncertainty budget for decreased CG marginal cost")
-GammaRS = Parameter(m, name="GammaRS", records=0, description="Uncertainty budget for decreased solar capacity")
-GammaRW = Parameter(m, name="GammaRW", records=0, description="Uncertainty budget for decreased wind capacity")
+GammaD = Parameter(m, name="GammaD", records=14, description="Uncertainty budget for increased loads")
+GammaGC = Parameter(m, name="GammaGC", records=8, description="Uncertainty budget for increased CG marginal cost")
+GammaGP = Parameter(m, name="GammaGP", records=8, description="Uncertainty budget for decreased CG marginal cost")
+GammaRS = Parameter(m, name="GammaRS", records=4, description="Uncertainty budget for decreased solar capacity")
+GammaRW = Parameter(m, name="GammaRW", records=4, description="Uncertainty budget for decreased wind capacity")
 kappa = Parameter(m, name="kappa", records=0.1, description="Discount rate")
 IT = Parameter(m, name="IT", records=400000000, description="Investment budget")
 nb_H = Parameter(m, name="nb_H", records=8, description="Number of RTPs of each RD")
-FL = Parameter(m, name="FL", records=9999999, description="Large constant for disjunctive linearization")
-FD = Parameter(m, name="FD", records=9999999, description="Large constant for exact linearization")
-FD_up = Parameter(m, name="FD_up", records=9999999, description="Large constant for exact linearization")
-FG_up = Parameter(m, name="FG_up", records=9999999, description="Large constant for exact linearization")
-FR_up = Parameter(m, name="FR_up", records=9999999, description="Large constant for exact linearization")
+FL = Parameter(m, name="FL", records=99, description="Large constant for disjunctive linearization")
+FD = Parameter(m, name="FD", records=99, description="Large constant for exact linearization")
+FD_up = Parameter(m, name="FD_up", records=99, description="Large constant for exact linearization")
+FG_up = Parameter(m, name="FG_up", records=99, description="Large constant for exact linearization")
+FR_up = Parameter(m, name="FR_up", records=99, description="Large constant for exact linearization")
 
 gammaD_dyth = Parameter(m, name="gammaD_dth", domain=[d, y, t, h], records=gamma_dyth_data, description="Demand factor of load d")
 gammaR_ryth = Parameter(m, name="gammaR_rth", domain=[r, y, t, h], records=gamma_ryth_data, description="Capacity factor of renewable unit r")
@@ -201,21 +202,10 @@ min_op_cost_y = Variable(m, name="max_op_cost_wc", description="Minimized operat
 
 # EQUATIONS #
 # Outer-loop master problem OF and constraints
-# Initialize uncertain parameters to forecast values
-cG_gy[g,y].fx = CG_g_fc[g]
-pD_dy[d,y].fx = PD_d_fc[d]
-pG_gy[g,y].fx = PG_g_fc[g]
-pR_ry[r,y].fx = PR_r_fc[r]
-
 OF_olmp = Equation(m, name="OF_olmp", type="regular")
-OF_olmp[...] = min_inv_cost_wc == Sum(y, rho_y[y] / power(1.0 + kappa, y.val) + \
-                                      (1.0 / power(1.0 + kappa, y.val - 1)) * Sum(lc, IL_l[lc] * vL_ly[lc,y]))
 con_1c = Equation(m, name="con_1c")
-con_1c[...] = Sum(lc, Sum(y, (1.0 / power(1.0 + kappa, y.val - 1)) * IL_l[lc] * vL_ly[lc,y])) <= IT
 con_1d = Equation(m, name="con_1d", domain=[lc])
-con_1d[lc] = Sum(y, vL_ly[lc,y]) <= 1
 con_1e = Equation(m, name="con_1e", domain=[lc, y])
-con_1e[lc,y] = vL_ly_prev[lc,y] == Sum(yp.where[yp.val <= y.val], vL_ly[lc,yp])
 
 con_4c = Equation(m, name="con_4c", domain=[y, i])
 con_4d = Equation(m, name="con_4d", domain=[n, y, t, h, i])
@@ -249,6 +239,12 @@ con_4t = Equation(m, name="con_4t", domain=[n, y, t, h, i]) # N == ref bus
 
 
 def build_olmp_eqns():
+    OF_olmp[...] = min_inv_cost_wc == Sum(y, rho_y[y] / power(1.0 + kappa, y.val) + \
+                                          (1.0 / power(1.0 + kappa, y.val - 1)) * Sum(lc, IL_l[lc] * vL_ly[lc, y]))
+    con_1c[...] = Sum(lc, Sum(y, (1.0 / power(1.0 + kappa, y.val - 1)) * IL_l[lc] * vL_ly[lc, y])) <= IT
+    con_1d[lc] = Sum(y, vL_ly[lc, y]) <= 1
+    con_1e[lc, y] = vL_ly_prev[lc, y] == Sum(yp.where[yp.val <= y.val], vL_ly[lc, yp])
+
     con_4c[y, i] = rho_y[y] >= Sum(t, sigma_yt[y, t] * Sum(h, tau_yth[y, t, h] * (Sum(g, CG_gyi[g,y,i] * pG_gythi[g, y, t, h, i]) \
     + Sum(r, CR_r[r] * (gammaR_ryth[r, y, t, h] * PR_ryi[r,y,i] - pR_rythi[r, y, t, h, i])) \
     + Sum(d, CLS_d[d] * pLS_dythi[d, y, t, h, i]))))
@@ -294,27 +290,17 @@ olmp_eqns = [OF_olmp, con_1c, con_1d, con_1e, con_4c, con_4d, con_4e, con_4f_lin
 
 ## Outer-loop subproblem
 # Inner-loop master problem OF and constraints
-yi = 1
 # OF_ilmp = Equation(m, name="OF_ilmp", type="regular")
-con_2b = Equation(m, name="con_2b", domain=[g, y])
-con_2b[g,y] = cG_gy[g,y] == CG_g_fc[g] * power(1 + zetaGC_g_fc[g], y.val - 1) + CG_g_max[g] * power(1 + zetaGC_g_max[g], y.val - 1) * zGC_gy[g,y]
-con_2c = Equation(m, name="con_2c", domain=[d, y])
-con_2c[d,y] = pD_dy[d,y] == PD_d_fc[d] * power(1 + zetaD_d_fc[d], y.val - 1) + PD_d_max[d] * power(1 + zetaD_d_max[d], y.val - 1) * zD_dy[d,y]
-con_2d = Equation(m, name="con_2d", domain=[g, y])
-con_2d[g,y] = pG_gy[g,y] == PG_g_fc[g] * power(1 + zetaGP_g_fc[g], y.val - 1) - PG_g_max[g] * power(1 + zetaGP_g_max[g], y.val - 1) * zGP_gy[g,y]
-con_2e = Equation(m, name="con_2e", domain=[r, y])
-con_2e[r,y] = pR_ry[r,y] == PR_r_fc[r] * power(1 + zetaR_r_fc[r], y.val - 1) - PR_r_max[r] * power(1 + zetaR_r_max[r], y.val - 1) * zR_ry[r,y]
+con_2b = Equation(m, name="con_2b", domain=[g])
+con_2c = Equation(m, name="con_2c", domain=[d])
+con_2d = Equation(m, name="con_2d", domain=[g])
+con_2e = Equation(m, name="con_2e", domain=[r])
 # con_2f, con_2g, con_2h, con_2i set z variables to binary type
-con_2j = Equation(m, name="con_2j", domain=[y])
-con_2j[y] = Sum(g, zGC_gy[g,y]) <= GammaGC
-con_2k = Equation(m, name="con_2k", domain=[y])
-con_2k[y] = Sum(d, zD_dy[d,y]) <= GammaD
-con_2l = Equation(m, name="con_2l", domain=[y])
-con_2l[y] = Sum(g, zGP_gy[g,y]) <= GammaGP
-con_2m = Equation(m, name="con_2m", domain=[y])
-con_2m[y] = Sum(rs, zR_ry[rs,y]) <= GammaRS
-con_2n = Equation(m, name="con_2n", domain=[y])
-con_2n[y] = Sum(rw, zR_ry[rw,y]) <= GammaRW
+con_2j = Equation(m, name="con_2j")
+con_2k = Equation(m, name="con_2k")
+con_2l = Equation(m, name="con_2l")
+con_2m = Equation(m, name="con_2m")
+con_2n = Equation(m, name="con_2n")
 
 # con_5c = Equation(m, name="con_5c")
 # con_5c[...] = xi_y[yi] <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h] * pD_dy[d,yi] * Sum(n.where[d_n[d,n]], lambdaN_nyth[n,yi,t,h])) - \
@@ -359,6 +345,16 @@ con_5s = Equation(m, name="con_5s", domain=[s,t,v])
 ilmp_obj_var = Equation(m, name="ilmp_obj_var")
 
 def build_ilmp_eqns(yi):
+    con_2b[g] = cG_gy[g, yi] == CG_g_fc[g] * power(1 + zetaGC_g_fc[g], yi - 1) + CG_g_max[g] * power(1 + zetaGC_g_max[g], yi - 1) * zGC_gy[g, yi]
+    con_2c[d] = pD_dy[d, yi] == PD_d_fc[d] * power(1 + zetaD_d_fc[d], yi - 1) + PD_d_max[d] * power(1 + zetaD_d_max[d], yi - 1) * zD_dy[d, yi]
+    con_2d[g] = pG_gy[g, yi] == PG_g_fc[g] * power(1 + zetaGP_g_fc[g], yi - 1) - PG_g_max[g] * power(1 + zetaGP_g_max[g], yi - 1) * zGP_gy[g, yi]
+    con_2e[r] = pR_ry[r, yi] == PR_r_fc[r] * power(1 + zetaR_r_fc[r], yi - 1) - PR_r_max[r] * power(1 + zetaR_r_max[r], yi - 1) * zR_ry[r, yi]
+    con_2j[...] = Sum(g, zGC_gy[g, yi]) <= GammaGC
+    con_2k[...] = Sum(d, zD_dy[d, yi]) <= GammaD
+    con_2l[...] = Sum(g, zGP_gy[g, yi]) <= GammaGP
+    con_2m[...] = Sum(rs, zR_ry[rs, yi]) <= GammaRS
+    con_2n[...] = Sum(rw, zR_ry[rw, yi]) <= GammaRW
+
     ilmp_obj_var[...] = xi_y[yi] == xi
     con_5c_lin_a[v] = xi <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h] * (PD_d_fc[d]*power(1+zetaD_d_fc[d], yi-1)\
     * Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,v]) + PD_d_max[d]*power(1+zetaD_d_max[d], yi-1) * alphaD_dyth[d,yi,t,h]))\
@@ -690,12 +686,14 @@ def solve_olmp_relaxed(j_iter, lb_o):
         # Solve the outer-loop master problem
         build_olmp_eqns() # Rebuild the olmp equations to account for the change in set i
         OLMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_olmp.txt"),output=sys.stdout)
+        if OLMP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible']:
+            raise RuntimeError('OLMP is infeasible at j = {}'.format(j_iter))
         VL_lyj.setRecords(vL_ly.l.records)
         VL_lyj_prev.setRecords(vL_ly_prev.l.records)
         olmp_ov = OLMP_model.objective_value
         # Exit if ro == j or if optimal value exceeds lb_o, else increment ro and iterate again
         if ro == j_iter or olmp_ov > lb_o:
-            print("Relaxed OLMP iteration equals outer-loop iteration or LBO has increased --> Exit OLMP")
+            logger.info("Relaxed OLMP iteration (ro = {}) equals outer-loop iteration (j = {}) or LBO has increased --> Exit OLMP".format(ro, j_iter))
             break
         else:
             ro += 1
@@ -704,8 +702,13 @@ def solve_olmp_relaxed(j_iter, lb_o):
 
 # Solve the inner-loop subproblem
 def solve_ilsp(y_iter, j_iter, k_iter):
+    v_range = list(range(1, k_iter + 1))
+    v.setRecords(v_range)
+
     build_ilsp_eqns(y_iter, j_iter) # Rebuild the ilsp equations for the given year and outer loop iteration j
     ILSP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_ilsp.txt"),output=sys.stdout)
+    if ILSP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible']:
+        raise RuntimeError('ILSP is infeasible at y = {}, j ={}, k = {}'.format(y_iter, j_iter, k_iter))
     df_uG = uG_gyth.l.records
     df_uS = uS_syth.l.records
     df_uG['v'] = str(k_iter)
@@ -719,7 +722,10 @@ def solve_ilsp(y_iter, j_iter, k_iter):
     return ilsp_ov
 
 # Solve the inner-loop master problem by using ADA
-def solve_ilmp_ada(y_iter, k_iter, tol):
+def solve_ilmp_ada(y_iter, j_iter, k_iter, tol):
+    v_range = list(range(1, k_iter + 1))
+    v.setRecords(v_range)
+
     build_lp1_eqns(y_iter)
     build_lp2_eqns(y_iter)
     # Set binary decision variables to the last solved value for the given inner loop iteration
@@ -731,6 +737,8 @@ def solve_ilmp_ada(y_iter, k_iter, tol):
             PG_gyo[g,y] = PG_g_fc[g]
             PR_ryo[r,y] = PR_r_fc[r]
         LP1_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_lp1.txt"),output=sys.stdout)
+        if LP1_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible']:
+            raise RuntimeError('LP1 is infeasible at y = {}, j ={}, k = {}'.format(y_iter, j_iter, k_iter))
         LambdaN_nythvo.setRecords(lambdaN_nythv.l.records)
         muD_dythvo_up.setRecords(muD_dythv_up.l.records)
         muG_gythvo_lo.setRecords(muG_gythv_lo.l.records)
@@ -749,25 +757,27 @@ def solve_ilmp_ada(y_iter, k_iter, tol):
         lp1_ov = LP1_model.objective_value
 
         LP2_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_lp2.txt"),output=sys.stdout)
+        if LP2_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible']:
+            raise RuntimeError('LP2 is infeasible at y = {}, j ={}, k = {}'.format(y_iter, j_iter, k_iter))
         PD_dyo.setRecords(pD_dy.l.records)
         PG_gyo.setRecords(pG_gy.l.records)
         PR_ryo.setRecords(pR_ry.l.records)
         lp2_ov = LP2_model.objective_value
 
         if (abs(lp1_ov - lp2_ov) / min(lp1_ov, lp2_ov)) < tol:
-            print("ADA finished in {} iterations".format(o_iter))
+            logger.info("ADA finished in {} iterations".format(o_iter))
             break
         else:
-            print("ADA iteration {} finished, incrementing iteration counter".format(o_iter))
+            logger.info("ADA iteration {} finished, incrementing iteration counter".format(o_iter))
             o_iter += 1
             if o_iter == max(range(5)):
-                print("ADA not solved in max number of iterations")
+                logger.info("ADA not solved in max number of iterations")
         ada_ov = min(lp1_ov, lp2_ov)
 
     return ada_ov
 
 # Solve the relaxed inner-loop master problem
-def solve_ilmp_relaxed(y_iter, k_iter, ub_i):
+def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i):
     ri = 1 # Initialize relaxed iteration counter
     # Solve at least once, until ri == k
     while ri <= k_iter:
@@ -777,10 +787,12 @@ def solve_ilmp_relaxed(y_iter, k_iter, ub_i):
         # Solve the inner-loop master problem
         build_ilmp_eqns(y_iter) # Rebuild the ilmp equations to account for the change in set v
         ILMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_ilmp.txt"),output=sys.stdout)
+        if ILMP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible']:
+            raise RuntimeError('ILMP is infeasible at y = {}, j ={}, k = {}'.format(y_iter, j_iter, k_iter))
         ilmp_ov = ILMP_model.objective_value
         # Exit if ri == k or if optimal value is less than ub_i, else increment ri and iterate again
         if ri == k_iter or ilmp_ov < ub_i:
-            print("Relaxed ILMP iteration equals inner-loop iteration or UBI has decreased --> Exit ILMP")
+            logger.info("Relaxed ILMP iteration (ri = {}) equals inner-loop iteration (k = {}) or UBI has decreased --> Exit ILMP".format(ri, k_iter))
             break
         else:
             ri += 1
@@ -801,7 +813,7 @@ for ol_iter in range(5):
     lb_o = solve_olmp_relaxed(j_iter, lb_o)
     if j_iter > 1:
         if VL_lyj.records.equals(VL_lyjm1_rec) and VL_lyj_prev.records.equals(VL_lyjm1_prev_rec):
-            print("No change in investment decision variables --> End outer loop")
+            logger.info("No change in investment decision variables --> End outer loop")
             break
     # INNER LOOP: ILSP + ADA ILMP #
     lb_i_ada = -999999999999
@@ -810,16 +822,16 @@ for ol_iter in range(5):
     k_iter_ada = 1
     for il_ada_iter in range(5):
         k.setRecords(list(range(1, k_iter_ada + 1)))
-        v.setRecords(k.records)
+        # v.setRecords(k.records)
         set_uncertain_params_ilsp(k_iter_ada, is_ada=True)
         lb_i_ada = solve_ilsp(y_iter, j_iter, k_iter_ada)
         il_error = (ub_i_ada - lb_i_ada) / lb_i_ada
         if il_error < tol:
-            print("Inner loop has converged after k = {} iterations --> End inner loop".format(k_iter_ada))
+            logger.info("Inner loop (ADA) has converged after k = {} iterations --> End inner loop".format(k_iter_ada))
             break
         elif il_error >= tol:
-            print("Solve the inner-loop master problem by using ADA (AT1)")
-            ub_i_ada = solve_ilmp_ada(y_iter, k_iter_ada, tol)
+            logger.info("Solve the inner-loop master problem by using ADA (AT1)")
+            ub_i_ada = solve_ilmp_ada(y_iter, j_iter, k_iter_ada, tol)
             k_iter_ada += 1
     # INNER LOOP: ILSP + relaxed ILMP #
     lb_i_rel = -999999999999
@@ -827,16 +839,16 @@ for ol_iter in range(5):
     k_iter_rel = 1
     for il_ada_iter in range(5):
         k.setRecords(list(range(1, k_iter_rel + 1)))
-        v.setRecords(k.records)
+        # v.setRecords(k.records)
         set_uncertain_params_ilsp(k_iter_rel, is_ada=False)
         lb_i_rel = solve_ilsp(y_iter, j_iter, k_iter_rel)
         il_error = (ub_i_rel - lb_i_rel) / lb_i_rel
         if il_error < tol:
-            print("Inner loop has converged after k = {} iterations --> End inner loop".format(k_iter_rel))
+            logger.info("Inner loop (relaxed) has converged after k = {} iterations --> End inner loop".format(k_iter_rel))
             break
         elif il_error >= tol:
-            print("Solve the inner-loop master problem by using ADA (AT1)")
-            ub_i_rel = solve_ilmp_relaxed(y_iter, k_iter_rel, tol)
+            logger.info("Solve the relaxed inner-loop master problem")
+            ub_i_rel = solve_ilmp_relaxed(y_iter, j_iter, k_iter_rel, tol)
             k_iter_rel += 1
 
     vL_vals = vL_ly.l.records
@@ -848,10 +860,11 @@ for ol_iter in range(5):
     ub_o = ub_i_rel + inv_cost
     ol_error = (ub_o - lb_o) / lb_o
     if ol_error < tol:
-        print("Outer loop has converged after j = {} iterations --> End problem".format(j_iter))
+        logger.info("Outer loop has converged after j = {} iterations --> End problem".format(j_iter))
         break
     else:
         j_iter += 1
+print(vL_ly.records)
 
 
 # Testing olmp stuff
