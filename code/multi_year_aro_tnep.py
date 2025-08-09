@@ -1,6 +1,7 @@
 from pandas.core.dtypes.inference import is_re
 
-from input_data_processing import weights, RD1, lines, buses, ESS, CG, RES, loads, years_data, sigma_yt_data, tau_yth_data, gamma_dyth_data, gamma_ryth_data, ES_syt0_data, tol
+from input_data_processing import (weights, RD1, lines, buses, ESS, CG, RES, loads, years_data, sigma_yt_data,
+                                   tau_yth_data, gamma_dyth_data, gamma_ryth_data, ES_syt0_data, tol, static)
 from gamspy import Alias, Container, Domain, Equation, Model, Options, Ord, Card, Parameter, Set, Smax, Sum, Variable
 from gamspy.math import power
 from utils import logger
@@ -50,11 +51,11 @@ yp = Alias(m, name="yp", alias_with=y)
 
 # PARAMETERS #
 # Scalars
-GammaD = Parameter(m, name="GammaD", records=14, description="Uncertainty budget for increased loads")
-GammaGC = Parameter(m, name="GammaGC", records=8, description="Uncertainty budget for increased CG marginal cost")
-GammaGP = Parameter(m, name="GammaGP", records=8, description="Uncertainty budget for decreased CG marginal cost")
-GammaRS = Parameter(m, name="GammaRS", records=4, description="Uncertainty budget for decreased solar capacity")
-GammaRW = Parameter(m, name="GammaRW", records=4, description="Uncertainty budget for decreased wind capacity")
+GammaD = Parameter(m, name="GammaD", records=0, description="Uncertainty budget for increased loads")
+GammaGC = Parameter(m, name="GammaGC", records=0, description="Uncertainty budget for increased CG marginal cost")
+GammaGP = Parameter(m, name="GammaGP", records=0, description="Uncertainty budget for decreased CG marginal cost")
+GammaRS = Parameter(m, name="GammaRS", records=0, description="Uncertainty budget for decreased solar capacity")
+GammaRW = Parameter(m, name="GammaRW", records=0, description="Uncertainty budget for decreased wind capacity")
 kappa = Parameter(m, name="kappa", records=0.1, description="Discount rate")
 IT = Parameter(m, name="IT", records=400000000, description="Investment budget")
 nb_H = Parameter(m, name="nb_H", records=8, description="Number of RTPs of each RD")
@@ -206,7 +207,6 @@ OF_olmp = Equation(m, name="OF_olmp", type="regular")
 con_1c = Equation(m, name="con_1c")
 con_1d = Equation(m, name="con_1d", domain=[lc])
 con_1e = Equation(m, name="con_1e", domain=[lc, y])
-
 con_4c = Equation(m, name="con_4c", domain=[y, i])
 con_4d = Equation(m, name="con_4d", domain=[n, y, t, h, i])
 con_4e = Equation(m, name="con_4e", domain=[le, y, t, h, i])
@@ -238,12 +238,18 @@ con_4s2 = Equation(m, name="con_4s2", domain=[r, y, t, h, i])
 con_4t = Equation(m, name="con_4t", domain=[n, y, t, h, i]) # N == ref bus
 
 
-def build_olmp_eqns():
-    OF_olmp[...] = min_inv_cost_wc == Sum(y, rho_y[y] / power(1.0 + kappa, y.val) + \
-                                          (1.0 / power(1.0 + kappa, y.val - 1)) * Sum(lc, IL_l[lc] * vL_ly[lc, y]))
-    con_1c[...] = Sum(lc, Sum(y, (1.0 / power(1.0 + kappa, y.val - 1)) * IL_l[lc] * vL_ly[lc, y])) <= IT
-    con_1d[lc] = Sum(y, vL_ly[lc, y]) <= 1
-    con_1e[lc, y] = vL_ly_prev[lc, y] == Sum(yp.where[yp.val <= y.val], vL_ly[lc, yp])
+def build_olmp_eqns(static):
+    if static:
+        OF_olmp[...] = min_inv_cost_wc == Sum(y, rho_y[y] + Sum(lc, IL_l[lc] * vL_ly[lc, y]))
+        con_1c[...] = Sum(lc, Sum(y, IL_l[lc] * vL_ly[lc, y])) <= IT
+        con_1d[lc] = Sum(y, vL_ly[lc, y]) <= 1
+        con_1e[lc, y] = vL_ly_prev[lc, y] == Sum(yp.where[yp.val <= y.val], vL_ly[lc, yp])
+    else:
+        OF_olmp[...] = min_inv_cost_wc == Sum(y, rho_y[y] / power(1.0 + kappa, y.val) + \
+                                              (1.0 / power(1.0 + kappa, y.val - 1)) * Sum(lc, IL_l[lc] * vL_ly[lc, y]))
+        con_1c[...] = Sum(lc, Sum(y, (1.0 / power(1.0 + kappa, y.val - 1)) * IL_l[lc] * vL_ly[lc, y])) <= IT
+        con_1d[lc] = Sum(y, vL_ly[lc, y]) <= 1
+        con_1e[lc, y] = vL_ly_prev[lc, y] == Sum(yp.where[yp.val <= y.val], vL_ly[lc, yp])
 
     con_4c[y, i] = rho_y[y] >= Sum(t, sigma_yt[y, t] * Sum(h, tau_yth[y, t, h] * (Sum(g, CG_gyi[g,y,i] * pG_gythi[g, y, t, h, i]) \
     + Sum(r, CR_r[r] * (gammaR_ryth[r, y, t, h] * PR_ryi[r,y,i] - pR_rythi[r, y, t, h, i])) \
@@ -344,11 +350,17 @@ con_5r = Equation(m, name="con_5r", domain=[s,t,h,v])
 con_5s = Equation(m, name="con_5s", domain=[s,t,v])
 ilmp_obj_var = Equation(m, name="ilmp_obj_var")
 
-def build_ilmp_eqns(yi):
-    con_2b[g] = cG_gy[g, yi] == CG_g_fc[g] * power(1 + zetaGC_g_fc[g], yi - 1) + CG_g_max[g] * power(1 + zetaGC_g_max[g], yi - 1) * zGC_gy[g, yi]
-    con_2c[d] = pD_dy[d, yi] == PD_d_fc[d] * power(1 + zetaD_d_fc[d], yi - 1) + PD_d_max[d] * power(1 + zetaD_d_max[d], yi - 1) * zD_dy[d, yi]
-    con_2d[g] = pG_gy[g, yi] == PG_g_fc[g] * power(1 + zetaGP_g_fc[g], yi - 1) - PG_g_max[g] * power(1 + zetaGP_g_max[g], yi - 1) * zGP_gy[g, yi]
-    con_2e[r] = pR_ry[r, yi] == PR_r_fc[r] * power(1 + zetaR_r_fc[r], yi - 1) - PR_r_max[r] * power(1 + zetaR_r_max[r], yi - 1) * zR_ry[r, yi]
+def build_ilmp_eqns(yi, static):
+    if static:
+        con_2b[g] = cG_gy[g, yi] == CG_g_fc[g] + CG_g_max[g] * zGC_gy[g, yi]
+        con_2c[d] = pD_dy[d, yi] == PD_d_fc[d] + PD_d_max[d] * zD_dy[d, yi]
+        con_2d[g] = pG_gy[g, yi] == PG_g_fc[g] - PG_g_max[g] * zGP_gy[g, yi]
+        con_2e[r] = pR_ry[r, yi] == PR_r_fc[r] - PR_r_max[r] * zR_ry[r, yi]
+    else:
+        con_2b[g] = cG_gy[g, yi] == CG_g_fc[g] * power(1 + zetaGC_g_fc[g], yi - 1) + CG_g_max[g] * power(1 + zetaGC_g_max[g], yi - 1) * zGC_gy[g, yi]
+        con_2c[d] = pD_dy[d, yi] == PD_d_fc[d] * power(1 + zetaD_d_fc[d], yi - 1) + PD_d_max[d] * power(1 + zetaD_d_max[d], yi - 1) * zD_dy[d, yi]
+        con_2d[g] = pG_gy[g, yi] == PG_g_fc[g] * power(1 + zetaGP_g_fc[g], yi - 1) - PG_g_max[g] * power(1 + zetaGP_g_max[g], yi - 1) * zGP_gy[g, yi]
+        con_2e[r] = pR_ry[r, yi] == PR_r_fc[r] * power(1 + zetaR_r_fc[r], yi - 1) - PR_r_max[r] * power(1 + zetaR_r_max[r], yi - 1) * zR_ry[r, yi]
     con_2j[...] = Sum(g, zGC_gy[g, yi]) <= GammaGC
     con_2k[...] = Sum(d, zD_dy[d, yi]) <= GammaD
     con_2l[...] = Sum(g, zGP_gy[g, yi]) <= GammaGP
@@ -676,7 +688,7 @@ def set_uncertain_params_ilsp(k_iter, is_ada):
         PR_ryk.setRecords(pR_ry.l.records)
 
 # Solve the relaxed outer-loop master problem
-def solve_olmp_relaxed(j_iter, lb_o):
+def solve_olmp_relaxed(j_iter, lb_o, static):
     ro = 1 # Initialize relaxed iteration counter
     # Solve at least once, until ro == j
     while ro <= j_iter:
@@ -684,7 +696,7 @@ def solve_olmp_relaxed(j_iter, lb_o):
         i_range = list(range(j_iter - ro + 1, j_iter + 1))
         i.setRecords(i_range)
         # Solve the outer-loop master problem
-        build_olmp_eqns() # Rebuild the olmp equations to account for the change in set i
+        build_olmp_eqns(static) # Rebuild the olmp equations to account for the change in set i
         OLMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_olmp.txt"),output=sys.stdout)
         if OLMP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible']:
             raise RuntimeError('OLMP is infeasible at j = {}'.format(j_iter))
@@ -777,7 +789,7 @@ def solve_ilmp_ada(y_iter, j_iter, k_iter, tol):
     return ada_ov
 
 # Solve the relaxed inner-loop master problem
-def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i):
+def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i, static):
     ri = 1 # Initialize relaxed iteration counter
     # Solve at least once, until ri == k
     while ri <= k_iter:
@@ -785,7 +797,7 @@ def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i):
         v_range = list(range(k_iter - ri + 1, k_iter + 1))
         v.setRecords(v_range)
         # Solve the inner-loop master problem
-        build_ilmp_eqns(y_iter) # Rebuild the ilmp equations to account for the change in set v
+        build_ilmp_eqns(y_iter, static) # Rebuild the ilmp equations to account for the change in set v
         ILMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_ilmp.txt"),output=sys.stdout)
         if ILMP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible']:
             raise RuntimeError('ILMP is infeasible at y = {}, j ={}, k = {}'.format(y_iter, j_iter, k_iter))
@@ -799,6 +811,19 @@ def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i):
 
     return ilmp_ov
 
+def compute_investment_cost():
+    vL_vals = vL_ly.l.records
+    IL_vals = IL_l.records
+    IL_vals.columns = ['lc', 'value']
+    cost = 0
+    for year in years_data:
+        vL_vals_year = vL_vals[vL_vals['y'] == str(year)]
+        merge = pd.merge(vL_vals_year, IL_vals, on='lc')
+        merge['product'] = merge['level'] * merge['value']
+        cost += (1/((1+kappa.toValue())**(year-1)))*merge['product'].sum()
+
+    return cost
+
 # SOLUTION PROCEDURE #
 lb_o = -999999999999
 ub_o = 999999999999
@@ -807,56 +832,68 @@ VL_lyjm1_prev_rec = None
 j_iter = 1
 # OUTER LOOP #
 for ol_iter in range(5):
+    logger.info("Starting outer loop problem for j = {}".format(j_iter))
     j.setRecords(list(range(1, j_iter+1)))
     i.setRecords(j.records)
     set_uncertain_params_olmp(j_iter)
-    lb_o = solve_olmp_relaxed(j_iter, lb_o)
+    lb_o = solve_olmp_relaxed(j_iter, lb_o, static)
     if j_iter > 1:
         if VL_lyj.records.equals(VL_lyjm1_rec) and VL_lyj_prev.records.equals(VL_lyjm1_prev_rec):
             logger.info("No change in investment decision variables --> End outer loop")
             break
-    # INNER LOOP: ILSP + ADA ILMP #
-    lb_i_ada = -999999999999
-    ub_i_ada = 999999999999
-    y_iter = 1
-    k_iter_ada = 1
-    for il_ada_iter in range(5):
-        k.setRecords(list(range(1, k_iter_ada + 1)))
-        # v.setRecords(k.records)
-        set_uncertain_params_ilsp(k_iter_ada, is_ada=True)
-        lb_i_ada = solve_ilsp(y_iter, j_iter, k_iter_ada)
-        il_error = (ub_i_ada - lb_i_ada) / lb_i_ada
-        if il_error < tol:
-            logger.info("Inner loop (ADA) has converged after k = {} iterations --> End inner loop".format(k_iter_ada))
+    # YEAR LOOP
+    for y_iter in years_data:
+        if static:
+            y_iter = max(years_data)
+        logger.info("Starting inner loop problems for y = {}".format(y_iter))
+        # INNER LOOP: ILSP + ADA ILMP #
+        lb_i_ada = -999999999999
+        ub_i_ada = 999999999999
+        k_iter_ada = 1
+        for il_ada_iter in range(5):
+            logger.info("Starting ADA inner loop for y = {}, k = {}".format(y_iter, k_iter_ada))
+            k.setRecords(list(range(1, k_iter_ada + 1)))
+            # v.setRecords(k.records)
+            set_uncertain_params_ilsp(k_iter_ada, is_ada=True)
+            lb_i_ada = solve_ilsp(y_iter, j_iter, k_iter_ada)
+            il_error = (ub_i_ada - lb_i_ada) / lb_i_ada
+            if il_error < tol:
+                logger.info("ADA Inner loop has converged after k = {} iterations --> End ADA inner loop".format(k_iter_ada))
+                break
+            elif il_error >= tol:
+                logger.info("Solve the inner-loop master problem by using ADA")
+                ub_i_ada = solve_ilmp_ada(y_iter, j_iter, k_iter_ada, tol)
+                k_iter_ada += 1
+        # INNER LOOP: ILSP + relaxed ILMP #
+        lb_i_rel = -999999999999
+        ub_i_rel = 999999999999
+        k_iter_rel = 1
+        for il_rel_iter in range(5):
+            logger.info("Starting relaxed inner loop for y = {}, k = {}".format(y_iter, k_iter_rel))
+            k.setRecords(list(range(1, k_iter_rel + 1)))
+            # v.setRecords(k.records)
+            set_uncertain_params_ilsp(k_iter_rel, is_ada=False)
+            lb_i_rel = solve_ilsp(y_iter, j_iter, k_iter_rel)
+            il_error = (ub_i_rel - lb_i_rel) / lb_i_rel
+            if il_error < tol:
+                logger.info("Relaxed inner loop has converged after k = {} iterations --> End relaxed inner loop".format(k_iter_rel))
+                break
+            elif il_error >= tol:
+                logger.info("Solve the relaxed inner-loop master problem")
+                ub_i_rel = solve_ilmp_relaxed(y_iter, j_iter, k_iter_rel, tol, static)
+                k_iter_rel += 1
+        if y_iter == max(years_data):
+            logger.info("Reached end of last year in the planning horizon --> End inner loop")
             break
-        elif il_error >= tol:
-            logger.info("Solve the inner-loop master problem by using ADA (AT1)")
-            ub_i_ada = solve_ilmp_ada(y_iter, j_iter, k_iter_ada, tol)
-            k_iter_ada += 1
-    # INNER LOOP: ILSP + relaxed ILMP #
-    lb_i_rel = -999999999999
-    ub_i_rel = 999999999999
-    k_iter_rel = 1
-    for il_ada_iter in range(5):
-        k.setRecords(list(range(1, k_iter_rel + 1)))
-        # v.setRecords(k.records)
-        set_uncertain_params_ilsp(k_iter_rel, is_ada=False)
-        lb_i_rel = solve_ilsp(y_iter, j_iter, k_iter_rel)
-        il_error = (ub_i_rel - lb_i_rel) / lb_i_rel
-        if il_error < tol:
-            logger.info("Inner loop (relaxed) has converged after k = {} iterations --> End inner loop".format(k_iter_rel))
+        elif static:
+            logger.info("Running the static problem, so only go through yearly loop once --> End inner loop")
             break
-        elif il_error >= tol:
-            logger.info("Solve the relaxed inner-loop master problem")
-            ub_i_rel = solve_ilmp_relaxed(y_iter, j_iter, k_iter_rel, tol)
-            k_iter_rel += 1
+        else:
+            y_iter += 1
 
-    vL_vals = vL_ly.l.records
-    IL_vals = IL_l.records
-    IL_vals.columns = ['lc', 'value']
-    merge = pd.merge(vL_vals, IL_vals, on='lc')
-    merge['product'] = merge['level'] * merge['value']
-    inv_cost = merge['product'].sum()
+    # Update ub_o
+    inv_cost = compute_investment_cost()
+    print("inv_cost = {}".format(inv_cost))
     ub_o = ub_i_rel + inv_cost
     ol_error = (ub_o - lb_o) / lb_o
     if ol_error < tol:
@@ -864,49 +901,6 @@ for ol_iter in range(5):
         break
     else:
         j_iter += 1
+print(min_inv_cost_wc.records)
 print(vL_ly.records)
-
-
-# Testing olmp stuff
-# j_iter = 1
-# ro = 1
-# j.setRecords(list(range(1, j_iter+1)))
-# i.setRecords(j.records)
-# set_uncertain_params_olmp(j_iter)
-#
-# i_range = list(range(j_iter - ro + 1, j_iter + 1))
-# i.setRecords(i_range)
-# # # solve olmp
-# build_olmp_eqns()
-# OLMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_olmp.txt"),output=sys.stdout)
-# VL_lyj.setRecords(vL_ly.l.records)
-# VL_lyj_prev.setRecords(vL_ly_prev.l.records)
-#
-# # Testing ilsp stuff
-# k_iter_ada = 1
-# set_uncertain_params_ilsp(k_iter_ada, is_ada=True)
-# build_ilsp_eqns(1, 1)
-# ILSP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_ilsp.txt"),output=sys.stdout)
-#
-# k.setRecords(list(range(1, k_iter_ada + 1)))
-# v.setRecords(k.records)
-# print(v.records)
-# build_ilmp_eqns(1)
-# build_lp1_eqns(1)
-# build_lp2_eqns(1)
-# solve_ilmp_ada(1, k_iter_ada, tol)
-#
-# set_uncertain_params_ilsp(k_iter_ada, is_ada=False)
-# build_ilsp_eqns(1, 1)
-# ILSP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_ilsp.txt"),output=sys.stdout)
-# solve_ilmp_relaxed(1, k_iter_ada, tol)
-#
-# vL_vals = vL_ly.l.records
-# IL_vals = IL_l.records
-# IL_vals.columns = ['lc', 'value']
-# merge = pd.merge(vL_vals, IL_vals, on='lc')
-# merge['product'] = merge['level']*merge['value']
-# print(kappa.records['value'])
-# cost = merge['product'].sum()
-# print(cost)
 

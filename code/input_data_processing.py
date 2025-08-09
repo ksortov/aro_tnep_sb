@@ -25,7 +25,8 @@ RD8 = weights_rd['RD8']
 RD9 = weights_rd['RD9']
 RD10 = weights_rd['RD10']
 
-lines = rts_24['TL']
+static = False
+lines = rts_24['TL_static']
 buses = rts_24['Buses']
 ESS = rts_24['ESS']
 CG = rts_24['CG']
@@ -33,7 +34,7 @@ RES = rts_24['RES']
 loads = rts_24['loads']
 UB = rts_24['UB']
 
-years_data = range(1,2)
+years_data = range(1,11)
 tol = 0.005
 
 SEl_data = []
