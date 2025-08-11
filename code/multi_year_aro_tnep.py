@@ -51,11 +51,11 @@ yp = Alias(m, name="yp", alias_with=y)
 
 # PARAMETERS #
 # Scalars
-GammaD = Parameter(m, name="GammaD", records=0, description="Uncertainty budget for increased loads")
-GammaGC = Parameter(m, name="GammaGC", records=0, description="Uncertainty budget for increased CG marginal cost")
-GammaGP = Parameter(m, name="GammaGP", records=0, description="Uncertainty budget for decreased CG marginal cost")
-GammaRS = Parameter(m, name="GammaRS", records=0, description="Uncertainty budget for decreased solar capacity")
-GammaRW = Parameter(m, name="GammaRW", records=0, description="Uncertainty budget for decreased wind capacity")
+GammaD = Parameter(m, name="GammaD", records=14, description="Uncertainty budget for increased loads")
+GammaGC = Parameter(m, name="GammaGC", records=8, description="Uncertainty budget for increased CG marginal cost")
+GammaGP = Parameter(m, name="GammaGP", records=8, description="Uncertainty budget for decreased CG marginal cost")
+GammaRS = Parameter(m, name="GammaRS", records=4, description="Uncertainty budget for decreased solar capacity")
+GammaRW = Parameter(m, name="GammaRW", records=4, description="Uncertainty budget for decreased wind capacity")
 kappa = Parameter(m, name="kappa", records=0.1, description="Discount rate")
 IT = Parameter(m, name="IT", records=400000000, description="Investment budget")
 nb_H = Parameter(m, name="nb_H", records=8, description="Number of RTPs of each RD")
@@ -218,32 +218,28 @@ con_4g_can_lin1 = Equation(m, name="con_4g_can_lin1", domain=[lc, y, t, h, i])
 con_4g_can_lin2 = Equation(m, name="con_4g_can_lin2", domain=[lc, y, t, h, i])
 con_4h = Equation(m, name="con_4h", domain=[s, y, t, i]) # H == 1
 con_4i = Equation(m, name="con_4i", domain=[s, y, t, h, i]) # H =/= 1
-con_4j = Equation(m, name="con_4j", domain=[s, y, t, h, i]) # H == Hmax
+con_4j = Equation(m, name="con_4j", domain=[s, y, t, i]) # H == Hmax
 con_4k1 = Equation(m, name="con_4k1", domain=[s, y, t, h, i])
 con_4k2 = Equation(m, name="con_4k2", domain=[s, y, t, h, i])
 # con_4l = Equation(m, name="con_4l", domain=[S,T,H,Y])
-con_4m1 = Equation(m, name="con_4m1", domain=[s, y, t, h, i])
-con_4m2 = Equation(m, name="con_4m2", domain=[s, y, t, h, i])
-con_4n1 = Equation(m, name="con_4n1", domain=[s, y, t, h, i])
-con_4n2 = Equation(m, name="con_4n2", domain=[s, y, t, h, i])
-con_4o1 = Equation(m, name="con_4o1", domain=[d, y, t, h, i])
-con_4o2 = Equation(m, name="con_4o2", domain=[d, y, t, h, i])
+con_4m = Equation(m, name="con_4m1", domain=[s, y, t, h, i])
+con_4n = Equation(m, name="con_4n1", domain=[s, y, t, h, i])
+con_4o = Equation(m, name="con_4o1", domain=[d, y, t, h, i])
 # con_4p = Equation(m, name="con_4p", domain=[G,T,H,Y])
 con_4q1 = Equation(m, name="con_4q1", domain=[g, y, t, h, i])
 con_4q2 = Equation(m, name="con_4q2", domain=[g, y, t, h,i])
 con_4r1 = Equation(m, name="con_4r1", domain=[g, y, t, h, i]) # H =/= 1
 con_4r2 = Equation(m, name="con_4r2", domain=[g, y, t, h, i]) # H =/= 1
-con_4s1 = Equation(m, name="con_4s1", domain=[r, y, t, h, i])
-con_4s2 = Equation(m, name="con_4s2", domain=[r, y, t, h, i])
-con_4t = Equation(m, name="con_4t", domain=[n, y, t, h, i]) # N == ref bus
+con_4s = Equation(m, name="con_4s1", domain=[r, y, t, h, i])
+con_4t = Equation(m, name="con_4t", domain=[y, t, h, i]) # N == ref bus
 
 
 def build_olmp_eqns(static):
     if static:
-        OF_olmp[...] = min_inv_cost_wc == Sum(y, rho_y[y] + Sum(lc, IL_l[lc] * vL_ly[lc, y]))
-        con_1c[...] = Sum(lc, Sum(y, IL_l[lc] * vL_ly[lc, y])) <= IT
-        con_1d[lc] = Sum(y, vL_ly[lc, y]) <= 1
-        con_1e[lc, y] = vL_ly_prev[lc, y] == Sum(yp.where[yp.val <= y.val], vL_ly[lc, yp])
+        OF_olmp[...] = min_inv_cost_wc == rho_y[y] + Sum(lc, 1.1627*IL_l[lc] * vL_ly[lc, y])
+        con_1c[...] = Sum(lc, IL_l[lc] * vL_ly[lc, y]) <= IT
+        con_1d[lc] = vL_ly[lc, y] <= 1
+        con_1e[lc, y] = vL_ly_prev[lc, y] == vL_ly[lc, y]
     else:
         OF_olmp[...] = min_inv_cost_wc == Sum(y, rho_y[y] / power(1.0 + kappa, y.val) + \
                                               (1.0 / power(1.0 + kappa, y.val - 1)) * Sum(lc, IL_l[lc] * vL_ly[lc, y]))
@@ -255,7 +251,7 @@ def build_olmp_eqns(static):
     + Sum(r, CR_r[r] * (gammaR_ryth[r, y, t, h] * PR_ryi[r,y,i] - pR_rythi[r, y, t, h, i])) \
     + Sum(d, CLS_d[d] * pLS_dythi[d, y, t, h, i]))))
     con_4d[n, y, t, h, i] = Sum(g.where[g_n[g, n]], pG_gythi[g, y, t, h, i]) + Sum(r.where[r_n[r, n]], pR_rythi[r, y, t, h, i]) \
-    + Sum(l.where[sel_n[l, n]], pL_lythi[l, y, t, h, i]) - Sum(l.where[rel_n[l, n]], pL_lythi[l, y, t, h, i]) \
+    + Sum(l.where[rel_n[l, n]], pL_lythi[l, y, t, h, i]) - Sum(l.where[sel_n[l, n]], pL_lythi[l, y, t, h, i]) \
     + Sum(s.where[s_n[s, n]], pSD_sythi[s, y, t, h, i] - pSC_sythi[s, y, t, h, i]) \
     == Sum(d.where[d_n[d, n]], gammaD_dyth[d, y, t, h] * PD_dyi[d,y,i] - pLS_dythi[d, y, t, h, i])
     con_4e[le, y, t, h, i] = pL_lythi[le, y, t, h, i] == (1.0 / X_l[le]) * (Sum(n.where[sel_n[le, n]], theta_nythi[n, y, t, h, i]) \
@@ -272,27 +268,23 @@ def build_olmp_eqns(static):
     - (pSD_sythi[s, y, t, 1, i] / etaSD_s[s])) * tau_yth[y, t, 1]
     con_4i[s, y, t, h, i].where[Ord(h) > 1] = eS_sythi[s, y, t, h, i] == eS_sythi[s, y, t, h.lag(1), i] \
     + (pSC_sythi[s, y, t, h, i] * etaSC_s[s] - (pSD_sythi[s, y, t, h, i] / etaSD_s[s])) * tau_yth[y, t, h]
-    con_4j[s, y, t, h, i].where[Ord(h) == Card(h)] = ES_syt0[s, y, t] <= eS_sythi[s, y, t, h, i]
+    con_4j[s, y, t, i] = ES_syt0[s, y, t] <= eS_sythi[s, y, t, 8, i]
     con_4k1[s, y, t, h, i] = eS_sythi[s, y, t, h, i] <= ES_s_max[s]
     con_4k2[s, y, t, h, i] = eS_sythi[s, y, t, h, i] >= ES_s_min[s]
-    con_4m1[s, y, t, h, i] = pSC_sythi[s, y, t, h, i] <= uS_syth[s, y, t, h] * PSC_s[s]
-    con_4m2[s, y, t, h, i] = pSC_sythi[s, y, t, h, i] >= 0
-    con_4n1[s, y, t, h, i] = pSD_sythi[s, y, t, h, i] <= (1 - uS_syth[s, y, t, h]) * PSD_s[s]
-    con_4n2[s, y, t, h, i] = pSD_sythi[s, y, t, h, i] >= 0
-    con_4o1[d, y, t, h, i] = pLS_dythi[d, y, t, h, i] <= gammaD_dyth[d, y, t, h] * PD_dyi[d,y,i]  # pD_dy[D,Y]
-    con_4o2[d, y, t, h, i] = pLS_dythi[d, y, t, h, i] >= 0
+    con_4m[s, y, t, h, i] = pSC_sythi[s, y, t, h, i] <= uS_syth[s, y, t, h] * PSC_s[s]
+    con_4n[s, y, t, h, i] = pSD_sythi[s, y, t, h, i] <= (1 - uS_syth[s, y, t, h]) * PSD_s[s]
+    con_4o[d, y, t, h, i] = pLS_dythi[d, y, t, h, i] <= gammaD_dyth[d, y, t, h] * PD_dyi[d,y,i]  # pD_dy[D,Y]
     con_4q1[g, y, t, h, i] = pG_gythi[g, y, t, h, i] <= uG_gyth[g, y, t, h] * PG_gyi[g,y,i]  # pG_gy[G,Y]
     con_4q2[g, y, t, h, i] = pG_gythi[g, y, t, h, i] >= uG_gyth[g, y, t, h] * PG_g_min[g]
     con_4r1[g, y, t, h, i].where[Ord(h) > 1] = pG_gythi[g, y, t, h, i] - pG_gythi[g, y, t, h.lag(1), i] <= RGU_g[g]
     con_4r2[g, y, t, h, i].where[Ord(h) > 1] = pG_gythi[g, y, t, h, i] - pG_gythi[g, y, t, h.lag(1), i] >= -RGD_g[g]
-    con_4s1[r, y, t, h, i] = pR_rythi[r, y, t, h, i] <= gammaR_ryth[r, y, t, h] * PR_ryi[r,y,i]  # pR_ry[R,Y]
-    con_4s2[r, y, t, h, i] = pR_rythi[r, y, t, h, i] >= 0
-    con_4t[n, y, t, h, i].where[Ord(n) == 1] = theta_nythi[n, y, t, h, i] == 0
+    con_4s[r, y, t, h, i] = pR_rythi[r, y, t, h, i] <= gammaR_ryth[r, y, t, h] * PR_ryi[r,y,i]  # pR_ry[R,Y]
+    con_4t[y, t, h, i] = theta_nythi[1, y, t, h, i] == 0
 
 
 olmp_eqns = [OF_olmp, con_1c, con_1d, con_1e, con_4c, con_4d, con_4e, con_4f_lin1, con_4f_lin2, con_4g_exist_lin1,
-             con_4g_exist_lin2, con_4g_can_lin1, con_4g_can_lin2, con_4h, con_4i, con_4j, con_4k1, con_4k2, con_4m1,
-             con_4m2, con_4n1, con_4n2, con_4o1, con_4o2, con_4q1, con_4q2, con_4r1, con_4r2, con_4s1, con_4s2, con_4t]
+             con_4g_exist_lin2, con_4g_can_lin1, con_4g_can_lin2, con_4h, con_4i, con_4j, con_4k1, con_4k2, con_4m,
+             con_4n, con_4o, con_4q1, con_4q2, con_4r1, con_4r2, con_4s, con_4t]
 
 ## Outer-loop subproblem
 # Inner-loop master problem OF and constraints
@@ -350,17 +342,11 @@ con_5r = Equation(m, name="con_5r", domain=[s,t,h,v])
 con_5s = Equation(m, name="con_5s", domain=[s,t,v])
 ilmp_obj_var = Equation(m, name="ilmp_obj_var")
 
-def build_ilmp_eqns(yi, static):
-    if static:
-        con_2b[g] = cG_gy[g, yi] == CG_g_fc[g] + CG_g_max[g] * zGC_gy[g, yi]
-        con_2c[d] = pD_dy[d, yi] == PD_d_fc[d] + PD_d_max[d] * zD_dy[d, yi]
-        con_2d[g] = pG_gy[g, yi] == PG_g_fc[g] - PG_g_max[g] * zGP_gy[g, yi]
-        con_2e[r] = pR_ry[r, yi] == PR_r_fc[r] - PR_r_max[r] * zR_ry[r, yi]
-    else:
-        con_2b[g] = cG_gy[g, yi] == CG_g_fc[g] * power(1 + zetaGC_g_fc[g], yi - 1) + CG_g_max[g] * power(1 + zetaGC_g_max[g], yi - 1) * zGC_gy[g, yi]
-        con_2c[d] = pD_dy[d, yi] == PD_d_fc[d] * power(1 + zetaD_d_fc[d], yi - 1) + PD_d_max[d] * power(1 + zetaD_d_max[d], yi - 1) * zD_dy[d, yi]
-        con_2d[g] = pG_gy[g, yi] == PG_g_fc[g] * power(1 + zetaGP_g_fc[g], yi - 1) - PG_g_max[g] * power(1 + zetaGP_g_max[g], yi - 1) * zGP_gy[g, yi]
-        con_2e[r] = pR_ry[r, yi] == PR_r_fc[r] * power(1 + zetaR_r_fc[r], yi - 1) - PR_r_max[r] * power(1 + zetaR_r_max[r], yi - 1) * zR_ry[r, yi]
+def build_ilmp_eqns(yi):
+    con_2b[g] = cG_gy[g, yi] == CG_g_fc[g] * power(1 + zetaGC_g_fc[g], yi - 1) + CG_g_max[g] * power(1 + zetaGC_g_max[g], yi - 1) * zGC_gy[g, yi]
+    con_2c[d] = pD_dy[d, yi] == PD_d_fc[d] * power(1 + zetaD_d_fc[d], yi - 1) + PD_d_max[d] * power(1 + zetaD_d_max[d], yi - 1) * zD_dy[d, yi]
+    con_2d[g] = pG_gy[g, yi] == PG_g_fc[g] * power(1 + zetaGP_g_fc[g], yi - 1) - PG_g_max[g] * power(1 + zetaGP_g_max[g], yi - 1) * zGP_gy[g, yi]
+    con_2e[r] = pR_ry[r, yi] == PR_r_fc[r] * power(1 + zetaR_r_fc[r], yi - 1) - PR_r_max[r] * power(1 + zetaR_r_max[r], yi - 1) * zR_ry[r, yi]
     con_2j[...] = Sum(g, zGC_gy[g, yi]) <= GammaGC
     con_2k[...] = Sum(d, zD_dy[d, yi]) <= GammaD
     con_2l[...] = Sum(g, zGP_gy[g, yi]) <= GammaGP
@@ -789,7 +775,7 @@ def solve_ilmp_ada(y_iter, j_iter, k_iter, tol):
     return ada_ov
 
 # Solve the relaxed inner-loop master problem
-def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i, static):
+def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i):
     ri = 1 # Initialize relaxed iteration counter
     # Solve at least once, until ri == k
     while ri <= k_iter:
@@ -797,7 +783,7 @@ def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i, static):
         v_range = list(range(k_iter - ri + 1, k_iter + 1))
         v.setRecords(v_range)
         # Solve the inner-loop master problem
-        build_ilmp_eqns(y_iter, static) # Rebuild the ilmp equations to account for the change in set v
+        build_ilmp_eqns(y_iter) # Rebuild the ilmp equations to account for the change in set v
         ILMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_ilmp.txt"),output=sys.stdout)
         if ILMP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible']:
             raise RuntimeError('ILMP is infeasible at y = {}, j ={}, k = {}'.format(y_iter, j_iter, k_iter))
@@ -856,12 +842,12 @@ for ol_iter in range(5):
             # v.setRecords(k.records)
             set_uncertain_params_ilsp(k_iter_ada, is_ada=True)
             lb_i_ada = solve_ilsp(y_iter, j_iter, k_iter_ada)
-            il_error = (ub_i_ada - lb_i_ada) / lb_i_ada
-            if il_error < tol:
-                logger.info("ADA Inner loop has converged after k = {} iterations --> End ADA inner loop".format(k_iter_ada))
+            il_error_ada = (ub_i_ada - lb_i_ada) / lb_i_ada
+            if il_error_ada < tol:
+                logger.info("ADA inner loop has converged after k = {} iterations --> End ADA inner loop".format(k_iter_ada))
                 break
-            elif il_error >= tol:
-                logger.info("Solve the inner-loop master problem by using ADA")
+            elif il_error_ada >= tol:
+                logger.info("ADA inner loop has not converged after k = {} iterations --> Solve ADA ILMP".format(k_iter_ada))
                 ub_i_ada = solve_ilmp_ada(y_iter, j_iter, k_iter_ada, tol)
                 k_iter_ada += 1
         # INNER LOOP: ILSP + relaxed ILMP #
@@ -874,19 +860,19 @@ for ol_iter in range(5):
             # v.setRecords(k.records)
             set_uncertain_params_ilsp(k_iter_rel, is_ada=False)
             lb_i_rel = solve_ilsp(y_iter, j_iter, k_iter_rel)
-            il_error = (ub_i_rel - lb_i_rel) / lb_i_rel
-            if il_error < tol:
+            il_error_rel = (ub_i_rel - lb_i_rel) / lb_i_rel
+            if il_error_rel < tol:
                 logger.info("Relaxed inner loop has converged after k = {} iterations --> End relaxed inner loop".format(k_iter_rel))
                 break
-            elif il_error >= tol:
-                logger.info("Solve the relaxed inner-loop master problem")
-                ub_i_rel = solve_ilmp_relaxed(y_iter, j_iter, k_iter_rel, tol, static)
+            elif il_error_rel >= tol:
+                logger.info("Relaxed inner loop has not converged after k = {} iterations --> Solve relaxed ILMP".format(k_iter_rel))
+                ub_i_rel = solve_ilmp_relaxed(y_iter, j_iter, k_iter_rel, tol)
                 k_iter_rel += 1
-        if y_iter == max(years_data):
-            logger.info("Reached end of last year in the planning horizon --> End inner loop")
+        if static:
+            logger.info("Running static problem for y = {} --> End year loop".format(y_iter))
             break
-        elif static:
-            logger.info("Running the static problem, so only go through yearly loop once --> End inner loop")
+        elif y_iter == max(years_data):
+            logger.info("Reached end of last year (y = {}) in the planning horizon --> End year loop".format(y_iter))
             break
         else:
             y_iter += 1
@@ -903,4 +889,6 @@ for ol_iter in range(5):
         j_iter += 1
 print(min_inv_cost_wc.records)
 print(vL_ly.records)
+m.write(r'C:\Users\Kevin\OneDrive - McGill University\Research\Sandbox\optimization\multi-year_AROTNEP\results\aro_tnep_results.gdx')
+
 
