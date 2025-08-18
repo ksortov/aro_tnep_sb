@@ -5,7 +5,7 @@ logger = logging.getLogger('my_logger')
 logger.setLevel(logging.DEBUG)  # Set the lowest level to capture all messages
 
 # Create file handler
-file_handler = logging.FileHandler('my_log_file.log')
+file_handler = logging.FileHandler('my_log_file.log', mode='w')
 file_handler.setLevel(logging.DEBUG)  # Log all levels to the file
 
 # Create console handler
