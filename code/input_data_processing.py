@@ -4,14 +4,18 @@ import pandas as pd
 # Read input Excel files
 weights_rd_data =  pd.read_excel('../data/RDs_weights_data.xlsx', sheet_name=None)
 rts_24_data =  pd.read_excel('../data/rts_24_data.xlsx', sheet_name=None)
+rts_118_data =  pd.read_excel('../data/rts_118_data.xlsx', sheet_name=None)
 
 # Generate dictionaries where each item is a sheet from the above Excel files
 weights_rd = {}
 rts_24 = {}
+rts_118 = {}
 for weights_sheet_name, weight_rd_df in weights_rd_data.items():
     weights_rd.update({str(weights_sheet_name): weight_rd_df})
 for rts_24_sheet_name, rts_24_df in rts_24_data.items():
     rts_24.update({str(rts_24_sheet_name): rts_24_df})
+for rts_118_sheet_name, rts_118_df in rts_118_data.items():
+        rts_118.update({str(rts_118_sheet_name): rts_118_df})
 
 weights = weights_rd['weights']
 RD1 = weights_rd['RD1']
@@ -53,14 +57,22 @@ for load, zone in zip(loads['Load'], loads['Zone']):
                 gamma_dyth_data.append([load, y, j+1, RTP, gammaD])
 
 gamma_ryth_data = []
-for res, zone in zip(RES['Generating unit'], RES['Zone']):
+for res, tech, zone in zip(RES['Generating unit'], RES['Technology'], RES['Zone']):
     for y in years_data:
         for j, RD in enumerate([RD1, RD2, RD3, RD4, RD5, RD6, RD7, RD8, RD9, RD10]):
-            for RTP, gamma_south, gamma_north in zip(RD['RTP'], RD['gammaRW_rth_south'], RD['gammaRW_rth_north']):
-                if zone == 'South':
-                    gammaR = gamma_south
-                elif zone == 'North':
-                    gammaR = gamma_north
+            for RTP, gammaRW_south, gammaRW_north, gammaRS_south, gammaRS_north in zip(RD['RTP'],
+                                                                                       RD['gammaRW_rth_south'],
+                                                                                       RD['gammaRW_rth_north'],
+                                                                                       RD['gammaRS_rth_south'],
+                                                                                       RD['gammaRS_rth_north']):
+                if tech == 'Wind' and zone == 'South':
+                    gammaR = gammaRW_south
+                elif tech == 'Wind' and zone == 'North':
+                    gammaR = gammaRW_north
+                elif tech == 'Solar' and zone == 'South':
+                    gammaR = gammaRS_south
+                elif tech == 'Solar' and zone == 'North':
+                    gammaR = gammaRS_north
                 gamma_ryth_data.append([res, y, j+1, RTP, gammaR])
 
 sigma_yt_data = []

@@ -1,3 +1,4 @@
+from pandas.compat.numpy.function import validate_round
 from pandas.core.dtypes.inference import is_re
 
 from input_data_processing import (weights, RD1, lines, buses, ESS, CG, RES, loads, years_data, sigma_yt_data,
@@ -7,9 +8,6 @@ from gamspy.math import power
 from utils import logger
 import pandas as pd
 import sys
-
-def reformat_df(dataframe):
-    return dataframe.reset_index().melt(id_vars="index", var_name="Category", value_name="Value")
 
 # Optimization problem definition
 m = Container()
@@ -30,7 +28,7 @@ le = Set(m, name="le", domain=[l], records=lines[lines['IL_l [$]'] == 0]['Transm
 lc = Set(m, name="lc", domain=[l], records=lines[lines['IL_l [$]'] > 0]['Transmission line'], description="Set of candidate transmission lines")
 rs = Set(m, name="rs", domain=[r], records=RES[RES['Technology'] == 'Solar']['Generating unit'], description="Set of solar units indexed by r")
 rw = Set(m, name="rw", domain=[r], records=RES[RES['Technology'] == 'Wind']['Generating unit'], description="Set of wind units indexed by r")
-hm = Set(m, name="hm", records=h.records[1:-1], description="Subset of RTPs indexed by h that excludes the first and last elements")
+hm = Set(m, name="hm", domain=[h], records=h.records[1:-1], description="Subset of RTPs indexed by h that excludes the first and last elements")
 
 # Multidimensional sets used to make associations between buses, lines and generating units
 d_n = Set(m, name="d_n", domain=[d, n], records=loads[['Load', 'Bus']], description="Set of loads connected to bus n")
@@ -42,12 +40,15 @@ rel_n = Set(m, name="rel_n", domain=[l, n], records=lines[['Transmission line', 
 sel_n = Set(m, name="sel_n", domain=[l, n], records=lines[['Transmission line', 'From bus']], description="Sending bus of transmission line l")
 # Sets of indices for the outer and inner loop problems
 j = Set(m, name="j", description="Iteration of the outer loop")
+ir = Set(m, name="ir", domain=[j], description="Iteration of the outer loop (relaxed)")
 k = Set(m, name="k", description="Iteration of the inner loop")
+va = Set(m, name="va", domain=[k], description="Iteration of the inner loop (ADA)")
+vr = Set(m, name="vr", domain=[k], description="Iteration of the inner loop (Relaxed)")
 
 # ALIAS #
 yp = Alias(m, name="yp", alias_with=y)
-i = Alias(m, name="i", alias_with=j)
-v = Alias(m, name="v", alias_with=k)
+# i = Alias(m, name="i", alias_with=j)
+# vr = Alias(m, name="v", alias_with=k)
 
 # PARAMETERS #
 # Scalars
@@ -65,8 +66,8 @@ FD_up = Parameter(m, name="FD_up", records=99, description="Large constant for e
 FG_up = Parameter(m, name="FG_up", records=99, description="Large constant for exact linearization")
 FR_up = Parameter(m, name="FR_up", records=99, description="Large constant for exact linearization")
 
-gammaD_dyth = Parameter(m, name="gammaD_dth", domain=[d, y, t, h], records=gamma_dyth_data, description="Demand factor of load d")
-gammaR_ryth = Parameter(m, name="gammaR_rth", domain=[r, y, t, h], records=gamma_ryth_data, description="Capacity factor of renewable unit r")
+gammaD_dyth = Parameter(m, name="gammaD_dyth", domain=[d, y, t, h], records=gamma_dyth_data, description="Demand factor of load d")
+gammaR_ryth = Parameter(m, name="gammaR_ryth", domain=[r, y, t, h], records=gamma_ryth_data, description="Capacity factor of renewable unit r")
 zetaD_d_fc = Parameter(m, name="zetaD_d_fc", domain=[d], records=loads[['Load', 'zetaD_d_fc']], description="Annual evolution rate of the forecast peak power consumption of load d")
 zetaD_d_max = Parameter(m, name="zetaD_d_max", domain=[d], records=loads[['Load', 'zetaD_d_max']], description="Annual evolution rate of the maximum deviation from the forecast peak power consumption of load d")
 zetaGC_g_fc = Parameter(m, name="zetaGC_g_fc", domain=[g], records=CG[['Generating unit', 'zetaGC_g_fc']], description="Annual evolution rate of the forecast marginal production cost of conventional generating unit g")
@@ -103,10 +104,10 @@ RGU_g = Parameter(m, name="RGU_g", domain=[g], records=CG[['Generating unit', 'R
 X_l = Parameter(m, name="X_l", domain=[l], records=lines[['Transmission line', 'X_l']], description="Reactance of transmission line l")
 
 # Parameters used to represent given results for certain variables
-CG_gyi = Parameter(m, name='CG_gyi', domain=[g, y, i], description="Worst-case realization of the marginal production cost of conventional generating unit g for relaxed outer loop iteration i")
-PD_dyi = Parameter(m, name='PD_dyi', domain=[d, y, i], description="Worst-case realization of the peak power consumption of load d for relaxed outer loop iteration i")
-PG_gyi = Parameter(m, name='PG_gyi', domain=[g, y, i], description="Worst-case realization of the capacity of conventional generating unit g for relaxed outer loop iteration i")
-PR_ryi = Parameter(m, name='PR_ryi', domain=[r, y, i], description="Worst-case realization of the capacity of renewable generating unit r for relaxed outer loop iteration i")
+CG_gyi = Parameter(m, name='CG_gyi', domain=[g, y, j], description="Worst-case realization of the marginal production cost of conventional generating unit g for relaxed outer loop iteration i")
+PD_dyi = Parameter(m, name='PD_dyi', domain=[d, y, j], description="Worst-case realization of the peak power consumption of load d for relaxed outer loop iteration i")
+PG_gyi = Parameter(m, name='PG_gyi', domain=[g, y, j], description="Worst-case realization of the capacity of conventional generating unit g for relaxed outer loop iteration i")
+PR_ryi = Parameter(m, name='PR_ryi', domain=[r, y, j], description="Worst-case realization of the capacity of renewable generating unit r for relaxed outer loop iteration i")
 CG_gyk = Parameter(m, name='CG_gyk', domain=[g, y], description="Worst-case realization of the marginal production cost of conventional generating unit g for inner loop iteration k")
 PD_dyk = Parameter(m, name='PD_dyk', domain=[d, y], description="Worst-case realization of the peak power consumption of load d for inner loop iteration k")
 PG_gyk = Parameter(m, name='PG_gyk', domain=[g, y], description="Worst-case realization of the capacity of conventional generating unit g for inner loop iteration k")
@@ -115,29 +116,29 @@ CG_gyo = Parameter(m, name='CG_gyo', domain=[g, y], description="Worst-case real
 PD_dyo = Parameter(m, name='PD_dyo', domain=[d, y], description="Worst-case realization of the peak power consumption of load d for ADA iteration o")
 PG_gyo = Parameter(m, name='PG_gyo', domain=[g, y], description="Worst-case realization of the capacity of conventional generating unit g for ADA iteration o")
 PR_ryo = Parameter(m, name='PR_ryo', domain=[r, y], description="Worst-case realization of the capacity of renewable generating unit r for ADA iteration o")
-LambdaN_nythvo = Parameter(m, name='LambdaN_nythvo', domain=[n, y, t, h, v], description="Dual variable associated with the power balance equation at bus n for ADA iteration o")
-muD_dythvo_up = Parameter(m, name='muD_dythvo_up', domain=[d, y, t, h, v], description="Dual variable associated with the constraint imposing the upper bound for the unserved demand of load d for ADA iteration o")
-muG_gythvo_lo = Parameter(m, name='muG_gythvo_lo', domain=[g, y, t, h, v], description="Dual variable associated with the constraint imposing the lower bound for the power produced by conventional generating unit g for ADA iteration o")
-muG_gythvo_up = Parameter(m, name='muG_gythvo_up', domain=[g, y, t, h, v], description="Dual variable associated with the constraint imposing the upper bound for the power produced by conventional generating unit g for ADA iteration o")
-muGD_gythvo = Parameter(m, name='muGD_gythvo', domain=[g, y, t, h, v], description="Dual variable associated with the constraint imposing the ramp-down limit of conventional generating unit g, being ℎ greater than 1 for ADA iteration o")
-muGU_gythvo = Parameter(m, name='muGU_gythvo', domain=[g, y, t, h, v], description="Dual variable associated with the constraint imposing the ramp-up limit of conventional generating unit g, being ℎ greater than 1 for ADA iteration o")
-muL_lythvo_lo = Parameter(m, name='muL_lythvo_lo', domain=[l, y, t, h, v], description="Dual variable associated with the constraint imposing the lower bound for the power flow through transmission line l for ADA iteration o")
-muL_lythvo_up = Parameter(m, name='muL_lythvo_up', domain=[l, y, t, h, v], description="Dual variable associated with the constraint imposing the upper bound for the power flow through transmission line l for ADA iteration o")
-muR_rythvo_up = Parameter(m, name='muR_rythvo_up', domain=[r, y, t, h, v], description="Dual variable associated with the constraint imposing the upper bound for the power produced by renewable generating unit r for ADA iteration o")
-muS_sythvo_lo = Parameter(m, name='muS_sythvo_lo', domain=[s, y, t, h, v], description="Dual variable associated with the constraint imposing the lower bound for the energy stored in storage facility s for ADA iteration o")
-muS_sythvo_up = Parameter(m, name='muS_sythvo_up', domain=[s, y, t, h, v], description="Dual variable associated with the constraint imposing the upper bound for the energy stored in storage facility s for ADA iteration o")
-muSC_sythvo_up = Parameter(m, name='muSC_sythvo_up', domain=[s, y, t, h, v], description="Dual variable associated with the constraint imposing the upper bound for the charging power of storage facility s for ADA iteration o")
-muSD_sythvo_up = Parameter(m, name='muSD_sythvo_up', domain=[s, y, t, h, v], description="Dual variable associated with the constraint imposing the upper bound for the discharging power of storage facility s for ADA iteration o")
-PhiS_sytvo = Parameter(m, name='PhiS_sytvo', domain=[s, y, t, v], description="Dual variable associated with the energy stored in storage facility s at the first RTP of RD for ADA iteration o")
-PhiS_sytvo_lo = Parameter(m, name='PhiS_sytvo_lo', domain=[s, y, t, v], description="Dual variable associated with the constraint imposing the lower bound for the energy stored in storage facility s at the last RTP of RD for ADA iteration o")
+LambdaN_nythvo = Parameter(m, name='LambdaN_nythvo', domain=[n, y, t, h, k], description="Dual variable associated with the power balance equation at bus n for ADA iteration o")
+muD_dythvo_up = Parameter(m, name='muD_dythvo_up', domain=[d, y, t, h, k], description="Dual variable associated with the constraint imposing the upper bound for the unserved demand of load d for ADA iteration o")
+muG_gythvo_lo = Parameter(m, name='muG_gythvo_lo', domain=[g, y, t, h, k], description="Dual variable associated with the constraint imposing the lower bound for the power produced by conventional generating unit g for ADA iteration o")
+muG_gythvo_up = Parameter(m, name='muG_gythvo_up', domain=[g, y, t, h, k], description="Dual variable associated with the constraint imposing the upper bound for the power produced by conventional generating unit g for ADA iteration o")
+muGD_gythvo = Parameter(m, name='muGD_gythvo', domain=[g, y, t, h, k], description="Dual variable associated with the constraint imposing the ramp-down limit of conventional generating unit g, being ℎ greater than 1 for ADA iteration o")
+muGU_gythvo = Parameter(m, name='muGU_gythvo', domain=[g, y, t, h, k], description="Dual variable associated with the constraint imposing the ramp-up limit of conventional generating unit g, being ℎ greater than 1 for ADA iteration o")
+muL_lythvo_lo = Parameter(m, name='muL_lythvo_lo', domain=[l, y, t, h, k], description="Dual variable associated with the constraint imposing the lower bound for the power flow through transmission line l for ADA iteration o")
+muL_lythvo_up = Parameter(m, name='muL_lythvo_up', domain=[l, y, t, h, k], description="Dual variable associated with the constraint imposing the upper bound for the power flow through transmission line l for ADA iteration o")
+muR_rythvo_up = Parameter(m, name='muR_rythvo_up', domain=[r, y, t, h, k], description="Dual variable associated with the constraint imposing the upper bound for the power produced by renewable generating unit r for ADA iteration o")
+muS_sythvo_lo = Parameter(m, name='muS_sythvo_lo', domain=[s, y, t, h, k], description="Dual variable associated with the constraint imposing the lower bound for the energy stored in storage facility s for ADA iteration o")
+muS_sythvo_up = Parameter(m, name='muS_sythvo_up', domain=[s, y, t, h, k], description="Dual variable associated with the constraint imposing the upper bound for the energy stored in storage facility s for ADA iteration o")
+muSC_sythvo_up = Parameter(m, name='muSC_sythvo_up', domain=[s, y, t, h, k], description="Dual variable associated with the constraint imposing the upper bound for the charging power of storage facility s for ADA iteration o")
+muSD_sythvo_up = Parameter(m, name='muSD_sythvo_up', domain=[s, y, t, h, k], description="Dual variable associated with the constraint imposing the upper bound for the discharging power of storage facility s for ADA iteration o")
+PhiS_sytvo = Parameter(m, name='PhiS_sytvo', domain=[s, y, t, k], description="Dual variable associated with the energy stored in storage facility s at the first RTP of RD for ADA iteration o")
+PhiS_sytvo_lo = Parameter(m, name='PhiS_sytvo_lo', domain=[s, y, t, k], description="Dual variable associated with the constraint imposing the lower bound for the energy stored in storage facility s at the last RTP of RD for ADA iteration o")
 VL_lyj = Parameter(m, name='VL_lyj', domain=[lc, y], description="Binary variable that is equal to 1 if candidate transmission line l is built in year y, which is otherwise 0, for outer loop iteration j")
 VL_lyj_prev = Parameter(m, name='VL_lyj_prev', domain=[lc, y], description="Binary variable that is equal to 1 if candidate transmission line l is built in year y or in previous years, which is otherwise 0, for outer loop iteration j")
-UG_gythv = Parameter(m, name='UG_gythv', domain=[g, y, t, h, v], description="Binary variable used to model the commitment status of conventional unit g, for relaxed inner loop iteration v")
-US_sythv = Parameter(m, name='US_sythv', domain=[s, y, t, h, v], description="Binary variable used to used to avoid the simultaneous charging and discharging of storage facility s, for relaxed inner loop iteration v")
+UG_gythv = Parameter(m, name='UG_gythv', domain=[g, y, t, h, k], description="Binary variable used to model the commitment status of conventional unit g, for relaxed inner loop iteration v")
+US_sythv = Parameter(m, name='US_sythv', domain=[s, y, t, h, k], description="Binary variable used to used to avoid the simultaneous charging and discharging of storage facility s, for relaxed inner loop iteration v")
 
 # VARIABLES #
 # Optimization variables
-theta_nythi = Variable(m, name="theta_nythi", domain=[n, y, t, h, i], description="Voltage angle at bus n")
+theta_nythi = Variable(m, name="theta_nythi", domain=[n, y, t, h, j], description="Voltage angle at bus n")
 xi_y = Variable(m, name='xi_y', domain=[y], description="Auxiliary variable of the inner-loop master problem")
 xi = Variable(m, name='xi', description="Auxiliary variable of the inner-loop master problem")
 xiP_y = Variable(m, name='xiP_y', domain=[y], description="Auxiliary variable of the first problem solved at each iteration of the ADA when it is applied to the inner-loop master problem")
@@ -152,18 +153,18 @@ aR_ry = Variable(m, type='positive', name='aR_ry', domain=[r, y], description="C
 cG_gy = Variable(m, name='cG_gy', domain=[g, y], description="Worst-case realization of the marginal production cost of conventional generating unit g")
 cO_y = Variable(m, name='cO_y', domain=[y], description="Operating costs")
 cOWC_y = Variable(m, name='cOWC_y', domain=[y], description="Worst case operating costs")
-eS_sythi = Variable(m, name='eS_sythi', domain=[s, y, t, h, i], description="Energy stored in storage facility s")
+eS_sythi = Variable(m, name='eS_sythi', domain=[s, y, t, h, j], description="Energy stored in storage facility s")
 pD_dy = Variable(m, name='pD_dy', domain=[d, y], description="Worst-case realization of the peak power consumption of load d")
-pG_gythi = Variable(m, name='pG_gythi', domain=[g, y, t, h, i], description="Power produced by conventional generating unit g")
+pG_gythi = Variable(m, name='pG_gythi', domain=[g, y, t, h, j], description="Power produced by conventional generating unit g")
 pG_gy = Variable(m, name='pG_gy', domain=[g, y], description="Worst-case realization of the capacity of conventional generating unit g")
-pL_lythi = Variable(m, name='pL_lythi', domain=[l, y, t, h, i], description="Power flow through transmission line l")
-pLS_dythi = Variable(m, type='positive', name='pLS_dythi', domain=[d, y, t, h, i], description="Unserved demand of load d")
-pR_rythi = Variable(m, type='positive', name='pR_rythi', domain=[r, y, t, h, i], description="Power produced by renewable generating unit r")
+pL_lythi = Variable(m, name='pL_lythi', domain=[l, y, t, h, j], description="Power flow through transmission line l")
+pLS_dythi = Variable(m, type='positive', name='pLS_dythi', domain=[d, y, t, h, j], description="Unserved demand of load d")
+pR_rythi = Variable(m, type='positive', name='pR_rythi', domain=[r, y, t, h, j], description="Power produced by renewable generating unit r")
 pR_ry = Variable(m, name='pR_ry', domain=[r, y], description="Worst-case realization of the capacity of renewable generating unit r")
-pSC_sythi = Variable(m, type='positive', name='pSC_sythi', domain=[s, y, t, h, i], description="Charging power of storage facility s")
-pSD_sythi = Variable(m, type='positive', name='pSD_sythi', domain=[s, y, t, h, i], description="Discharging power of storage facility s")
-uG_gyth = Variable(m, name='uG_gyth', type='binary', domain=[g, y, t, h], description="Binary variable used to model the commitment status of conventional unit g")
-uS_syth = Variable(m, name='uS_syth', type='binary', domain=[s, y, t, h], description="Binary variable used to used to avoid the simultaneous charging and discharging of storage facility s")
+pSC_sythi = Variable(m, type='positive', name='pSC_sythi', domain=[s, y, t, h, j], description="Charging power of storage facility s")
+pSD_sythi = Variable(m, type='positive', name='pSD_sythi', domain=[s, y, t, h, j], description="Discharging power of storage facility s")
+uG_gythi = Variable(m, name='uG_gyth', type='binary', domain=[g, y, t, h, j], description="Binary variable used to model the commitment status of conventional unit g")
+uS_sythi = Variable(m, name='uS_syth', type='binary', domain=[s, y, t, h, j], description="Binary variable used to used to avoid the simultaneous charging and discharging of storage facility s")
 vL_ly = Variable(m, name='vL_ly', type='binary', domain=[lc, y], description="Binary variable that is equal to 1 if candidate transmission line l is built in year y, which is otherwise 0")
 vL_ly_prev = Variable(m, name='vL_ly_prev', type='binary', domain=[lc, y], description="Binary variable that is equal to 1 if candidate transmission line l is built in year y or in previous years, which is otherwise 0")
 zD_dy = Variable(m, name='zD_dy', type='binary', domain=[d, y], description="Binary variable that is equal to 1 if the worst-case realization of the peak power consumption of load 𝑑 is equal to its upper bound, which is otherwise 0")
@@ -172,31 +173,31 @@ zGP_gy = Variable(m, name='zGP_gy', type='binary', domain=[g, y], description="B
 zR_ry = Variable(m, name='zR_ry', type='binary', domain=[r, y], description="Binary variable that is equal to 1 if the worst-case realization of he capacity of renewable generating unit r is equal to its upper bound, which is otherwise 0")
 
 # Dual variables
-lambdaN_nythv = Variable(m, name='lambdaN_nythv', domain=[n, y, t, h, v], description="Dual variable associated with the power balance equation at bus n")
-muD_dythv_up = Variable(m, name='muD_dythv_up', type='positive', domain=[d, y, t, h, v], description="Dual variable associated with the constraint imposing the upper bound for the unserved demand of load d")
-muG_gythv_lo = Variable(m, name='muG_gythv_lo', type='positive', domain=[g, y, t, h, v], description="Dual variable associated with the constraint imposing the lower bound for the power produced by conventional generating unit g")
-muG_gythv_up = Variable(m, name='muG_gythv_up', type='positive', domain=[g, y, t, h, v], description="Dual variable associated with the constraint imposing the upper bound for the power produced by conventional generating unit g")
-muGD_gythv = Variable(m, name='muGD_gythv', type='positive', domain=[g, y, t, h, v], description="Dual variable associated with the constraint imposing the ramp-down limit of conventional generating unit g, being ℎ greater than 1")
-muGU_gythv = Variable(m, name='muGU_gythv', type='positive', domain=[g, y, t, h, v], description="Dual variable associated with the constraint imposing the ramp-up limit of conventional generating unit g, being ℎ greater than 1")
-muL_lythv_exist = Variable(m, name='muL_lythv_exist', domain=[le, y, t, h, v], description="Dual variable associated with the power flow through existing transmission line l")
-muL_lythv_can = Variable(m, name='muL_lythv_can', domain=[lc, y, t, h, v], description="Dual variable associated with the power flow through candidate transmission line l")
-muL_lythv_lo = Variable(m, name='muL_lythv_lo', type='positive', domain=[l, y, t, h, v], description="Dual variable associated with the constraint imposing the lower bound for the power flow through transmission line l")
-muL_lythv_up = Variable(m, name='muL_lythv_up', type='positive', domain=[l, y, t, h, v], description="Dual variable associated with the constraint imposing the upper bound for the power flow through transmission line l")
-muR_rythv_up = Variable(m, name='muR_rythv_up', type='positive', domain=[r, y, t, h, v], description="Dual variable associated with the constraint imposing the upper bound for the power produced by renewable generating unit r")
-muS_sythv = Variable(m, name='muS_sythv', domain=[s, y, t, h, v], description="Dual variable associated with the energy stored in storage facility s, being h greater than 1")
-muS_sythv_lo = Variable(m, name='muS_sythv_lo', type='positive', domain=[s, y, t, h, v], description="Dual variable associated with the constraint imposing the lower bound for the energy stored in storage facility s")
-muS_sythv_up = Variable(m, name='muS_sythv_up', type='positive', domain=[s, y, t, h, v], description="Dual variable associated with the constraint imposing the upper bound for the energy stored in storage facility s")
-muSC_sythv_up = Variable(m, name='muSC_sythv_up', type='positive', domain=[s, y, t, h, v], description="Dual variable associated with the constraint imposing the upper bound for the charging power of storage facility s")
-muSD_sythv_up = Variable(m, name='muSD_sythv_up', type='positive', domain=[s, y, t, h, v], description="Dual variable associated with the constraint imposing the upper bound for the discharging power of storage facility s")
-PhiS_sytv = Variable(m, name='PhiS_sytv', domain=[s, y, t, v], description="Dual variable associated with the energy stored in storage facility s at the first RTP of RD") # Check if it should really be positive
-PhiS_sytv_lo = Variable(m, name='PhiS_sytv_lo', type='positive', domain=[s, y, t, v], description="Dual variable associated with the constraint imposing the lower bound for the energy stored in storage facility s at the last RTP of RD")
-phiN_nythv = Variable(m, name='phiN_nythv', domain=[n, y, t, h, v], description="Dual variable associated with the definition of the reference bus n")
+lambdaN_nythv = Variable(m, name='lambdaN_nythv', domain=[n, y, t, h, k], description="Dual variable associated with the power balance equation at bus n")
+muD_dythv_up = Variable(m, name='muD_dythv_up', type='positive', domain=[d, y, t, h, k], description="Dual variable associated with the constraint imposing the upper bound for the unserved demand of load d")
+muG_gythv_lo = Variable(m, name='muG_gythv_lo', type='positive', domain=[g, y, t, h, k], description="Dual variable associated with the constraint imposing the lower bound for the power produced by conventional generating unit g")
+muG_gythv_up = Variable(m, name='muG_gythv_up', type='positive', domain=[g, y, t, h, k], description="Dual variable associated with the constraint imposing the upper bound for the power produced by conventional generating unit g")
+muGD_gythv = Variable(m, name='muGD_gythv', type='positive', domain=[g, y, t, h, k], description="Dual variable associated with the constraint imposing the ramp-down limit of conventional generating unit g, being ℎ greater than 1")
+muGU_gythv = Variable(m, name='muGU_gythv', type='positive', domain=[g, y, t, h, k], description="Dual variable associated with the constraint imposing the ramp-up limit of conventional generating unit g, being ℎ greater than 1")
+muL_lythv_exist = Variable(m, name='muL_lythv_exist', domain=[le, y, t, h, k], description="Dual variable associated with the power flow through existing transmission line l")
+muL_lythv_can = Variable(m, name='muL_lythv_can', domain=[lc, y, t, h, k], description="Dual variable associated with the power flow through candidate transmission line l")
+muL_lythv_lo = Variable(m, name='muL_lythv_lo', type='positive', domain=[l, y, t, h, k], description="Dual variable associated with the constraint imposing the lower bound for the power flow through transmission line l")
+muL_lythv_up = Variable(m, name='muL_lythv_up', type='positive', domain=[l, y, t, h, k], description="Dual variable associated with the constraint imposing the upper bound for the power flow through transmission line l")
+muR_rythv_up = Variable(m, name='muR_rythv_up', type='positive', domain=[r, y, t, h, k], description="Dual variable associated with the constraint imposing the upper bound for the power produced by renewable generating unit r")
+muS_sythv = Variable(m, name='muS_sythv', domain=[s, y, t, h, k], description="Dual variable associated with the energy stored in storage facility s, being h greater than 1")
+muS_sythv_lo = Variable(m, name='muS_sythv_lo', type='positive', domain=[s, y, t, h, k], description="Dual variable associated with the constraint imposing the lower bound for the energy stored in storage facility s")
+muS_sythv_up = Variable(m, name='muS_sythv_up', type='positive', domain=[s, y, t, h, k], description="Dual variable associated with the constraint imposing the upper bound for the energy stored in storage facility s")
+muSC_sythv_up = Variable(m, name='muSC_sythv_up', type='positive', domain=[s, y, t, h, k], description="Dual variable associated with the constraint imposing the upper bound for the charging power of storage facility s")
+muSD_sythv_up = Variable(m, name='muSD_sythv_up', type='positive', domain=[s, y, t, h, k], description="Dual variable associated with the constraint imposing the upper bound for the discharging power of storage facility s")
+PhiS_sytv = Variable(m, name='PhiS_sytv', domain=[s, y, t, k], description="Dual variable associated with the energy stored in storage facility s at the first RTP of RD") # Check if it should really be positive
+PhiS_sytv_lo = Variable(m, name='PhiS_sytv_lo', type='positive', domain=[s, y, t, k], description="Dual variable associated with the constraint imposing the lower bound for the energy stored in storage facility s at the last RTP of RD")
+phiN_nythv = Variable(m, name='phiN_nythv', domain=[n, y, t, h, k], description="Dual variable associated with the definition of the reference bus n")
 
 # Linearization variables
-alphaD_dyth = Variable(m, name="alphaD_dyth", domain=[d, y, t, h], description="Auxiliary variable for the linearization of zD_dy*lambdaN_nyth")
-alphaD_dyth_up = Variable(m, name="alphaD_dyth_up", type='positive', domain=[d, y, t, h], description="Auxiliary variable for the linearization of zD_dy*muD_dyth_up")
-alphaGP_gyth_up = Variable(m, name="alphaGP_gyth_up", type='positive', domain=[g, y, t, h], description="Auxiliary variable for the linearization of zGP_gy*muGP_gyth_up")
-alphaR_ryth_up = Variable(m, name="alphaR_ryth_up", type='positive', domain=[r, y, t, h], description="Auxiliary variable for the linearization of zR_ry*muR_ryth_up")
+alphaD_dythv = Variable(m, name="alphaD_dythv", domain=[d, y, t, h, k], description="Auxiliary variable for the linearization of zD_dy*lambdaN_nyth")
+alphaD_dythv_up = Variable(m, name="alphaD_dythv_up", type='positive', domain=[d, y, t, h, k], description="Auxiliary variable for the linearization of zD_dy*muD_dyth_up")
+alphaGP_gythv_up = Variable(m, name="alphaGP_gythv_up", type='positive', domain=[g, y, t, h, k], description="Auxiliary variable for the linearization of zGP_gy*muGP_gyth_up")
+alphaR_rythv_up = Variable(m, name="alphaR_rythv_up", type='positive', domain=[r, y, t, h, k], description="Auxiliary variable for the linearization of zR_ry*muR_ryth_up")
 
 min_inv_cost_wc = Variable(m, name="min_inv_cost_wc", description="Worst-case investment costs")
 min_op_cost_y = Variable(m, name="min_op_cost_y", description="Minimized operating costs for year y")
@@ -207,36 +208,37 @@ OF_olmp = Equation(m, name="OF_olmp", type="regular")
 con_1c = Equation(m, name="con_1c")
 con_1d = Equation(m, name="con_1d", domain=[lc])
 con_1e = Equation(m, name="con_1e", domain=[lc, y])
-con_4c = Equation(m, name="con_4c", domain=[y, i])
-con_4d = Equation(m, name="con_4d", domain=[n, y, t, h, i])
-con_4e = Equation(m, name="con_4e", domain=[le, y, t, h, i])
-con_4f_lin1 = Equation(m, name="con_4f_lin1", domain=[lc, y, t, h, i]) # Linearized
-con_4f_lin2 = Equation(m, name="con_4f_lin2", domain=[lc, y, t, h, i]) # Linearized
-con_4g_exist_lin1 = Equation(m, name="con_4g_exist_lin1", domain=[le, y, t, h, i])
-con_4g_exist_lin2 = Equation(m, name="con_4g_exist_lin2", domain=[le, y, t, h, i])
-con_4g_can_lin1 = Equation(m, name="con_4g_can_lin1", domain=[lc, y, t, h, i])
-con_4g_can_lin2 = Equation(m, name="con_4g_can_lin2", domain=[lc, y, t, h, i])
-con_4h = Equation(m, name="con_4h", domain=[s, y, t, i]) # H == 1
-con_4i = Equation(m, name="con_4i", domain=[s, y, t, h, i]) # H =/= 1
-con_4j = Equation(m, name="con_4j", domain=[s, y, t, i]) # H == Hmax
-con_4k1 = Equation(m, name="con_4k1", domain=[s, y, t, h, i])
-con_4k2 = Equation(m, name="con_4k2", domain=[s, y, t, h, i])
+con_4c = Equation(m, name="con_4c", domain=[y, ir])
+con_4d = Equation(m, name="con_4d", domain=[n, y, t, h, ir])
+con_4e = Equation(m, name="con_4e", domain=[le, y, t, h, ir])
+con_4f_lin1 = Equation(m, name="con_4f_lin1", domain=[lc, y, t, h, ir]) # Linearized
+con_4f_lin2 = Equation(m, name="con_4f_lin2", domain=[lc, y, t, h, ir]) # Linearized
+con_4g_exist_lin1 = Equation(m, name="con_4g_exist_lin1", domain=[le, y, t, h, ir])
+con_4g_exist_lin2 = Equation(m, name="con_4g_exist_lin2", domain=[le, y, t, h, ir])
+con_4g_can_lin1 = Equation(m, name="con_4g_can_lin1", domain=[lc, y, t, h, ir])
+con_4g_can_lin2 = Equation(m, name="con_4g_can_lin2", domain=[lc, y, t, h, ir])
+con_4h = Equation(m, name="con_4h", domain=[s, y, t, ir]) # H == 1
+con_4i = Equation(m, name="con_4i", domain=[s, y, t, h, ir]) # H =/= 1
+con_4j = Equation(m, name="con_4j", domain=[s, y, t, ir]) # H == Hmax
+con_4k1 = Equation(m, name="con_4k1", domain=[s, y, t, h, ir])
+con_4k2 = Equation(m, name="con_4k2", domain=[s, y, t, h, ir])
 # con_4l = Equation(m, name="con_4l", domain=[S,T,H,Y])
-con_4m = Equation(m, name="con_4m", domain=[s, y, t, h, i])
-con_4n = Equation(m, name="con_4n", domain=[s, y, t, h, i])
-con_4o = Equation(m, name="con_4o", domain=[d, y, t, h, i])
+con_4m = Equation(m, name="con_4m", domain=[s, y, t, h, ir])
+con_4n = Equation(m, name="con_4n", domain=[s, y, t, h, ir])
+con_4o = Equation(m, name="con_4o", domain=[d, y, t, h, ir])
 # con_4p = Equation(m, name="con_4p", domain=[G,T,H,Y])
-con_4q1 = Equation(m, name="con_4q1", domain=[g, y, t, h, i])
-con_4q2 = Equation(m, name="con_4q2", domain=[g, y, t, h, i])
-con_4r1 = Equation(m, name="con_4r1", domain=[g, y, t, h, i]) # H =/= 1
-con_4r2 = Equation(m, name="con_4r2", domain=[g, y, t, h, i]) # H =/= 1
-con_4s = Equation(m, name="con_4s", domain=[r, y, t, h, i])
-con_4t = Equation(m, name="con_4t", domain=[y, t, h, i]) # N == ref bus
+con_4q1 = Equation(m, name="con_4q1", domain=[g, y, t, h, ir])
+con_4q2 = Equation(m, name="con_4q2", domain=[g, y, t, h, ir])
+con_4r1 = Equation(m, name="con_4r1", domain=[g, y, t, h, ir]) # H =/= 1
+con_4r2 = Equation(m, name="con_4r2", domain=[g, y, t, h, ir]) # H =/= 1
+con_4s = Equation(m, name="con_4s", domain=[r, y, t, h, ir])
+con_4t = Equation(m, name="con_4t", domain=[y, t, h, ir]) # N == ref bus
 
 
 def build_olmp_eqns(static, i_range):
     imin = min(i_range)
     imax = max(i_range)
+    # ir = (i.val >= imin) & (i.val <= imax)
     hmax = int(nb_H.toValue())
 
     if static:
@@ -251,74 +253,39 @@ def build_olmp_eqns(static, i_range):
         con_1d[lc] = Sum(y, vL_ly[lc, y]) <= 1
         con_1e[lc, y] = vL_ly_prev[lc, y] == Sum(yp.where[yp.val <= y.val], vL_ly[lc, yp])
 
-    # con_4c[y, i].where[(i.val>=imin)&(i.val<=imax)] = rho_y[y] >= Sum(t, Sum(h, sigma_yt[y, t]*tau_yth[y, t, h] * (Sum(g, CG_gyi[g,y,i] * pG_gythi[g, y, t, h, i]) \
-    # + Sum(r, CR_r[r] * (gammaR_ryth[r, y, t, h] * PR_ryi[r,y,i] - pR_rythi[r, y, t, h, i])) \
-    # + Sum(d, CLS_d[d] * pLS_dythi[d, y, t, h, i]))))
-    # con_4d[n, y, t, h, i].where[(i.val>=imin)&(i.val<=imax)] = Sum(g.where[g_n[g, n]], pG_gythi[g, y, t, h, i]) + Sum(r.where[r_n[r, n]], pR_rythi[r, y, t, h, i]) \
-    # + Sum(l.where[rel_n[l, n]], pL_lythi[l, y, t, h, i]) - Sum(l.where[sel_n[l, n]], pL_lythi[l, y, t, h, i]) \
-    # + Sum(s.where[s_n[s, n]], pSD_sythi[s, y, t, h, i] - pSC_sythi[s, y, t, h, i]) \
-    # == Sum(d.where[d_n[d, n]], gammaD_dyth[d, y, t, h] * PD_dyi[d,y,i] - pLS_dythi[d, y, t, h, i])
-    # con_4e[le, y, t, h, i].where[(i.val>=imin)&(i.val<=imax)] = pL_lythi[le, y, t, h, i] == (1.0 / X_l[le]) * (Sum(n.where[sel_n[le, n]], theta_nythi[n, y, t, h, i]) \
-    # - Sum(n.where[rel_n[le, n]], theta_nythi[n, y, t, h, i]))
-    # con_4f_lin1[lc, y, t, h, i].where[(i.val>=imin)&(i.val<=imax)] = pL_lythi[lc, y, t, h, i] - (1 / X_l[lc]) * (Sum(n.where[sel_n[lc, n]], theta_nythi[n, y, t, h, i]) \
-    # - Sum(n.where[rel_n[lc, n]], theta_nythi[n, y, t, h, i])) <= (1 - vL_ly_prev[lc, y]) * FL
-    # con_4f_lin2[lc, y, t, h, i].where[(i.val>=imin)&(i.val<=imax)] = pL_lythi[lc, y, t, h, i] - (1 / X_l[lc]) * (Sum(n.where[sel_n[lc, n]], theta_nythi[n, y, t, h, i]) \
-    # - Sum(n.where[rel_n[lc, n]], theta_nythi[n, y, t, h, i])) >= -(1 - vL_ly_prev[lc, y]) * FL
-    # con_4g_exist_lin1[le, y, t, h, i].where[(i.val>=imin)&(i.val<=imax)] = pL_lythi[le, y, t, h, i] <= PL_l[le]
-    # con_4g_exist_lin2[le, y, t, h, i].where[(i.val>=imin)&(i.val<=imax)] = pL_lythi[le, y, t, h, i] >= -PL_l[le]
-    # con_4g_can_lin1[lc, y, t, h, i].where[(i.val>=imin)&(i.val<=imax)] = pL_lythi[lc, y, t, h, i] <= vL_ly_prev[lc, y] * PL_l[lc]
-    # con_4g_can_lin2[lc, y, t, h, i].where[(i.val>=imin)&(i.val<=imax)] = pL_lythi[lc, y, t, h, i] >= -vL_ly_prev[lc, y] * PL_l[lc]
-    # con_4h[s, y, t, i].where[(i.val>=imin)&(i.val<=imax)] = eS_sythi[s, y, t, 1, i] == ES_syt0[s, y, t] + (pSC_sythi[s, y, t, 1, i] * etaSC_s[s] \
-    # - (pSD_sythi[s, y, t, 1, i] / etaSD_s[s])) * tau_yth[y, t, 1]
-    # con_4i[s, y, t, h, i].where[(i.val>=imin)&(i.val<=imax)&(Ord(h) > 1)] = eS_sythi[s, y, t, h, i] == eS_sythi[s, y, t, h.lag(1), i] \
-    # + (pSC_sythi[s, y, t, h, i] * etaSC_s[s] - (pSD_sythi[s, y, t, h, i] / etaSD_s[s])) * tau_yth[y, t, h]
-    # con_4j[s, y, t, i].where[(i.val>=imin)&(i.val<=imax)] =  eS_sythi[s, y, t, hmax, i] >= ES_syt0[s, y, t]
-    # con_4k1[s, y, t, h, i].where[(i.val>=imin)&(i.val<=imax)] = eS_sythi[s, y, t, h, i] <= ES_s_max[s]
-    # con_4k2[s, y, t, h, i].where[(i.val>=imin)&(i.val<=imax)] = eS_sythi[s, y, t, h, i] >= ES_s_min[s]
-    # con_4m[s, y, t, h, i].where[(i.val>=imin)&(i.val<=imax)] = pSC_sythi[s, y, t, h, i] <= uS_syth[s, y, t, h] * PSC_s[s]
-    # con_4n[s, y, t, h, i].where[(i.val>=imin)&(i.val<=imax)] = pSD_sythi[s, y, t, h, i] <= (1 - uS_syth[s, y, t, h]) * PSD_s[s]
-    # con_4o[d, y, t, h, i].where[(i.val>=imin)&(i.val<=imax)] = pLS_dythi[d, y, t, h, i] <= gammaD_dyth[d, y, t, h] * PD_dyi[d,y,i]  # pD_dy[D,Y]
-    # con_4q1[g, y, t, h, i].where[(i.val>=imin)&(i.val<=imax)] = pG_gythi[g, y, t, h, i] <= uG_gyth[g, y, t, h] * PG_gyi[g,y,i]  # pG_gy[G,Y]
-    # con_4q2[g, y, t, h, i].where[(i.val>=imin)&(i.val<=imax)] = pG_gythi[g, y, t, h, i] >= uG_gyth[g, y, t, h] * PG_g_min[g]
-    # con_4r1[g, y, t, h, i].where[(i.val>=imin)&(i.val<=imax)&Ord(h) > 1] = pG_gythi[g, y, t, h, i] - pG_gythi[g, y, t, h.lag(1), i] <= RGU_g[g]
-    # con_4r2[g, y, t, h, i].where[(i.val>=imin)&(i.val<=imax)&Ord(h) > 1] = pG_gythi[g, y, t, h, i] - pG_gythi[g, y, t, h.lag(1), i] >= -RGD_g[g]
-    # con_4s[r, y, t, h, i].where[(i.val>=imin)&(i.val<=imax)] = pR_rythi[r, y, t, h, i] <= gammaR_ryth[r, y, t, h] * PR_ryi[r,y,i]  # pR_ry[R,Y]
-    # con_4t[y, t, h, i].where[(i.val>=imin)&(i.val<=imax)] = theta_nythi[1, y, t, h, i] == 0
-
-    for ij in i_range:
-        con_4c[y, ij] = rho_y[y] >= Sum(t, Sum(h, sigma_yt[y, t]*tau_yth[y, t, h] * (Sum(g, CG_gyi[g,y,ij] * pG_gythi[g, y, t, h, ij]) \
-        + Sum(r, CR_r[r] * (gammaR_ryth[r, y, t, h] * PR_ryi[r,y,ij] - pR_rythi[r, y, t, h, ij])) \
-        + Sum(d, CLS_d[d] * pLS_dythi[d, y, t, h, ij]))))
-        con_4d[n, y, t, h, ij] = Sum(g.where[g_n[g, n]], pG_gythi[g, y, t, h, ij]) + Sum(r.where[r_n[r, n]], pR_rythi[r, y, t, h, ij]) \
-        + Sum(l.where[rel_n[l, n]], pL_lythi[l, y, t, h, ij]) - Sum(l.where[sel_n[l, n]], pL_lythi[l, y, t, h, ij]) \
-        + Sum(s.where[s_n[s, n]], pSD_sythi[s, y, t, h, ij] - pSC_sythi[s, y, t, h, ij]) \
-        == Sum(d.where[d_n[d, n]], gammaD_dyth[d, y, t, h] * PD_dyi[d,y,ij] - pLS_dythi[d, y, t, h, ij])
-        con_4e[le, y, t, h, ij] = pL_lythi[le, y, t, h, ij] == (1.0 / X_l[le]) * (Sum(n.where[sel_n[le, n]], theta_nythi[n, y, t, h, ij]) \
-        - Sum(n.where[rel_n[le, n]], theta_nythi[n, y, t, h, ij]))
-        con_4f_lin1[lc, y, t, h, ij] = pL_lythi[lc, y, t, h, ij] - (1 / X_l[lc]) * (Sum(n.where[sel_n[lc, n]], theta_nythi[n, y, t, h, ij]) \
-        - Sum(n.where[rel_n[lc, n]], theta_nythi[n, y, t, h, ij])) <= (1 - vL_ly_prev[lc, y]) * FL
-        con_4f_lin2[lc, y, t, h, ij] = pL_lythi[lc, y, t, h, ij] - (1 / X_l[lc]) * (Sum(n.where[sel_n[lc, n]], theta_nythi[n, y, t, h, ij]) \
-        - Sum(n.where[rel_n[lc, n]], theta_nythi[n, y, t, h, ij])) >= -(1 - vL_ly_prev[lc, y]) * FL
-        con_4g_exist_lin1[le, y, t, h, ij] = pL_lythi[le, y, t, h, ij] <= PL_l[le]
-        con_4g_exist_lin2[le, y, t, h, ij] = pL_lythi[le, y, t, h, ij] >= -PL_l[le]
-        con_4g_can_lin1[lc, y, t, h, ij] = pL_lythi[lc, y, t, h, ij] <= vL_ly_prev[lc, y] * PL_l[lc]
-        con_4g_can_lin2[lc, y, t, h, ij] = pL_lythi[lc, y, t, h, ij] >= -vL_ly_prev[lc, y] * PL_l[lc]
-        con_4h[s, y, t, ij]= eS_sythi[s, y, t, 1, ij] == ES_syt0[s, y, t] + (pSC_sythi[s, y, t, 1, ij] * etaSC_s[s] \
-        - (pSD_sythi[s, y, t, 1, ij] / etaSD_s[s])) * tau_yth[y, t, 1]
-        con_4i[s, y, t, h, ij].where[(Ord(h) > 1)] = eS_sythi[s, y, t, h, ij] == eS_sythi[s, y, t, h.lag(1), ij] \
-        + (pSC_sythi[s, y, t, h, ij] * etaSC_s[s] - (pSD_sythi[s, y, t, h, ij] / etaSD_s[s])) * tau_yth[y, t, h]
-        con_4j[s, y, t, ij]=  eS_sythi[s, y, t, hmax, ij] >= ES_syt0[s, y, t]
-        con_4k1[s, y, t, h, ij] = eS_sythi[s, y, t, h, ij] <= ES_s_max[s]
-        con_4k2[s, y, t, h, ij] = eS_sythi[s, y, t, h, ij] >= ES_s_min[s]
-        con_4m[s, y, t, h, ij] = pSC_sythi[s, y, t, h, ij] <= uS_syth[s, y, t, h] * PSC_s[s]
-        con_4n[s, y, t, h, ij] = pSD_sythi[s, y, t, h, ij] <= (1 - uS_syth[s, y, t, h]) * PSD_s[s]
-        con_4o[d, y, t, h, ij] = pLS_dythi[d, y, t, h, ij] <= gammaD_dyth[d, y, t, h] * PD_dyi[d,y,ij]  # pD_dy[D,Y]
-        con_4q1[g, y, t, h, ij] = pG_gythi[g, y, t, h, ij] <= uG_gyth[g, y, t, h] * PG_gyi[g,y,ij]  # pG_gy[G,Y]
-        con_4q2[g, y, t, h, ij] = pG_gythi[g, y, t, h, ij] >= uG_gyth[g, y, t, h] * PG_g_min[g]
-        con_4r1[g, y, t, h, ij].where[Ord(h) > 1] = pG_gythi[g, y, t, h, ij] - pG_gythi[g, y, t, h.lag(1), ij] <= RGU_g[g]
-        con_4r2[g, y, t, h, ij].where[Ord(h) > 1] = pG_gythi[g, y, t, h, ij] - pG_gythi[g, y, t, h.lag(1), ij] >= -RGD_g[g]
-        con_4s[r, y, t, h, ij] = pR_rythi[r, y, t, h, ij] <= gammaR_ryth[r, y, t, h] * PR_ryi[r,y,ij]  # pR_ry[R,Y]
-        con_4t[y, t, h, ij] = theta_nythi[1, y, t, h, ij] == 0
+    con_4c[y, ir] = rho_y[y] >= Sum(t, sigma_yt[y, t]* Sum(h, tau_yth[y, t, h] * (Sum(g, CG_gyi[g,y,ir] * pG_gythi[g, y, t, h, ir]) \
+    + Sum(r, CR_r[r] * (gammaR_ryth[r, y, t, h] * PR_ryi[r,y,ir] - pR_rythi[r, y, t, h, ir])) \
+    + Sum(d, CLS_d[d] * pLS_dythi[d, y, t, h, ir]))))
+    con_4d[n, y, t, h, ir] = Sum(g.where[g_n[g, n]], pG_gythi[g, y, t, h, ir]) + Sum(r.where[r_n[r, n]], pR_rythi[r, y, t, h, ir]) \
+    + Sum(l.where[rel_n[l, n]], pL_lythi[l, y, t, h, ir]) - Sum(l.where[sel_n[l, n]], pL_lythi[l, y, t, h, ir]) \
+    + Sum(s.where[s_n[s, n]], pSD_sythi[s, y, t, h, ir] - pSC_sythi[s, y, t, h, ir]) \
+    == Sum(d.where[d_n[d, n]], gammaD_dyth[d, y, t, h] * PD_dyi[d,y,ir] - pLS_dythi[d, y, t, h, ir])
+    con_4e[le, y, t, h, ir] = pL_lythi[le, y, t, h, ir] == (1.0 / X_l[le]) * (Sum(n.where[sel_n[le, n]], theta_nythi[n, y, t, h, ir]) \
+    - Sum(n.where[rel_n[le, n]], theta_nythi[n, y, t, h, ir]))
+    con_4f_lin1[lc, y, t, h, ir] = pL_lythi[lc, y, t, h, ir] - (1 / X_l[lc]) * (Sum(n.where[sel_n[lc, n]], theta_nythi[n, y, t, h, ir]) \
+    - Sum(n.where[rel_n[lc, n]], theta_nythi[n, y, t, h, ir])) <= (1 - vL_ly_prev[lc, y]) * FL
+    con_4f_lin2[lc, y, t, h, ir] = pL_lythi[lc, y, t, h, ir] - (1 / X_l[lc]) * (Sum(n.where[sel_n[lc, n]], theta_nythi[n, y, t, h, ir]) \
+    - Sum(n.where[rel_n[lc, n]], theta_nythi[n, y, t, h, ir])) >= -(1 - vL_ly_prev[lc, y]) * FL
+    con_4g_exist_lin1[le, y, t, h, ir] = pL_lythi[le, y, t, h, ir] <= PL_l[le]
+    con_4g_exist_lin2[le, y, t, h, ir] = pL_lythi[le, y, t, h, ir] >= -PL_l[le]
+    con_4g_can_lin1[lc, y, t, h, ir] = pL_lythi[lc, y, t, h, ir] <= vL_ly_prev[lc, y] * PL_l[lc]
+    con_4g_can_lin2[lc, y, t, h, ir] = pL_lythi[lc, y, t, h, ir] >= -vL_ly_prev[lc, y] * PL_l[lc]
+    con_4h[s, y, t, ir] = eS_sythi[s, y, t, 1, ir] == ES_syt0[s, y, t] + (pSC_sythi[s, y, t, 1, ir] * etaSC_s[s] \
+    - (pSD_sythi[s, y, t, 1, ir] / etaSD_s[s])) * tau_yth[y, t, 1]
+    con_4i[s, y, t, h, ir].where[(Ord(h) > 1)] = eS_sythi[s, y, t, h, ir] == eS_sythi[s, y, t, h.lag(1), ir] \
+    + (pSC_sythi[s, y, t, h, ir] * etaSC_s[s] - (pSD_sythi[s, y, t, h, ir] / etaSD_s[s])) * tau_yth[y, t, h]
+    con_4j[s, y, t, ir] =  eS_sythi[s, y, t, hmax, ir] >= ES_syt0[s, y, t]
+    con_4k1[s, y, t, h, ir] = eS_sythi[s, y, t, h, ir] <= ES_s_max[s]
+    con_4k2[s, y, t, h, ir] = eS_sythi[s, y, t, h, ir] >= ES_s_min[s]
+    con_4m[s, y, t, h, ir] = pSC_sythi[s, y, t, h, ir] <= uS_sythi[s, y, t, h, ir] * PSC_s[s]
+    con_4n[s, y, t, h, ir] = pSD_sythi[s, y, t, h, ir] <= (1 - uS_sythi[s, y, t, h, ir]) * PSD_s[s]
+    con_4o[d, y, t, h, ir] = pLS_dythi[d, y, t, h, ir] <= gammaD_dyth[d, y, t, h] * PD_dyi[d,y,ir]  # pD_dy[D,Y]
+    con_4q1[g, y, t, h, ir] = pG_gythi[g, y, t, h, ir] <= uG_gythi[g, y, t, h, ir] * PG_gyi[g,y,ir]  # pG_gy[G,Y]
+    con_4q2[g, y, t, h, ir] = pG_gythi[g, y, t, h, ir] >= uG_gythi[g, y, t, h, ir] * PG_g_min[g]
+    con_4r1[g, y, t, h, ir].where[Ord(h) > 1] = pG_gythi[g, y, t, h, ir] - pG_gythi[g, y, t, h.lag(1), ir] <= RGU_g[g]
+    con_4r2[g, y, t, h, ir].where[Ord(h) > 1] = pG_gythi[g, y, t, h, ir] - pG_gythi[g, y, t, h.lag(1), ir] >= -RGD_g[g]
+    con_4s[r, y, t, h, ir] = pR_rythi[r, y, t, h, ir] <= gammaR_ryth[r, y, t, h] * PR_ryi[r,y,ir]  # pR_ry[R,Y]
+    con_4t[y, t, h, ir] = theta_nythi[1, y, t, h, ir] == 0
 
     olmp_eqns = [OF_olmp, con_1c, con_1d, con_1e, con_4c, con_4d, con_4e, con_4f_lin1, con_4f_lin2, con_4g_exist_lin1,
              con_4g_exist_lin2, con_4g_can_lin1, con_4g_can_lin2, con_4h, con_4i, con_4j, con_4k1, con_4k2, con_4m,
@@ -357,42 +324,43 @@ con_2n = Equation(m, name="con_2n")
 #                           Sum(d, gammaD_dyth[d,yi,t,h] * pD_dy[d,yi] * muD_dyth_up[d,yi,t,h])) + \
 #                           Sum(s, ES_syt0[s,yi,t] * (PhiS_syt[s,yi,t] + PhiS_syt_lo[s,yi,t])) - \
 #                           Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g] * muGD_gyth[g,yi,t,h] + RGU_g[g] * muGU_gyth[g,yi,t,h])))
-con_5c_lin_a = Equation(m, name="con_5c_lin_a", domain=[v])
-con_5c_lin_b1 = Equation(m, name="con_5c_lin_b1", domain=[d, t, h])
-con_5c_lin_b2 = Equation(m, name="con_5c_lin_b2", domain=[d, t, h])
-con_5c_lin_c1 = Equation(m, name="con_5c_lin_c1", domain=[d, t, h, v])
-con_5c_lin_c2 = Equation(m, name="con_5c_lin_c2", domain=[d, t, h, v])
-con_5c_lin_d = Equation(m, name="con_5c_lin_d", domain=[d, t, h])
-con_5c_lin_e1 = Equation(m, name="con_5c_lin_e1", domain=[d, t, h, v])
-con_5c_lin_e2 = Equation(m, name="con_5c_lin_e2", domain=[d, t, h, v])
-con_5c_lin_f = Equation(m, name="con_5c_lin_f", domain=[g, t, h])
-con_5c_lin_g1 = Equation(m, name="con_5c_lin_g1", domain=[g, t, h, v])
-con_5c_lin_g2 = Equation(m, name="con_5c_lin_g2", domain=[g, t, h, v])
-con_5c_lin_h = Equation(m, name="con_5c_lin_h", domain=[r, t, h])
-con_5c_lin_i1 = Equation(m, name="con_5c_lin_i1", domain=[r, t, h, v])
-con_5c_lin_i2 = Equation(m, name="con_5c_lin_i2", domain=[r, t, h, v])
+con_5c_lin_a = Equation(m, name="con_5c_lin_a", domain=[vr])
+con_5c_lin_b1 = Equation(m, name="con_5c_lin_b1", domain=[d, t, h, vr])
+con_5c_lin_b2 = Equation(m, name="con_5c_lin_b2", domain=[d, t, h, vr])
+con_5c_lin_c1 = Equation(m, name="con_5c_lin_c1", domain=[d, t, h, vr])
+con_5c_lin_c2 = Equation(m, name="con_5c_lin_c2", domain=[d, t, h, vr])
+con_5c_lin_d = Equation(m, name="con_5c_lin_d", domain=[d, t, h, vr])
+con_5c_lin_e1 = Equation(m, name="con_5c_lin_e1", domain=[d, t, h, vr])
+con_5c_lin_e2 = Equation(m, name="con_5c_lin_e2", domain=[d, t, h, vr])
+con_5c_lin_f = Equation(m, name="con_5c_lin_f", domain=[g, t, h, vr])
+con_5c_lin_g1 = Equation(m, name="con_5c_lin_g1", domain=[g, t, h, vr])
+con_5c_lin_g2 = Equation(m, name="con_5c_lin_g2", domain=[g, t, h, vr])
+con_5c_lin_h = Equation(m, name="con_5c_lin_h", domain=[r, t, h, vr])
+con_5c_lin_i1 = Equation(m, name="con_5c_lin_i1", domain=[r, t, h, vr])
+con_5c_lin_i2 = Equation(m, name="con_5c_lin_i2", domain=[r, t, h, vr])
 
-con_5d = Equation(m, name="con_5d", domain=[g, t, v])
-con_5e = Equation(m, name="con_5e", domain=[g, t, h, v])
-con_5f = Equation(m, name="con_5f", domain=[g, t, v])
-con_5g = Equation(m, name="con_5g", domain=[d, t, h, v])
-con_5h = Equation(m, name="con_5h", domain=[r, t, h, v])
-con_5i = Equation(m, name="con_5i", domain=[le, t, h, v])
-con_5j = Equation(m, name="con_5j", domain=[lc, t, h, v])
-con_5k = Equation(m, name="con_5k", domain=[s, t, v])
-con_5l = Equation(m, name="con_5l", domain=[s, t, h, v])
-con_5m = Equation(m, name="con_5m", domain=[s, t, v])
-con_5n = Equation(m, name="con_5n", domain=[s, t, h, v])
-con_5o = Equation(m, name="con_5o", domain=[n,t,h,v]) # N =/= ref bus
-con_5p = Equation(m, name="con_5p", domain=[n,t,h,v]) # N == ref bus
-con_5q = Equation(m, name="con_5q", domain=[s,t,v])
-con_5r = Equation(m, name="con_5r", domain=[s,t,h,v])
-con_5s = Equation(m, name="con_5s", domain=[s,t,v])
+con_5d = Equation(m, name="con_5d", domain=[g, t, vr])
+con_5e = Equation(m, name="con_5e", domain=[g, t, h, vr])
+con_5f = Equation(m, name="con_5f", domain=[g, t, vr])
+con_5g = Equation(m, name="con_5g", domain=[d, t, h, vr])
+con_5h = Equation(m, name="con_5h", domain=[r, t, h, vr])
+con_5i = Equation(m, name="con_5i", domain=[le, t, h, vr])
+con_5j = Equation(m, name="con_5j", domain=[lc, t, h, vr])
+con_5k = Equation(m, name="con_5k", domain=[s, t, vr])
+con_5l = Equation(m, name="con_5l", domain=[s, t, h, vr])
+con_5m = Equation(m, name="con_5m", domain=[s, t, vr])
+con_5n = Equation(m, name="con_5n", domain=[s, t, h, vr])
+con_5o = Equation(m, name="con_5o", domain=[n,t,h,vr]) # N =/= ref bus
+con_5p = Equation(m, name="con_5p", domain=[n,t,h,vr]) # N == ref bus
+con_5q = Equation(m, name="con_5q", domain=[s,t,vr])
+con_5r = Equation(m, name="con_5r", domain=[s,t,h,vr])
+con_5s = Equation(m, name="con_5s", domain=[s,t,vr])
 ilmp_obj_var = Equation(m, name="ilmp_obj_var")
 
 def build_ilmp_eqns(yi, v_range):
     vmin = min(v_range)
     vmax = max(v_range)
+    # vr = (v.val >= vmin) & (v.val <= vmax)
     hmax = int(nb_H.toValue())
 
     con_2b[g] = cG_gy[g, yi] == CG_g_fc[g] * power(1 + zetaGC_g_fc[g], yi - 1) + CG_g_max[g] * power(1 + zetaGC_g_max[g], yi - 1) * zGC_gy[g, yi]
@@ -405,126 +373,68 @@ def build_ilmp_eqns(yi, v_range):
     con_2m[...] = Sum(rs, zR_ry[rs, yi]) <= GammaRS
     con_2n[...] = Sum(rw, zR_ry[rw, yi]) <= GammaRW
 
-    ilmp_obj_var[...] = xi_y[yi] == xi
-    # con_5c_lin_a[v].where[(v.val>=vmin)&(v.val<=vmax)] = xi <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h] * (PD_d_fc[d]*power(1+zetaD_d_fc[d], yi-1)\
-    # * Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,v]) + PD_d_max[d]*power(1+zetaD_d_max[d], yi-1) * alphaD_dyth[d,yi,t,h]))\
-    # - Sum(l, PL_l[l]*(muL_lythv_lo[l,yi,t,h,v] + muL_lythv_up[l,yi,t,h,v])) \
-    # - Sum(s, US_sythv[s,yi,t,h,v]*PSC_s[s]*muSC_sythv_up[s,yi,t,h,v] + (1-US_sythv[s,yi,t,h,v])*PSD_s[s]*muSD_sythv_up[s,yi,t,h,v] - ES_s_min[s]*muS_sythv_lo[s,yi,t,h,v] + ES_s_max[s]*muS_sythv_up[s,yi,t,h,v])\
-    # + Sum(g, UG_gythv[g,yi,t,h,v]*(PG_g_min[g]*muG_gythv_lo[g,yi,t,h,v] - (PG_g_fc[g]*power(1-zetaGP_g_fc[g], yi-1)*muG_gythv_up[g,yi,t,h,v] - PG_g_max[g]*power(1+zetaGP_g_max[g], yi-1)*alphaGP_gyth_up[g,yi,t,h]))) \
-    # - Sum(r, gammaR_ryth[r,yi,t,h]*(PR_r_fc[r]*power(1+zetaR_r_fc, yi-1)*muR_rythv_up[r,yi,t,h,v] - PR_r_max[r]*power(1+zetaR_r_max, yi-1)*alphaR_ryth_up[r,yi,t,h]))\
-    # + Sum(r, sigma_yt[yi,t]*tau_yth[yi,t,h]*CR_r[r]*gammaR_ryth[r,yi,t,h]*(PR_r_fc[r]*power(1+zetaR_r_fc, yi-1) - PR_r_max[r]*power(1+zetaR_r_max, yi-1) * zR_ry[r,yi]))\
-    # - Sum(d, gammaD_dyth[d,yi,t,h]*(PD_d_fc[d]*power(1+zetaD_d_fc[d], yi-1)*muD_dythv_up[d,yi,t,h,v] + PD_d_max[d]*power(1+zetaD_d_max[d], yi-1)*alphaD_dyth_up[d,yi,t,h]))) \
-    # + Sum(s, ES_syt0[s,yi,t]*(PhiS_sytv[s,yi,t,v] + PhiS_sytv_lo[s,yi,t,v])) \
-    # - Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g]*muGD_gythv[g,yi,t,h,v] + RGU_g[g]*muGU_gythv[g,yi,t,h,v])))
-    con_5c_lin_b1[d, t, h] = alphaD_dyth[d, yi, t, h] <= zD_dy[d, yi] * FD
-    con_5c_lin_b2[d, t, h] = alphaD_dyth[d, yi, t, h] >= -zD_dy[d, yi] * FD
-    # con_5c_lin_c1[d,t,h,v].where[(v.val>=vmin)&(v.val<=vmax)] = Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,v]) - alphaD_dyth[d,yi,t,h] <= (1-zD_dy[d,yi])*FD
-    # con_5c_lin_c2[d,t,h,v].where[(v.val>=vmin)&(v.val<=vmax)] = Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,v]) - alphaD_dyth[d,yi,t,h] >= -(1-zD_dy[d,yi])*FD
-    con_5c_lin_d[d, t, h] = alphaD_dyth_up[d, yi, t, h] <= zD_dy[d, yi] * FD_up
-    # con_5c_lin_e1[d, t, h, v].where[(v.val>=vmin)&(v.val<=vmax)] = muD_dythv_up[d, yi, t, h, v] - alphaD_dyth_up[d, yi, t, h] <= (1 - zD_dy[d, yi]) * FD_up
-    # con_5c_lin_e2[d, t, h, v].where[(v.val>=vmin)&(v.val<=vmax)] = muD_dythv_up[d, yi, t, h, v] - alphaD_dyth_up[d, yi, t, h] >= 0
-    con_5c_lin_f[g, t, h] = alphaGP_gyth_up[g, yi, t, h] <= zGP_gy[g, yi] * FG_up
-    # con_5c_lin_g1[g,t,h,v].where[(v.val>=vmin)&(v.val<=vmax)] = muG_gythv_up[g,yi,t,h,v] - alphaGP_gyth_up[g,yi,t,h] <= (1-zGP_gy[g,yi])*FG_up
-    # con_5c_lin_g2[g,t,h,v].where[(v.val>=vmin)&(v.val<=vmax)] = muG_gythv_up[g,yi,t,h,v] - alphaGP_gyth_up[g,yi,t,h] >= 0
-    con_5c_lin_h[r, t, h] = alphaR_ryth_up[r, yi, t, h] <= zR_ry[r, yi] * FR_up
-    # con_5c_lin_i1[r, t, h, v].where[(v.val>=vmin)&(v.val<=vmax)] = muR_rythv_up[r, yi, t, h, v] - alphaR_ryth_up[r, yi, t, h] <= (1 - zR_ry[r, yi]) * FR_up
-    # con_5c_lin_i2[r, t, h, v].where[(v.val>=vmin)&(v.val<=vmax)] = muR_rythv_up[r, yi, t, h, v] - alphaR_ryth_up[r, yi, t, h] >= 0
-    #
-    # con_5d[g,t,v].where[(v.val>=vmin)&(v.val<=vmax)] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,1,v]) + muG_gythv_lo[g,yi,t,1,v]\
-    # - muG_gythv_up[g,yi,t,1,v] - muGD_gythv[g,yi,t,2,v] + muGU_gythv[g,yi,t,2,v]\
-    # == sigma_yt[yi,t] * tau_yth[yi, t, 1] * cG_gy[g, yi]
-    # con_5e[g,t,h,v].where[(v.val>=vmin)&(v.val<=vmax)&(Ord(h)!=1) & (Ord(h)!=Card(h))] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,h,v])\
-    # + muG_gythv_lo[g,yi,t,h,v] - muG_gythv_up[g,yi,t,h,v] + muGD_gythv[g,yi,t,h,v] - muGD_gythv[g,yi,t,h.lead(1),v]\
-    # - muGU_gythv[g,yi,t,h,v] + muGU_gythv[g,yi,t,h.lead(1),v] == sigma_yt[yi,t]*tau_yth[yi,t,h]*cG_gy[g, yi]
-    # con_5f[g,t,v].where[(v.val>=vmin)&(v.val<=vmax)] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,hmax,v]) +  muG_gythv_lo[g,yi,t,hmax,v]\
-    # - muG_gythv_up[g,yi,t,hmax,v] + muGD_gythv[g,yi,t,hmax,v] - muGU_gythv[g, yi, t, hmax, v]\
-    # == sigma_yt[yi, t] * tau_yth[yi, t, hmax] * cG_gy[g, yi]
-    # con_5g[d,t,h,v].where[(v.val>=vmin)&(v.val<=vmax)]= Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,v])-muD_dythv_up[d, yi, t, h, v]\
-    # <= sigma_yt[yi, t] * tau_yth[yi, t, h] * CLS_d[d]
-    # con_5h[r,t,h,v].where[(v.val>=vmin)&(v.val<=vmax)] = Sum(n.where[r_n[r,n]], lambdaN_nythv[n,yi,t,h,v]) - muR_rythv_up[r,yi,t,h,v]\
-    # <= sigma_yt[yi, t] * tau_yth[yi, t, h] * CR_r[r]
-    # con_5i[le,t,h,v].where[(v.val>=vmin)&(v.val<=vmax)] = Sum(n.where[rel_n[le,n]], lambdaN_nythv[n,yi,t,h,v]) - Sum(n.where[sel_n[le,n]], lambdaN_nythv[n,yi,t,h,v]) \
-    # + muL_lythv_exist[le, yi, t, h, v] + muL_lythv_lo[le, yi, t, h, v] - muL_lythv_up[le, yi, t, h, v] == 0
-    # con_5j[lc,t,h,v].where[(v.val>=vmin)&(v.val<=vmax)] = Sum(n.where[rel_n[lc,n]], lambdaN_nythv[n,yi,t,h,v]) - Sum(n.where[sel_n[lc,n]], lambdaN_nythv[n,yi,t,h,v]) \
-    # + muL_lythv_can[lc,yi,t,h,v] + muL_lythv_lo[lc,yi,t,h,v] - muL_lythv_up[lc,yi,t,h,v] == 0
-    # con_5k[s,t,v].where[(v.val>=vmin)&(v.val<=vmax)] = Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,1,v])\
-    # + (tau_yth[yi,t,1]/etaSD_s[s])*PhiS_sytv[s,yi,t,v] - muSD_sythv_up[s,yi,t,1,v] <= 0
-    # con_5l[s,t,h,v].where[(v.val>=vmin)&(v.val<=vmax)&Ord(h)>1] = Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,h,v])\
-    # + (tau_yth[yi,t,h]/etaSD_s[s])*muS_sythv[s,yi,t,h,v] - muSD_sythv_up[s,yi,t,h,v] <= 0
-    # con_5m[s,t,v].where[(v.val>=vmin)&(v.val<=vmax)] = -Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,1,v])\
-    # - etaSC_s[s]*tau_yth[yi,t,1]*PhiS_sytv[s,yi,t,v] - muSC_sythv_up[s,yi,t,1,v] <= 0
-    # con_5n[s,t,h,v].where[(v.val>=vmin)&(v.val<=vmax)&Ord(h)>1] = -Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,h,v])\
-    # - etaSC_s[s]*tau_yth[yi,t,h]*muS_sythv[s,yi,t,h,v] - muSC_sythv_up[s,yi,t,h,v] <= 0
-    # con_5o[n, t, h, v].where[(v.val>=vmin)&(v.val<=vmax)&Ord(n) > 1] = -Sum(le.where[sel_n[le, n]], muL_lythv_exist[le, yi, t, h, v] / X_l[le])\
-    # + Sum(le.where[rel_n[le, n]], muL_lythv_exist[le, yi, t, h, v] / X_l[le])\
-    # - Sum(lc.where[sel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, v])\
-    # + Sum(lc.where[rel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, v]) == 0
-    # con_5p[n, t, h, v].where[(v.val>=vmin)&(v.val<=vmax)&Ord(n) == 1] = -Sum(le.where[sel_n[le, n]], muL_lythv_exist[le, yi, t, h, v] / X_l[le])\
-    # + Sum(le.where[rel_n[le, n]], muL_lythv_exist[le, yi, t, h, v] / X_l[le])\
-    # - Sum(lc.where[sel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, v])\
-    # + Sum(lc.where[rel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, v])\
-    # + phiN_nythv[n, yi, t, h, v] == 0
-    # con_5q[s,t,v].where[(v.val>=vmin)&(v.val<=vmax)] = PhiS_sytv[s,yi,t,v] - muS_sythv[s,yi,t,2,v] + muS_sythv_lo[s,yi,t,1,v] - muS_sythv_up[s,yi,t,1,v] == 0
-    # con_5r[s,t,h,v].where[(v.val>=vmin)&(v.val<=vmax)&(Ord(h)!=1) & (Ord(h)!=Card(h))] = muS_sythv[s,yi,t,h,v] - muS_sythv[s,yi,t,h.lead(1),v] + muS_sythv_lo[s,yi,t,h,v] - muS_sythv_up[s,yi,t,h,v] == 0
-    # con_5s[s,t,v].where[(v.val>=vmin)&(v.val<=vmax)] = muS_sythv[s,yi,t,hmax,v] + PhiS_sytv_lo[s,yi,t,v] + muS_sythv_lo[s,yi,t,hmax,v] - muS_sythv_up[s,yi,t,hmax,v] == 0
+    ilmp_obj_var[...] = xi == xi_y[yi]
+    con_5c_lin_a[vr] = xi_y[yi] <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h] * (PD_d_fc[d] * power(1+zetaD_d_fc[d], yi-1) \
+    * Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,vr]) + PD_d_max[d] * power(1+zetaD_d_max[d], yi-1) * alphaD_dythv[d,yi,t,h,vr])) \
+    - Sum(l, PL_l[l]*(muL_lythv_lo[l,yi,t,h,vr] + muL_lythv_up[l,yi,t,h,vr])) \
+    - Sum(s, US_sythv[s,yi,t,h,vr]*PSC_s[s]*muSC_sythv_up[s,yi,t,h,vr] + (1-US_sythv[s,yi,t,h,vr])*PSD_s[s]*muSD_sythv_up[s,yi,t,h,vr] - ES_s_min[s]*muS_sythv_lo[s,yi,t,h,vr] + ES_s_max[s]*muS_sythv_up[s,yi,t,h,vr]) \
+    + Sum(g, UG_gythv[g,yi,t,h,vr] * (PG_g_min[g] * muG_gythv_lo[g,yi,t,h,vr] - (PG_g_fc[g] * power(1-zetaGP_g_fc[g], yi-1) * muG_gythv_up[g,yi,t,h,vr] - PG_g_max[g] * power(1+zetaGP_g_max[g], yi-1) * alphaGP_gythv_up[g,yi,t,h,vr]))) \
+    - Sum(r, gammaR_ryth[r,yi,t,h] * (PR_r_fc[r] * power(1+zetaR_r_fc, yi-1) * muR_rythv_up[r,yi,t,h,vr] - PR_r_max[r] * power(1+zetaR_r_max, yi-1) * alphaR_rythv_up[r,yi,t,h,vr])) \
+    + Sum(r, sigma_yt[yi,t]*tau_yth[yi,t,h]*CR_r[r]*gammaR_ryth[r,yi,t,h]*(PR_r_fc[r]*power(1+zetaR_r_fc, yi-1) - PR_r_max[r]*power(1+zetaR_r_max, yi-1) * zR_ry[r,yi])) \
+    - Sum(d, gammaD_dyth[d,yi,t,h] * (PD_d_fc[d] * power(1+zetaD_d_fc[d], yi-1) * muD_dythv_up[d,yi,t,h,vr] + PD_d_max[d] * power(1+zetaD_d_max[d], yi-1) * alphaD_dythv_up[d,yi,t,h,vr]))) \
+    + Sum(s, ES_syt0[s,yi,t]*(PhiS_sytv[s,yi,t,vr] + PhiS_sytv_lo[s,yi,t,vr])) \
+    - Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g]*muGD_gythv[g,yi,t,h,vr] + RGU_g[g]*muGU_gythv[g,yi,t,h,vr])))
+    con_5c_lin_b1[d, t, h, vr] = alphaD_dythv[d, yi, t, h, vr] <= zD_dy[d, yi] * FD
+    con_5c_lin_b2[d, t, h, vr] = alphaD_dythv[d, yi, t, h, vr] >= -zD_dy[d, yi] * FD
+    con_5c_lin_c1[d,t,h,vr] = Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,vr]) - alphaD_dythv[d,yi,t,h,vr] <= (1 - zD_dy[d,yi]) * FD
+    con_5c_lin_c2[d,t,h,vr] = Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,vr]) - alphaD_dythv[d,yi,t,h,vr] >= -(1 - zD_dy[d,yi]) * FD
+    con_5c_lin_d[d, t, h, vr] = alphaD_dythv_up[d, yi, t, h, vr] <= zD_dy[d, yi] * FD_up
+    con_5c_lin_e1[d, t, h, vr] = muD_dythv_up[d, yi, t, h, vr] - alphaD_dythv_up[d, yi, t, h, vr] <= (1 - zD_dy[d, yi]) * FD_up
+    con_5c_lin_e2[d, t, h, vr] = muD_dythv_up[d, yi, t, h, vr] - alphaD_dythv_up[d, yi, t, h, vr] >= 0
+    con_5c_lin_f[g, t, h, vr] = alphaGP_gythv_up[g, yi, t, h, vr] <= zGP_gy[g, yi] * FG_up
+    con_5c_lin_g1[g,t,h,vr] = muG_gythv_up[g,yi,t,h,vr] - alphaGP_gythv_up[g,yi,t,h,vr] <= (1 - zGP_gy[g,yi]) * FG_up
+    con_5c_lin_g2[g,t,h,vr] = muG_gythv_up[g,yi,t,h,vr] - alphaGP_gythv_up[g,yi,t,h,vr] >= 0
+    con_5c_lin_h[r, t, h, vr] = alphaR_rythv_up[r, yi, t, h, vr] <= zR_ry[r, yi] * FR_up
+    con_5c_lin_i1[r, t, h, vr] = muR_rythv_up[r, yi, t, h, vr] - alphaR_rythv_up[r, yi, t, h, vr] <= (1 - zR_ry[r, yi]) * FR_up
+    con_5c_lin_i2[r, t, h, vr] = muR_rythv_up[r, yi, t, h, vr] - alphaR_rythv_up[r, yi, t, h, vr] >= 0
 
-    for vi in v_range:
-        con_5c_lin_a[vi] = xi <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h] * (PD_d_fc[d]*power(1+zetaD_d_fc[d], yi-1)\
-        * Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,vi]) + PD_d_max[d]*power(1+zetaD_d_max[d], yi-1) * alphaD_dyth[d,yi,t,h]))\
-        - Sum(l, PL_l[l]*(muL_lythv_lo[l,yi,t,h,vi] + muL_lythv_up[l,yi,t,h,vi])) \
-        - Sum(s, US_sythv[s,yi,t,h,vi]*PSC_s[s]*muSC_sythv_up[s,yi,t,h,vi] + (1-US_sythv[s,yi,t,h,vi])*PSD_s[s]*muSD_sythv_up[s,yi,t,h,vi] - ES_s_min[s]*muS_sythv_lo[s,yi,t,h,vi] + ES_s_max[s]*muS_sythv_up[s,yi,t,h,vi])\
-        + Sum(g, UG_gythv[g,yi,t,h,vi]*(PG_g_min[g]*muG_gythv_lo[g,yi,t,h,vi] - (PG_g_fc[g]*power(1-zetaGP_g_fc[g], yi-1)*muG_gythv_up[g,yi,t,h,vi] - PG_g_max[g]*power(1+zetaGP_g_max[g], yi-1)*alphaGP_gyth_up[g,yi,t,h]))) \
-        - Sum(r, gammaR_ryth[r,yi,t,h]*(PR_r_fc[r]*power(1+zetaR_r_fc, yi-1)*muR_rythv_up[r,yi,t,h,vi] - PR_r_max[r]*power(1+zetaR_r_max, yi-1)*alphaR_ryth_up[r,yi,t,h]))\
-        + Sum(r, sigma_yt[yi,t]*tau_yth[yi,t,h]*CR_r[r]*gammaR_ryth[r,yi,t,h]*(PR_r_fc[r]*power(1+zetaR_r_fc, yi-1) - PR_r_max[r]*power(1+zetaR_r_max, yi-1) * zR_ry[r,yi]))\
-        - Sum(d, gammaD_dyth[d,yi,t,h]*(PD_d_fc[d]*power(1+zetaD_d_fc[d], yi-1)*muD_dythv_up[d,yi,t,h,vi] + PD_d_max[d]*power(1+zetaD_d_max[d], yi-1)*alphaD_dyth_up[d,yi,t,h]))) \
-        + Sum(s, ES_syt0[s,yi,t]*(PhiS_sytv[s,yi,t,vi] + PhiS_sytv_lo[s,yi,t,vi])) \
-        - Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g]*muGD_gythv[g,yi,t,h,vi] + RGU_g[g]*muGU_gythv[g,yi,t,h,vi])))
-        con_5c_lin_c1[d,t,h,vi] = Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,vi]) - alphaD_dyth[d,yi,t,h] <= (1-zD_dy[d,yi])*FD
-        con_5c_lin_c2[d,t,h,vi] = Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,vi]) - alphaD_dyth[d,yi,t,h] >= -(1-zD_dy[d,yi])*FD
-        con_5c_lin_e1[d, t, h, vi] = muD_dythv_up[d, yi, t, h, vi] - alphaD_dyth_up[d, yi, t, h] <= (1 - zD_dy[d, yi]) * FD_up
-        con_5c_lin_e2[d, t, h, vi] = muD_dythv_up[d, yi, t, h, vi] - alphaD_dyth_up[d, yi, t, h] >= 0
-        con_5c_lin_g1[g,t,h,vi] = muG_gythv_up[g,yi,t,h,vi] - alphaGP_gyth_up[g,yi,t,h] <= (1-zGP_gy[g,yi])*FG_up
-        con_5c_lin_g2[g,t,h,vi] = muG_gythv_up[g,yi,t,h,vi] - alphaGP_gyth_up[g,yi,t,h] >= 0
-        con_5c_lin_i1[r, t, h, vi] = muR_rythv_up[r, yi, t, h, vi] - alphaR_ryth_up[r, yi, t, h] <= (1 - zR_ry[r, yi]) * FR_up
-        con_5c_lin_i2[r, t, h, vi] = muR_rythv_up[r, yi, t, h, vi] - alphaR_ryth_up[r, yi, t, h] >= 0
-
-        con_5d[g,t,vi] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,1,vi]) + muG_gythv_lo[g,yi,t,1,vi]\
-        - muG_gythv_up[g,yi,t,1,vi] - muGD_gythv[g,yi,t,2,vi] + muGU_gythv[g,yi,t,2,vi]\
-        == sigma_yt[yi,t] * tau_yth[yi, t, 1] * cG_gy[g, yi]
-        con_5e[g,t,h,vi].where[(Ord(h)!=1) & (Ord(h)!=Card(h))] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,h,vi])\
-        + muG_gythv_lo[g,yi,t,h,vi] - muG_gythv_up[g,yi,t,h,vi] + muGD_gythv[g,yi,t,h,vi] - muGD_gythv[g,yi,t,h.lead(1),vi]\
-        - muGU_gythv[g,yi,t,h,vi] + muGU_gythv[g,yi,t,h.lead(1),vi] == sigma_yt[yi,t]*tau_yth[yi,t,h]*cG_gy[g, yi]
-        con_5f[g,t,vi] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,hmax,vi]) +  muG_gythv_lo[g,yi,t,hmax,vi]\
-        - muG_gythv_up[g,yi,t,hmax,vi] + muGD_gythv[g,yi,t,hmax,vi] - muGU_gythv[g, yi, t, hmax, vi]\
-        == sigma_yt[yi, t] * tau_yth[yi, t, hmax] * cG_gy[g, yi]
-        con_5g[d,t,h,vi] = Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,vi])-muD_dythv_up[d, yi, t, h, vi]\
-        <= sigma_yt[yi, t] * tau_yth[yi, t, h] * CLS_d[d]
-        con_5h[r,t,h,vi] = Sum(n.where[r_n[r,n]], lambdaN_nythv[n,yi,t,h,vi]) - muR_rythv_up[r,yi,t,h,vi]\
-        <= sigma_yt[yi, t] * tau_yth[yi, t, h] * CR_r[r]
-        con_5i[le,t,h,vi] = Sum(n.where[rel_n[le,n]], lambdaN_nythv[n,yi,t,h,vi]) - Sum(n.where[sel_n[le,n]], lambdaN_nythv[n,yi,t,h,vi]) \
-        + muL_lythv_exist[le, yi, t, h, vi] + muL_lythv_lo[le, yi, t, h, vi] - muL_lythv_up[le, yi, t, h, vi] == 0
-        con_5j[lc,t,h,vi] = Sum(n.where[rel_n[lc,n]], lambdaN_nythv[n,yi,t,h,vi]) - Sum(n.where[sel_n[lc,n]], lambdaN_nythv[n,yi,t,h,vi]) \
-        + muL_lythv_can[lc,yi,t,h,vi] + muL_lythv_lo[lc,yi,t,h,vi] - muL_lythv_up[lc,yi,t,h,vi] == 0
-        con_5k[s,t,vi] = Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,1,vi])\
-        + (tau_yth[yi,t,1]/etaSD_s[s])*PhiS_sytv[s,yi,t,vi] - muSD_sythv_up[s,yi,t,1,vi] <= 0
-        con_5l[s,t,h,vi].where[Ord(h)>1] = Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,h,vi])\
-        + (tau_yth[yi,t,h]/etaSD_s[s])*muS_sythv[s,yi,t,h,vi] - muSD_sythv_up[s,yi,t,h,vi] <= 0
-        con_5m[s,t,vi] = -Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,1,vi])\
-        - etaSC_s[s]*tau_yth[yi,t,1]*PhiS_sytv[s,yi,t,vi] - muSC_sythv_up[s,yi,t,1,vi] <= 0
-        con_5n[s,t,h,vi].where[Ord(h)>1] = -Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,h,vi])\
-        - etaSC_s[s]*tau_yth[yi,t,h]*muS_sythv[s,yi,t,h,vi] - muSC_sythv_up[s,yi,t,h,vi] <= 0
-        con_5o[n, t, h, vi].where[Ord(n) > 1] = -Sum(le.where[sel_n[le, n]], muL_lythv_exist[le, yi, t, h, vi] / X_l[le])\
-        + Sum(le.where[rel_n[le, n]], muL_lythv_exist[le, yi, t, h, vi] / X_l[le])\
-        - Sum(lc.where[sel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, vi])\
-        + Sum(lc.where[rel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, vi]) == 0
-        con_5p[n, t, h, vi].where[Ord(n) == 1] = -Sum(le.where[sel_n[le, n]], muL_lythv_exist[le, yi, t, h, vi] / X_l[le])\
-        + Sum(le.where[rel_n[le, n]], muL_lythv_exist[le, yi, t, h, vi] / X_l[le])\
-        - Sum(lc.where[sel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, vi])\
-        + Sum(lc.where[rel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, vi])\
-        + phiN_nythv[n, yi, t, h, vi] == 0
-        con_5q[s,t,vi] = PhiS_sytv[s,yi,t,vi] - muS_sythv[s,yi,t,2,vi] + muS_sythv_lo[s,yi,t,1,vi] - muS_sythv_up[s,yi,t,1,vi] == 0
-        con_5r[s,t,h,vi].where[(Ord(h)!=1) & (Ord(h)!=Card(h))] = muS_sythv[s,yi,t,h,vi] - muS_sythv[s,yi,t,h.lead(1),vi] + muS_sythv_lo[s,yi,t,h,vi] - muS_sythv_up[s,yi,t,h,vi] == 0
-        con_5s[s,t,vi] = muS_sythv[s,yi,t,hmax,vi] + PhiS_sytv_lo[s,yi,t,vi] + muS_sythv_lo[s,yi,t,hmax,vi] - muS_sythv_up[s,yi,t,hmax,vi] == 0
+    con_5d[g,t,vr] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,1,vr]) + muG_gythv_lo[g,yi,t,1,vr]\
+    - muG_gythv_up[g,yi,t,1,vr] - muGD_gythv[g,yi,t,2,vr] + muGU_gythv[g,yi,t,2,vr]\
+    == sigma_yt[yi,t] * tau_yth[yi, t, 1] * cG_gy[g, yi]
+    con_5e[g,t,h,vr].where[(Ord(h)!=1) & (Ord(h)!=Card(h))] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,h,vr])\
+    + muG_gythv_lo[g,yi,t,h,vr] - muG_gythv_up[g,yi,t,h,vr] + muGD_gythv[g,yi,t,h,vr] - muGD_gythv[g,yi,t,h.lead(1),vr]\
+    - muGU_gythv[g,yi,t,h,vr] + muGU_gythv[g,yi,t,h.lead(1),vr] == sigma_yt[yi,t]*tau_yth[yi,t,h]*cG_gy[g, yi]
+    con_5f[g,t,vr] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,hmax,vr]) +  muG_gythv_lo[g,yi,t,hmax,vr]\
+    - muG_gythv_up[g,yi,t,hmax,vr] + muGD_gythv[g,yi,t,hmax,vr] - muGU_gythv[g, yi, t, hmax, vr]\
+    == sigma_yt[yi, t] * tau_yth[yi, t, hmax] * cG_gy[g, yi]
+    con_5g[d,t,h,vr] = Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,vr])-muD_dythv_up[d, yi, t, h, vr]\
+    <= sigma_yt[yi, t] * tau_yth[yi, t, h] * CLS_d[d]
+    con_5h[r,t,h,vr] = Sum(n.where[r_n[r,n]], lambdaN_nythv[n,yi,t,h,vr]) - muR_rythv_up[r,yi,t,h,vr]\
+    <= sigma_yt[yi, t] * tau_yth[yi, t, h] * CR_r[r]
+    con_5i[le,t,h,vr] = Sum(n.where[rel_n[le,n]], lambdaN_nythv[n,yi,t,h,vr]) - Sum(n.where[sel_n[le,n]], lambdaN_nythv[n,yi,t,h,vr]) \
+    + muL_lythv_exist[le, yi, t, h, vr] + muL_lythv_lo[le, yi, t, h, vr] - muL_lythv_up[le, yi, t, h, vr] == 0
+    con_5j[lc,t,h,vr] = Sum(n.where[rel_n[lc,n]], lambdaN_nythv[n,yi,t,h,vr]) - Sum(n.where[sel_n[lc,n]], lambdaN_nythv[n,yi,t,h,vr]) \
+    + muL_lythv_can[lc,yi,t,h,vr] + muL_lythv_lo[lc,yi,t,h,vr] - muL_lythv_up[lc,yi,t,h,vr] == 0
+    con_5k[s,t,vr] = Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,1,vr])\
+    + (tau_yth[yi,t,1]/etaSD_s[s])*PhiS_sytv[s,yi,t,vr] - muSD_sythv_up[s,yi,t,1,vr] <= 0
+    con_5l[s,t,h,vr].where[Ord(h)>1] = Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,h,vr])\
+    + (tau_yth[yi,t,h]/etaSD_s[s])*muS_sythv[s,yi,t,h,vr] - muSD_sythv_up[s,yi,t,h,vr] <= 0
+    con_5m[s,t,vr] = -Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,1,vr])\
+    - etaSC_s[s]*tau_yth[yi,t,1]*PhiS_sytv[s,yi,t,vr] - muSC_sythv_up[s,yi,t,1,vr] <= 0
+    con_5n[s,t,h,vr].where[Ord(h)>1] = -Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,h,vr])\
+    - etaSC_s[s]*tau_yth[yi,t,h]*muS_sythv[s,yi,t,h,vr] - muSC_sythv_up[s,yi,t,h,vr] <= 0
+    con_5o[n, t, h, vr].where[Ord(n) > 1] = -Sum(le.where[sel_n[le, n]], muL_lythv_exist[le, yi, t, h, vr] / X_l[le])\
+    + Sum(le.where[rel_n[le, n]], muL_lythv_exist[le, yi, t, h, vr] / X_l[le])\
+    - Sum(lc.where[sel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, vr])\
+    + Sum(lc.where[rel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, vr]) == 0
+    con_5p[n, t, h, vr].where[Ord(n) == 1] = -Sum(le.where[sel_n[le, n]], muL_lythv_exist[le, yi, t, h, vr] / X_l[le])\
+    + Sum(le.where[rel_n[le, n]], muL_lythv_exist[le, yi, t, h, vr] / X_l[le])\
+    - Sum(lc.where[sel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, vr])\
+    + Sum(lc.where[rel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, vr])\
+    + phiN_nythv[n, yi, t, h, vr] == 0
+    con_5q[s,t,vr] = PhiS_sytv[s,yi,t,vr] - muS_sythv[s,yi,t,2,vr] + muS_sythv_lo[s,yi,t,1,vr] - muS_sythv_up[s,yi,t,1,vr] == 0
+    con_5r[s,t,h,vr].where[(Ord(h)!=1) & (Ord(h)!=Card(h))] = muS_sythv[s,yi,t,h,vr] - muS_sythv[s,yi,t,h.lead(1),vr] + muS_sythv_lo[s,yi,t,h,vr] - muS_sythv_up[s,yi,t,h,vr] == 0
+    con_5s[s,t,vr] = muS_sythv[s,yi,t,hmax,vr] + PhiS_sytv_lo[s,yi,t,vr] + muS_sythv_lo[s,yi,t,hmax,vr] - muS_sythv_up[s,yi,t,hmax,vr] == 0
 
     ilmp_eqns = [con_2b, con_2c, con_2d, con_2e, con_2j, con_2k, con_2l, con_2m, con_2n, ilmp_obj_var, con_5c_lin_a, con_5c_lin_b1,
              con_5c_lin_b2, con_5c_lin_c1, con_5c_lin_c2, con_5c_lin_d, con_5c_lin_e1, con_5c_lin_e2, con_5c_lin_f,
@@ -563,11 +473,11 @@ con_3l = Equation(m, name="con_3l", domain=[s, y, t, h])
 # con_3n = Equation(m, name="con_3n", domain=[n, t, h])
 con_3p1 = Equation(m, name="con_3p1", domain=[g, y, t, h])
 con_3p2 = Equation(m, name="con_3p2", domain=[g, y, t, h])
-con_3r = Equation(m, name="con_3r", domain=[n, y, t, h]) # n == ref bus
-
+con_3r = Equation(m, name="con_3r", domain=[y, t, h]) # n == ref bus
 
 def build_ilsp_eqns(yi, ji):
     hmax = int(nb_H.toValue())
+
     OF_ilsp[...] = min_op_cost_y == Sum(t, sigma_yt[yi, t] * Sum(h, tau_yth[yi, t, h] * (Sum(g, CG_gyk[g, yi] * pG_gythi[g, yi, t, h, ji])\
     + Sum(r, CR_r[r] * (gammaR_ryth[r, yi, t, h] * PR_ryk[r, yi] - pR_rythi[r, yi, t, h, ji]))\
     + Sum(d, CLS_d[d] * pLS_dythi[d, yi, t, h, ji]))))
@@ -579,8 +489,8 @@ def build_ilsp_eqns(yi, ji):
     con_6c[lc, t, h] = pL_lythi[lc, yi, t, h, ji] == (VL_lyj_prev[lc, yi] / X_l[lc]) * (Sum(n.where[sel_n[lc, n]], theta_nythi[n, yi, t, h, ji])\
     - Sum(n.where[rel_n[lc, n]], theta_nythi[n, yi, t, h, ji]))
     con_6d[d, t, h] = pLS_dythi[d, yi, t, h, ji] <= gammaD_dyth[d, yi, t, h] * PD_dyk[d, yi]
-    con_6e1[g, t, h] = pG_gythi[g, yi, t, h, ji] <= uG_gyth[g, yi, t, h] * PG_gyk[g, yi]
-    con_6e2[g, t, h] = pG_gythi[g, yi, t, h, ji] >= uG_gyth[g, yi, t, h] * PG_g_min[g]
+    con_6e1[g, t, h] = pG_gythi[g, yi, t, h, ji] <= uG_gythi[g, yi, t, h, ji] * PG_gyk[g, yi]
+    con_6e2[g, t, h] = pG_gythi[g, yi, t, h, ji] >= uG_gythi[g, yi, t, h, ji] * PG_g_min[g]
     con_6f[r, t, h] = pR_rythi[r, yi, t, h, ji] <= gammaR_ryth[r, yi, t, h] * PR_ryk[r, yi]
 
     con_3c[le, yi, t, h] = pL_lythi[le, yi, t, h, ji] == (1.0 / X_l[le]) * (Sum(n.where[sel_n[le, n]], theta_nythi[n, yi, t, h, ji])\
@@ -592,11 +502,11 @@ def build_ilsp_eqns(yi, ji):
     con_3h[s, yi, t] = eS_sythi[s, yi, t, hmax, ji] >= ES_syt0[s, yi, t]
     con_3i1[s, yi, t, h] = eS_sythi[s, yi, t, h, ji] <= ES_s_max[s]
     con_3i2[s, yi, t, h] = eS_sythi[s, yi, t, h, ji] >= ES_s_min[s]
-    con_3k[s, yi, t, h] = pSC_sythi[s, yi, t, h, ji] <= uS_syth[s, yi, t, h] * PSC_s[s]
-    con_3l[s, yi, t, h] = pSD_sythi[s, yi, t, h, ji] <= (1 - uS_syth[s, yi, t, h]) * PSD_s[s]
+    con_3k[s, yi, t, h] = pSC_sythi[s, yi, t, h, ji] <= uS_sythi[s, yi, t, h, ji] * PSC_s[s]
+    con_3l[s, yi, t, h] = pSD_sythi[s, yi, t, h, ji] <= (1 - uS_sythi[s, yi, t, h, ji]) * PSD_s[s]
     con_3p1[g, yi, t, h].where[Ord(h)>1] = pG_gythi[g, yi, t, h, ji] - pG_gythi[g, yi, t, h.lag(1), ji] <= RGU_g[g]
     con_3p2[g, yi, t, h].where[Ord(h)>1] = pG_gythi[g, yi, t, h, ji] - pG_gythi[g, yi, t, h.lag(1), ji] >= -RGD_g[g]
-    con_3r[n, yi, t, h].where[Ord(n) == 1] = theta_nythi[n, yi, t, h, ji] == 0
+    con_3r[yi, t, h] = theta_nythi[1, yi, t, h, ji] == 0
 
     ilsp_eqns = [OF_ilsp, con_6b, con_6c, con_6d, con_6e1, con_6e2, con_6f, con_3c, con_3e1, con_3e2, con_3f, con_3g, con_3h,
              con_3i1, con_3i2, con_3k, con_3l, con_3p1, con_3p2, con_3r]
@@ -616,123 +526,145 @@ def build_ilsp_eqns(yi, ji):
 con_7b = Equation(m, name="con_7b", domain=[g])
 con_7c = Equation(m, name="con_7c", domain=[g])
 con_7d = Equation(m, name="con_7d")
-con_7e = Equation(m, name="con_7e", domain =[v])
+con_7e = Equation(m, name="con_7e", domain =[k])
 lp1_obj_var = Equation(m, name="lp1_obj_var")
 # Constraints 5d-5z
+con_5di = Equation(m, name="con_5di", domain=[g, t, k])
+con_5ei = Equation(m, name="con_5ei", domain=[g, t, h, k])
+con_5fi = Equation(m, name="con_5fi", domain=[g, t, k])
+con_5gi = Equation(m, name="con_5gi", domain=[d, t, h, k])
+con_5hi = Equation(m, name="con_5hi", domain=[r, t, h, k])
+con_5ii = Equation(m, name="con_5ii", domain=[le, t, h, k])
+con_5ji = Equation(m, name="con_5ji", domain=[lc, t, h, k])
+con_5ki = Equation(m, name="con_5ki", domain=[s, t, k])
+con_5li = Equation(m, name="con_5li", domain=[s, t, h, k])
+con_5mi = Equation(m, name="con_5mi", domain=[s, t, k])
+con_5ni = Equation(m, name="con_5ni", domain=[s, t, h, k])
+con_5oi = Equation(m, name="con_5oi", domain=[n,t,h,k]) # N =/= ref bus
+con_5pi = Equation(m, name="con_5pi", domain=[n,t,h,k]) # N == ref bus
+con_5qi = Equation(m, name="con_5qi", domain=[s,t,k])
+con_5ri = Equation(m, name="con_5ri", domain=[s,t,h,k])
+con_5si = Equation(m, name="con_5si", domain=[s,t,k])
 
 def build_lp1_eqns(yi, v_range):
+    logger.info("g is {}".format(g.records))
+    logger.info("y is {}".format(y.records))
+    logger.info("t is {}".format(t.records))
+    logger.info("h is {}".format(h.records))
+    logger.info("k is {}".format(k.records))
     vmin = min(v_range)
     vmax = max(v_range)
+    # vr = (vr.val >= vmin) & (vr.val <= vmax)
+    kr = (k.val >= vmin) & (k.val <= vmax)
     hmax = int(nb_H.toValue())
 
-    lp1_obj_var[...] = xiP_y[yi] == xiP
-    con_7b[g] = cG_gy[g, yi] == CG_g_fc[g] * power(1 + zetaGC_g_fc, yi - 1) + CG_g_max[g] * power(1 + zetaGC_g_max, yi - 1) * aGC_gy[g, yi]
+    lp1_obj_var[...] = xiP == xiP_y[yi]
+    con_7b[g] = cG_gy[g, yi] == CG_g_fc[g] * (1 + zetaGC_g_fc)**(yi - 1) + (CG_g_max[g] * (1 + zetaGC_g_max)**(yi - 1)) * aGC_gy[g, yi]
     con_7c[g] = aGC_gy[g, yi] <= 1
     con_7d[...] = Sum(g, aGC_gy[g, yi]) <= GammaGC
-    # con_7e[v].where[(v.val>=vmin)&(v.val<=vmax)] = xiP <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h]*PD_dyo[d,yi]*Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,v])) \
-    # - Sum(l, PL_l[l]*(muL_lythv_lo[l,yi,t,h,v] + muL_lythv_up[l,yi,t,h,v])) \
-    # - Sum(s, US_sythv[s,yi,t,h,v]*PSC_s[s]*muSC_sythv_up[s,yi,t,h,v] + (1-US_sythv[s,yi,t,h,v])*PSD_s[s]*muSD_sythv_up[s,yi,t,h,v] - ES_s_min[s]*muS_sythv_lo[s,yi,t,h,v] + ES_s_max[s]*muS_sythv_up[s,yi,t,h,v])\
-    # + Sum(g, UG_gythv[g,yi,t,h,v]*(PG_g_min[g]*muG_gythv_lo[g,yi,t,h,v] - PG_gyo[g,yi] * muG_gythv_up[g,yi,t,h,v])) \
-    # - Sum(r, gammaR_ryth[r,yi,t,h]*PR_ryo[r,yi]*(muR_rythv_up[r,yi,t,h,v] - sigma_yt[yi,t]*tau_yth[yi,t,h] * CR_r[r])) \
-    # - Sum(d, gammaD_dyth[d,yi,t,h]*PD_dyo[d,yi]*muD_dythv_up[d,yi,t,h,v]))\
-    # + Sum(s, ES_syt0[s,yi,t]*(PhiS_sytv[s,yi,t,v] + PhiS_sytv_lo[s,yi,t,v])) \
-    # - Sum(h.where[Ord(h)>1], Sum(g, RGD_g[g]*muGD_gythv[g,yi,t,h,v] + RGU_g[g]*muGU_gythv[g,yi,t,h,v])))
+
+    # con_7e[va] = xiP_y[yi] <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h]*PD_dyo[d,yi]*Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,va])) \
+    # - Sum(l, PL_l[l]*(muL_lythv_lo[l,yi,t,h,va] + muL_lythv_up[l,yi,t,h,va])) \
+    # - Sum(s, US_sythv[s,yi,t,h,va]*PSC_s[s]*muSC_sythv_up[s,yi,t,h,va] + (1-US_sythv[s,yi,t,h,va])*PSD_s[s]*muSD_sythv_up[s,yi,t,h,va] - ES_s_min[s]*muS_sythv_lo[s,yi,t,h,va] + ES_s_max[s]*muS_sythv_up[s,yi,t,h,va])\
+    # + Sum(g, UG_gythv[g,yi,t,h,va]*(PG_g_min[g]*muG_gythv_lo[g,yi,t,h,va] - PG_gyo[g,yi] * muG_gythv_up[g,yi,t,h,va])) \
+    # - Sum(r, gammaR_ryth[r,yi,t,h]*PR_ryo[r,yi]*(muR_rythv_up[r,yi,t,h,va] - sigma_yt[yi,t]*tau_yth[yi,t,h] * CR_r[r])) \
+    # - Sum(d, gammaD_dyth[d,yi,t,h]*PD_dyo[d,yi]*muD_dythv_up[d,yi,t,h,va]))\
+    # + Sum(s, ES_syt0[s,yi,t]*(PhiS_sytv[s,yi,t,va] + PhiS_sytv_lo[s,yi,t,va])) \
+    # - Sum(h.where[Ord(h)>1], Sum(g, RGD_g[g]*muGD_gythv[g,yi,t,h,va] + RGU_g[g]*muGU_gythv[g,yi,t,h,va])))
     #
-    # con_5d[g,t,v].where[(v.val>=vmin)&(v.val<=vmax)] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,1,v]) + muG_gythv_lo[g,yi,t,1,v]\
-    # - muG_gythv_up[g,yi,t,1,v] - muGD_gythv[g,yi,t,2,v] + muGU_gythv[g,yi,t,2,v]\
+    # con_5di[g,t,va] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,1,va]) + muG_gythv_lo[g,yi,t,1,va]\
+    # - muG_gythv_up[g,yi,t,1,va] - muGD_gythv[g,yi,t,2,va] + muGU_gythv[g,yi,t,2,va]\
     # == sigma_yt[yi,t] * tau_yth[yi, t, 1] * cG_gy[g, yi]
-    # con_5e[g,t,h,v].where[(v.val>=vmin)&(v.val<=vmax)&(Ord(h)!=1) & (Ord(h)!=Card(h))] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,h,v])\
-    # + muG_gythv_lo[g,yi,t,h,v] - muG_gythv_up[g,yi,t,h,v] + muGD_gythv[g,yi,t,h,v] - muGD_gythv[g,yi,t,h.lead(1),v]\
-    # - muGU_gythv[g,yi,t,h,v] + muGU_gythv[g,yi,t,h.lead(1),v] == sigma_yt[yi,t]*tau_yth[yi,t,h]*cG_gy[g, yi]
-    # con_5f[g,t,v].where[(v.val>=vmin)&(v.val<=vmax)] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,hmax,v]) +  muG_gythv_lo[g,yi,t,hmax,v]\
-    # - muG_gythv_up[g,yi,t,hmax,v] + muGD_gythv[g,yi,t,hmax,v] - muGU_gythv[g, yi, t, hmax, v]\
+    # con_5ei[g,t,h,va].where[(Ord(h)!=1) & (Ord(h)!=Card(h))] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,h,va])\
+    # + muG_gythv_lo[g,yi,t,h,va] - muG_gythv_up[g,yi,t,h,va] + muGD_gythv[g,yi,t,h,va] - muGD_gythv[g,yi,t,h.lead(1),va]\
+    # - muGU_gythv[g,yi,t,h,va] + muGU_gythv[g,yi,t,h.lead(1),va] == sigma_yt[yi,t]*tau_yth[yi,t,h]*cG_gy[g, yi]
+    # con_5fi[g,t,va] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,hmax,va]) +  muG_gythv_lo[g,yi,t,hmax,va]\
+    # - muG_gythv_up[g,yi,t,hmax,va] + muGD_gythv[g,yi,t,hmax,va] - muGU_gythv[g, yi, t, hmax, va]\
     # == sigma_yt[yi, t] * tau_yth[yi, t, hmax] * cG_gy[g, yi]
-    # con_5g[d,t,h,v].where[(v.val>=vmin)&(v.val<=vmax)] = Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,v])-muD_dythv_up[d, yi, t, h, v]\
+    # con_5gi[d,t,h,va] = Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,va])-muD_dythv_up[d, yi, t, h, va]\
     # <= sigma_yt[yi, t] * tau_yth[yi, t, h] * CLS_d[d]
-    # con_5h[r,t,h,v].where[(v.val>=vmin)&(v.val<=vmax)] = Sum(n.where[r_n[r,n]], lambdaN_nythv[n,yi,t,h,v]) - muR_rythv_up[r,yi,t,h,v]\
+    # con_5hi[r,t,h,va] = Sum(n.where[r_n[r,n]], lambdaN_nythv[n,yi,t,h,va]) - muR_rythv_up[r,yi,t,h,va]\
     # <= sigma_yt[yi, t] * tau_yth[yi, t, h] * CR_r[r]
-    # con_5i[le,t,h,v].where[(v.val>=vmin)&(v.val<=vmax)] = Sum(n.where[rel_n[le,n]], lambdaN_nythv[n,yi,t,h,v]) - Sum(n.where[sel_n[le,n]], lambdaN_nythv[n,yi,t,h,v]) \
-    # + muL_lythv_exist[le, yi, t, h, v] + muL_lythv_lo[le, yi, t, h, v] - muL_lythv_up[le, yi, t, h, v] == 0
-    # con_5j[lc,t,h,v].where[(v.val>=vmin)&(v.val<=vmax)] = Sum(n.where[rel_n[lc,n]], lambdaN_nythv[n,yi,t,h,v]) - Sum(n.where[sel_n[lc,n]], lambdaN_nythv[n,yi,t,h,v]) \
-    # + muL_lythv_can[lc,yi,t,h,v] + muL_lythv_lo[lc,yi,t,h,v] - muL_lythv_up[lc,yi,t,h,v] == 0
-    # con_5k[s,t,v].where[(v.val>=vmin)&(v.val<=vmax)] = Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,1,v])\
-    # + (tau_yth[yi,t,1]/etaSD_s[s])*PhiS_sytv[s,yi,t,v] - muSD_sythv_up[s,yi,t,1,v] <= 0
-    # con_5l[s,t,h,v].where[(v.val>=vmin)&(v.val<=vmax)&Ord(h)>1] = Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,h,v])\
-    # + (tau_yth[yi,t,h]/etaSD_s[s])*muS_sythv[s,yi,t,h,v] - muSD_sythv_up[s,yi,t,h,v] <= 0
-    # con_5m[s,t,v].where[(v.val>=vmin)&(v.val<=vmax)] = -Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,1,v])\
-    # - etaSC_s[s]*tau_yth[yi,t,1]*PhiS_sytv[s,yi,t,v] - muSC_sythv_up[s,yi,t,1,v] <= 0
-    # con_5n[s,t,h,v].where[(v.val>=vmin)&(v.val<=vmax)&Ord(h)>1] = -Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,h,v])\
-    # - etaSC_s[s]*tau_yth[yi,t,h]*muS_sythv[s,yi,t,h,v] - muSC_sythv_up[s,yi,t,h,v] <= 0
-    # con_5o[n, t, h, v].where[(v.val>=vmin)&(v.val<=vmax)&Ord(n) > 1] = -Sum(le.where[sel_n[le, n]], muL_lythv_exist[le, yi, t, h, v] / X_l[le])\
-    # + Sum(le.where[rel_n[le, n]], muL_lythv_exist[le, yi, t, h, v] / X_l[le])\
-    # - Sum(lc.where[sel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, v])\
-    # + Sum(lc.where[rel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, v]) == 0
-    # con_5p[n, t, h, v].where[(v.val>=vmin)&(v.val<=vmax)&Ord(n) == 1] = -Sum(le.where[sel_n[le, n]], muL_lythv_exist[le, yi, t, h, v] / X_l[le])\
-    # + Sum(le.where[rel_n[le, n]], muL_lythv_exist[le, yi, t, h, v] / X_l[le])\
-    # - Sum(lc.where[sel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, v])\
-    # + Sum(lc.where[rel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, v])\
-    # + phiN_nythv[n, yi, t, h, v] == 0
-    # con_5q[s,t,v].where[(v.val>=vmin)&(v.val<=vmax)] = PhiS_sytv[s,yi,t,v] - muS_sythv[s,yi,t,2,v] + muS_sythv_lo[s,yi,t,1,v] - muS_sythv_up[s,yi,t,1,v] == 0
-    # con_5r[s,t,h,v].where[(v.val>=vmin)&(v.val<=vmax)&(Ord(h)!=1) & (Ord(h)!=Card(h))] = muS_sythv[s,yi,t,h,v] - muS_sythv[s,yi,t,h.lead(1),v] + muS_sythv_lo[s,yi,t,h,v] - muS_sythv_up[s,yi,t,h,v] == 0
-    # con_5s[s,t,v].where[(v.val>=vmin)&(v.val<=vmax)] = muS_sythv[s,yi,t,hmax,v] + PhiS_sytv_lo[s,yi,t,v] + muS_sythv_lo[s,yi,t,hmax,v] - muS_sythv_up[s,yi,t,hmax,v] == 0
+    # con_5ii[le,t,h,va] = Sum(n.where[rel_n[le,n]], lambdaN_nythv[n,yi,t,h,va]) - Sum(n.where[sel_n[le,n]], lambdaN_nythv[n,yi,t,h,va]) \
+    # + muL_lythv_exist[le, yi, t, h, va] + muL_lythv_lo[le, yi, t, h, va] - muL_lythv_up[le, yi, t, h, va] == 0
+    # con_5ji[lc,t,h,va] = Sum(n.where[rel_n[lc,n]], lambdaN_nythv[n,yi,t,h,va]) - Sum(n.where[sel_n[lc,n]], lambdaN_nythv[n,yi,t,h,va]) \
+    # + muL_lythv_can[lc,yi,t,h,va] + muL_lythv_lo[lc,yi,t,h,va] - muL_lythv_up[lc,yi,t,h,va] == 0
+    # con_5ki[s,t,va] = Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,1,va])\
+    # + (tau_yth[yi,t,1]/etaSD_s[s])*PhiS_sytv[s,yi,t,va] - muSD_sythv_up[s,yi,t,1,va] <= 0
+    # con_5li[s,t,h,va].where[Ord(h)>1] = Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,h,va])\
+    # + (tau_yth[yi,t,h]/etaSD_s[s])*muS_sythv[s,yi,t,h,va] - muSD_sythv_up[s,yi,t,h,va] <= 0
+    # con_5mi[s,t,va] = -Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,1,va])\
+    # - etaSC_s[s]*tau_yth[yi,t,1]*PhiS_sytv[s,yi,t,va] - muSC_sythv_up[s,yi,t,1,va] <= 0
+    # con_5ni[s,t,h,va].where[Ord(h)>1] = -Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,h,va])\
+    # - etaSC_s[s]*tau_yth[yi,t,h]*muS_sythv[s,yi,t,h,va] - muSC_sythv_up[s,yi,t,h,va] <= 0
+    # con_5oi[n, t, h, va].where[Ord(n) > 1] = -Sum(le.where[sel_n[le, n]], muL_lythv_exist[le, yi, t, h, va] / X_l[le])\
+    # + Sum(le.where[rel_n[le, n]], muL_lythv_exist[le, yi, t, h, va] / X_l[le])\
+    # - Sum(lc.where[sel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, va])\
+    # + Sum(lc.where[rel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, va]) == 0
+    # con_5pi[n, t, h, va].where[Ord(n) == 1] = -Sum(le.where[sel_n[le, n]], muL_lythv_exist[le, yi, t, h, va] / X_l[le])\
+    # + Sum(le.where[rel_n[le, n]], muL_lythv_exist[le, yi, t, h, va] / X_l[le])\
+    # - Sum(lc.where[sel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, va])\
+    # + Sum(lc.where[rel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, va])\
+    # + phiN_nythv[n, yi, t, h, va] == 0
+    # con_5qi[s,t,va] = PhiS_sytv[s,yi,t,va] - muS_sythv[s,yi,t,2,va] + muS_sythv_lo[s,yi,t,1,va] - muS_sythv_up[s,yi,t,1,va] == 0
+    # con_5ri[s,t,h,va].where[(Ord(h)!=1) & (Ord(h)!=Card(h))] = muS_sythv[s,yi,t,h,va] - muS_sythv[s,yi,t,h.lead(1),va] + muS_sythv_lo[s,yi,t,h,va] - muS_sythv_up[s,yi,t,h,va] == 0
+    # con_5si[s,t,va] = muS_sythv[s,yi,t,hmax,va] + PhiS_sytv_lo[s,yi,t,va] + muS_sythv_lo[s,yi,t,hmax,va] - muS_sythv_up[s,yi,t,hmax,va] == 0
 
-    for vi in v_range:
-        con_7e[vi] = xiP <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h]*PD_dyo[d,yi]*Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,vi])) \
-        - Sum(l, PL_l[l]*(muL_lythv_lo[l,yi,t,h,vi] + muL_lythv_up[l,yi,t,h,vi])) \
-        - Sum(s, US_sythv[s,yi,t,h,vi]*PSC_s[s]*muSC_sythv_up[s,yi,t,h,vi] + (1-US_sythv[s,yi,t,h,vi])*PSD_s[s]*muSD_sythv_up[s,yi,t,h,vi] - ES_s_min[s]*muS_sythv_lo[s,yi,t,h,vi] + ES_s_max[s]*muS_sythv_up[s,yi,t,h,vi])\
-        + Sum(g, UG_gythv[g,yi,t,h,vi]*(PG_g_min[g]*muG_gythv_lo[g,yi,t,h,vi] - PG_gyo[g,yi] * muG_gythv_up[g,yi,t,h,vi])) \
-        - Sum(r, gammaR_ryth[r,yi,t,h]*PR_ryo[r,yi]*(muR_rythv_up[r,yi,t,h,vi] - sigma_yt[yi,t]*tau_yth[yi,t,h] * CR_r[r])) \
-        - Sum(d, gammaD_dyth[d,yi,t,h]*PD_dyo[d,yi]*muD_dythv_up[d,yi,t,h,vi]))\
-        + Sum(s, ES_syt0[s,yi,t]*(PhiS_sytv[s,yi,t,vi] + PhiS_sytv_lo[s,yi,t,vi])) \
-        - Sum(h.where[Ord(h)>1], Sum(g, RGD_g[g]*muGD_gythv[g,yi,t,h,vi] + RGU_g[g]*muGU_gythv[g,yi,t,h,vi])))
+    con_7e[k].where[kr] = xiP_y[yi] <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h]*PD_dyo[d,yi]*Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,k])) \
+    - Sum(l, PL_l[l]*(muL_lythv_lo[l,yi,t,h,k] + muL_lythv_up[l,yi,t,h,k])) \
+    - Sum(s, US_sythv[s,yi,t,h,k]*PSC_s[s]*muSC_sythv_up[s,yi,t,h,k] + (1-US_sythv[s,yi,t,h,k])*PSD_s[s]*muSD_sythv_up[s,yi,t,h,k] - ES_s_min[s]*muS_sythv_lo[s,yi,t,h,k] + ES_s_max[s]*muS_sythv_up[s,yi,t,h,k])\
+    + Sum(g, UG_gythv[g,yi,t,h,k]*(PG_g_min[g]*muG_gythv_lo[g,yi,t,h,k] - PG_gyo[g,yi] * muG_gythv_up[g,yi,t,h,k])) \
+    - Sum(r, gammaR_ryth[r,yi,t,h]*PR_ryo[r,yi]*(muR_rythv_up[r,yi,t,h,k] - sigma_yt[yi,t]*tau_yth[yi,t,h] * CR_r[r])) \
+    - Sum(d, gammaD_dyth[d,yi,t,h]*PD_dyo[d,yi]*muD_dythv_up[d,yi,t,h,k]))\
+    + Sum(s, ES_syt0[s,yi,t]*(PhiS_sytv[s,yi,t,k] + PhiS_sytv_lo[s,yi,t,k])) \
+    - Sum(h.where[Ord(h)>1], Sum(g, RGD_g[g]*muGD_gythv[g,yi,t,h,k] + RGU_g[g]*muGU_gythv[g,yi,t,h,k])))
 
-        con_5d[g,t,vi] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,1,vi]) + muG_gythv_lo[g,yi,t,1,vi]\
-        - muG_gythv_up[g,yi,t,1,vi] - muGD_gythv[g,yi,t,2,vi] + muGU_gythv[g,yi,t,2,vi]\
-        == sigma_yt[yi,t] * tau_yth[yi, t, 1] * cG_gy[g, yi]
-        con_5e[g,t,h,vi].where[(Ord(h)!=1) & (Ord(h)!=Card(h))] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,h,vi])\
-        + muG_gythv_lo[g,yi,t,h,vi] - muG_gythv_up[g,yi,t,h,vi] + muGD_gythv[g,yi,t,h,vi] - muGD_gythv[g,yi,t,h.lead(1),vi]\
-        - muGU_gythv[g,yi,t,h,vi] + muGU_gythv[g,yi,t,h.lead(1),vi] == sigma_yt[yi,t]*tau_yth[yi,t,h]*cG_gy[g, yi]
-        con_5f[g,t,vi] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,hmax,vi]) +  muG_gythv_lo[g,yi,t,hmax,vi]\
-        - muG_gythv_up[g,yi,t,hmax,vi] + muGD_gythv[g,yi,t,hmax,vi] - muGU_gythv[g, yi, t, hmax, vi]\
-        == sigma_yt[yi, t] * tau_yth[yi, t, hmax] * cG_gy[g, yi]
-        con_5g[d,t,h,vi] = Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,vi])-muD_dythv_up[d, yi, t, h, vi]\
-        <= sigma_yt[yi, t] * tau_yth[yi, t, h] * CLS_d[d]
-        con_5h[r,t,h,vi] = Sum(n.where[r_n[r,n]], lambdaN_nythv[n,yi,t,h,vi]) - muR_rythv_up[r,yi,t,h,vi]\
-        <= sigma_yt[yi, t] * tau_yth[yi, t, h] * CR_r[r]
-        con_5i[le,t,h,vi] = Sum(n.where[rel_n[le,n]], lambdaN_nythv[n,yi,t,h,vi]) - Sum(n.where[sel_n[le,n]], lambdaN_nythv[n,yi,t,h,vi]) \
-        + muL_lythv_exist[le, yi, t, h, vi] + muL_lythv_lo[le, yi, t, h, vi] - muL_lythv_up[le, yi, t, h, vi] == 0
-        con_5j[lc,t,h,vi] = Sum(n.where[rel_n[lc,n]], lambdaN_nythv[n,yi,t,h,vi]) - Sum(n.where[sel_n[lc,n]], lambdaN_nythv[n,yi,t,h,vi]) \
-        + muL_lythv_can[lc,yi,t,h,vi] + muL_lythv_lo[lc,yi,t,h,vi] - muL_lythv_up[lc,yi,t,h,vi] == 0
-        con_5k[s,t,vi] = Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,1,vi])\
-        + (tau_yth[yi,t,1]/etaSD_s[s])*PhiS_sytv[s,yi,t,vi] - muSD_sythv_up[s,yi,t,1,vi] <= 0
-        con_5l[s,t,h,vi].where[Ord(h)>1] = Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,h,vi])\
-        + (tau_yth[yi,t,h]/etaSD_s[s])*muS_sythv[s,yi,t,h,vi] - muSD_sythv_up[s,yi,t,h,vi] <= 0
-        con_5m[s,t,vi] = -Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,1,vi])\
-        - etaSC_s[s]*tau_yth[yi,t,1]*PhiS_sytv[s,yi,t,vi] - muSC_sythv_up[s,yi,t,1,vi] <= 0
-        con_5n[s,t,h,vi].where[Ord(h)>1] = -Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,h,vi])\
-        - etaSC_s[s]*tau_yth[yi,t,h]*muS_sythv[s,yi,t,h,vi] - muSC_sythv_up[s,yi,t,h,vi] <= 0
-        con_5o[n, t, h, vi].where[Ord(n) > 1] = -Sum(le.where[sel_n[le, n]], muL_lythv_exist[le, yi, t, h, vi] / X_l[le])\
-        + Sum(le.where[rel_n[le, n]], muL_lythv_exist[le, yi, t, h, vi] / X_l[le])\
-        - Sum(lc.where[sel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, vi])\
-        + Sum(lc.where[rel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, vi]) == 0
-        con_5p[n, t, h, vi].where[Ord(n) == 1] = -Sum(le.where[sel_n[le, n]], muL_lythv_exist[le, yi, t, h, vi] / X_l[le])\
-        + Sum(le.where[rel_n[le, n]], muL_lythv_exist[le, yi, t, h, vi] / X_l[le])\
-        - Sum(lc.where[sel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, vi])\
-        + Sum(lc.where[rel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, vi])\
-        + phiN_nythv[n, yi, t, h, vi] == 0
-        con_5q[s,t,vi] = PhiS_sytv[s,yi,t,vi] - muS_sythv[s,yi,t,2,vi] + muS_sythv_lo[s,yi,t,1,vi] - muS_sythv_up[s,yi,t,1,vi] == 0
-        con_5r[s,t,h,vi].where[(Ord(h)!=1) & (Ord(h)!=Card(h))] = muS_sythv[s,yi,t,h,vi] - muS_sythv[s,yi,t,h.lead(1),vi] + muS_sythv_lo[s,yi,t,h,vi] - muS_sythv_up[s,yi,t,h,vi] == 0
-        con_5s[s,t,vi] = muS_sythv[s,yi,t,hmax,vi] + PhiS_sytv_lo[s,yi,t,vi] + muS_sythv_lo[s,yi,t,hmax,vi] - muS_sythv_up[s,yi,t,hmax,vi] == 0
+    con_5di[g,t,k].where[kr] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,1,k]) + muG_gythv_lo[g,yi,t,1,k]\
+    - muG_gythv_up[g,yi,t,1,k] - muGD_gythv[g,yi,t,2,k] + muGU_gythv[g,yi,t,2,k]\
+    == sigma_yt[yi,t] * tau_yth[yi, t, 1] * cG_gy[g, yi]
+    con_5ei[g,t,h,k].where[kr&(Ord(h)!=1) & (Ord(h)!=Card(h))] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,h,k])\
+    + muG_gythv_lo[g,yi,t,h,k] - muG_gythv_up[g,yi,t,h,k] + muGD_gythv[g,yi,t,h,k] - muGD_gythv[g,yi,t,h.lead(1),k]\
+    - muGU_gythv[g,yi,t,h,k] + muGU_gythv[g,yi,t,h.lead(1),k] == sigma_yt[yi,t]*tau_yth[yi,t,h]*cG_gy[g, yi]
+    con_5fi[g,t,k].where[kr] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,hmax,k]) +  muG_gythv_lo[g,yi,t,hmax,k]\
+    - muG_gythv_up[g,yi,t,hmax,k] + muGD_gythv[g,yi,t,hmax,k] - muGU_gythv[g, yi, t, hmax, k]\
+    == sigma_yt[yi, t] * tau_yth[yi, t, hmax] * cG_gy[g, yi]
+    con_5gi[d,t,h,k].where[kr] = Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,k])-muD_dythv_up[d, yi, t, h, k]\
+    <= sigma_yt[yi, t] * tau_yth[yi, t, h] * CLS_d[d]
+    con_5hi[r,t,h,k].where[kr] = Sum(n.where[r_n[r,n]], lambdaN_nythv[n,yi,t,h,k]) - muR_rythv_up[r,yi,t,h,k]\
+    <= sigma_yt[yi, t] * tau_yth[yi, t, h] * CR_r[r]
+    con_5ii[le,t,h,k].where[kr] = Sum(n.where[rel_n[le,n]], lambdaN_nythv[n,yi,t,h,k]) - Sum(n.where[sel_n[le,n]], lambdaN_nythv[n,yi,t,h,k]) \
+    + muL_lythv_exist[le, yi, t, h, k] + muL_lythv_lo[le, yi, t, h, k] - muL_lythv_up[le, yi, t, h, k] == 0
+    con_5ji[lc,t,h,k].where[kr] = Sum(n.where[rel_n[lc,n]], lambdaN_nythv[n,yi,t,h,k]) - Sum(n.where[sel_n[lc,n]], lambdaN_nythv[n,yi,t,h,k]) \
+    + muL_lythv_can[lc,yi,t,h,k] + muL_lythv_lo[lc,yi,t,h,k] - muL_lythv_up[lc,yi,t,h,k] == 0
+    con_5ki[s,t,k].where[kr] = Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,1,k])\
+    + (tau_yth[yi,t,1]/etaSD_s[s])*PhiS_sytv[s,yi,t,k] - muSD_sythv_up[s,yi,t,1,k] <= 0
+    con_5li[s,t,h,k].where[kr&Ord(h)>1] = Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,h,k])\
+    + (tau_yth[yi,t,h]/etaSD_s[s])*muS_sythv[s,yi,t,h,k] - muSD_sythv_up[s,yi,t,h,k] <= 0
+    con_5mi[s,t,k].where[kr] = -Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,1,k])\
+    - etaSC_s[s]*tau_yth[yi,t,1]*PhiS_sytv[s,yi,t,k] - muSC_sythv_up[s,yi,t,1,k] <= 0
+    con_5ni[s,t,h,k].where[kr&Ord(h)>1] = -Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,h,k])\
+    - etaSC_s[s]*tau_yth[yi,t,h]*muS_sythv[s,yi,t,h,k] - muSC_sythv_up[s,yi,t,h,k] <= 0
+    con_5oi[n, t, h, k].where[kr&Ord(n) > 1] = -Sum(le.where[sel_n[le, n]], muL_lythv_exist[le, yi, t, h, k] / X_l[le])\
+    + Sum(le.where[rel_n[le, n]], muL_lythv_exist[le, yi, t, h, k] / X_l[le])\
+    - Sum(lc.where[sel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, k])\
+    + Sum(lc.where[rel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, k]) == 0
+    con_5pi[n, t, h, k].where[kr&Ord(n) == 1] = -Sum(le.where[sel_n[le, n]], muL_lythv_exist[le, yi, t, h, k] / X_l[le])\
+    + Sum(le.where[rel_n[le, n]], muL_lythv_exist[le, yi, t, h, k] / X_l[le])\
+    - Sum(lc.where[sel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, k])\
+    + Sum(lc.where[rel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, k])\
+    + phiN_nythv[n, yi, t, h, k] == 0
+    con_5qi[s,t,k].where[kr] = PhiS_sytv[s,yi,t,k] - muS_sythv[s,yi,t,2,k] + muS_sythv_lo[s,yi,t,1,k] - muS_sythv_up[s,yi,t,1,k] == 0
+    con_5ri[s,t,h,k].where[kr&(Ord(h)!=1) & (Ord(h)!=Card(h))] = muS_sythv[s,yi,t,h,k] - muS_sythv[s,yi,t,h.lead(1),k] + muS_sythv_lo[s,yi,t,h,k] - muS_sythv_up[s,yi,t,h,k] == 0
+    con_5si[s,t,k].where[kr] = muS_sythv[s,yi,t,hmax,k] + PhiS_sytv_lo[s,yi,t,k] + muS_sythv_lo[s,yi,t,hmax,k] - muS_sythv_up[s,yi,t,hmax,k] == 0
 
-
-    lp1_eqns = [lp1_obj_var, con_7b, con_7c, con_7d, con_7e, con_5d, con_5e, con_5f, con_5g, con_5h, con_5i, con_5j, con_5k, con_5l, con_5m,
-            con_5n, con_5o, con_5p, con_5q, con_5r, con_5s]
+    lp1_eqns = [lp1_obj_var, con_7b, con_7c, con_7d, con_7e, con_5di, con_5ei, con_5fi, con_5gi, con_5hi, con_5ii, con_5ji, con_5ki, con_5li, con_5mi,
+            con_5ni, con_5oi, con_5pi, con_5qi, con_5ri, con_5si]
     LP1_model = Model(
         m,
         name="lp1",
         description="Fist linear problem (ADA)",
         equations=lp1_eqns,
-        problem='MIP',
+        problem='LP',
         sense='max',
         objective=xiP,
     )
@@ -749,17 +681,18 @@ con_8h = Equation(m, name="con_8h")
 con_8i = Equation(m, name="con_8i")
 con_8j = Equation(m, name="con_8j")
 con_8k = Equation(m, name="con_8k")
-con_8l = Equation(m, name="con_8l", domain=[v])
+con_8l = Equation(m, name="con_8l", domain=[k])
 lp2_obj_var = Equation(m, name="lp2_obj_var")
 
 def build_lp2_eqns(yi, v_range):
     vmin = min(v_range)
     vmax = max(v_range)
+    kr = (k.val >= vmin) & (k.val <= vmax)
 
-    lp2_obj_var[...] = xiQ_y[yi] == xiQ
-    con_8b[d] = pD_dy[d, yi] == PD_d_fc[d] * power(1 + zetaD_d_fc[d], yi - 1) + PD_d_max[d] * power(1 + zetaD_d_max[d], yi - 1) * aD_dy[d, yi]
-    con_8c[g] = pG_gy[g, yi] == PG_g_fc[g] * power(1 - zetaGP_g_fc[g], yi - 1) - PG_g_max[g] * power(1 + zetaGP_g_max[g], yi - 1) * aGP_gy[g, yi]
-    con_8d[r] = pR_ry[r, yi] == PR_r_fc[r] * power(1 + zetaR_r_fc[r], yi - 1) - PR_r_max[r] * power(1 + zetaR_r_max[r], yi - 1) * aR_ry[r, yi]
+    lp2_obj_var[...] = xiQ == xiQ_y[yi]
+    con_8b[d] = pD_dy[d, yi] == PD_d_fc[d] * (1 + zetaD_d_fc[d])**(yi - 1) + (PD_d_max[d] * (1 + zetaD_d_max[d])**(yi - 1)) * aD_dy[d, yi]
+    con_8c[g] = pG_gy[g, yi] == PG_g_fc[g] * (1 - zetaGP_g_fc[g])**(yi - 1) - (PG_g_max[g] * (1 + zetaGP_g_max[g])**(yi - 1)) * aGP_gy[g, yi]
+    con_8d[r] = pR_ry[r, yi] == PR_r_fc[r] * (1 + zetaR_r_fc[r])**(yi - 1) - (PR_r_max[r] * (1 + zetaR_r_max[r])**(yi - 1)) * aR_ry[r, yi]
     con_8e[d] = aD_dy[d, yi] <= 1
     con_8f[g] = aGP_gy[g, yi] <= 1
     con_8g[r] = aR_ry[r, yi] <= 1
@@ -767,23 +700,29 @@ def build_lp2_eqns(yi, v_range):
     con_8i[...] = Sum(g, aGP_gy[g, yi]) <= GammaGP
     con_8j[...] = Sum(rs, aR_ry[rs, yi]) <= GammaRS
     con_8k[...] = Sum(rw, aR_ry[rw, yi]) <= GammaRW
+    # con_8l[va] = xiQ_y[yi] <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d, yi, t, h] * pD_dy[d, yi] * Sum(n.where[d_n[d, n]], LambdaN_nythvo[n, yi, t, h, va]))\
+    #     - Sum(l, PL_l[l] * (muL_lythvo_lo[l, yi, t, h, va] + muL_lythvo_up[l, yi, t, h, va])) - Sum(s, US_sythv[s, yi, t, h, va] * PSC_s[s] * muSC_sythvo_up[s, yi, t, h, va]\
+    #     + (1 - US_sythv[s, yi, t, h, va]) * PSD_s[s] * muSD_sythvo_up[s, yi, t, h, va] - ES_s_min[s] * muS_sythvo_lo[s, yi, t, h, va]\
+    #     + ES_s_max[s] * muS_sythvo_up[s, yi, t, h, va]) + Sum(g, UG_gythv[g, yi, t, h, va] * (PG_g_min[g] * muG_gythvo_lo[g, yi, t, h, va] - pG_gy[g, yi] * muG_gythvo_up[g, yi, t, h, va]))\
+    #     - Sum(r, gammaR_ryth[r, yi, t, h] * pR_ry[r, yi] * (muR_rythvo_up[r, yi, t, h, va] - sigma_yt[yi, t] * tau_yth[yi, t, h] * CR_r[r]))\
+    #     - Sum(d, gammaD_dyth[d, yi, t, h] * pD_dy[d, yi] * muD_dythvo_up[d, yi, t, h, va])) + Sum(s, ES_syt0[s, yi, t] * (PhiS_sytvo[s, yi, t, va] + PhiS_sytvo_lo[s, yi, t, va]))\
+    #     - Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g] * muGD_gythvo[g, yi, t, h, va] + RGU_g[g] * muGU_gythvo[g, yi, t, h, va])))
 
-    for vi in v_range:
-        con_8l[vi] = xiQ <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d, yi, t, h] * pD_dy[d, yi] * Sum(n.where[d_n[d, n]], LambdaN_nythvo[n, yi, t, h, vi]))\
-        - Sum(l, PL_l[l] * (muL_lythvo_lo[l, yi, t, h, vi] + muL_lythvo_up[l, yi, t, h, vi])) - Sum(s, US_sythv[s, yi, t, h, vi] * PSC_s[s] * muSC_sythvo_up[s, yi, t, h, vi]\
-        + (1 - US_sythv[s, yi, t, h, vi]) * PSD_s[s] * muSD_sythvo_up[s, yi, t, h, vi] - ES_s_min[s] * muS_sythvo_lo[s, yi, t, h, vi]\
-        + ES_s_max[s] * muS_sythvo_up[s, yi, t, h, vi]) + Sum(g, UG_gythv[g, yi, t, h, vi] * (PG_g_min[g] * muG_gythvo_lo[g, yi, t, h, vi] - pG_gy[g, yi] * muG_gythvo_up[g, yi, t, h, vi]))\
-        - Sum(r, gammaR_ryth[r, yi, t, h] * pR_ry[r, yi] * (muR_rythvo_up[r, yi, t, h, vi] - sigma_yt[yi, t] * tau_yth[yi, t, h] * CR_r[r]))\
-        - Sum(d, gammaD_dyth[d, yi, t, h] * pD_dy[d, yi] * muD_dythvo_up[d, yi, t, h, vi])) + Sum(s, ES_syt0[s, yi, t] * (PhiS_sytvo[s, yi, t, vi] + PhiS_sytvo_lo[s, yi, t, vi]))\
-        - Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g] * muGD_gythvo[g, yi, t, h, vi] + RGU_g[g] * muGU_gythvo[g, yi, t, h, vi])))
+    con_8l[k].where[kr] = xiQ_y[yi] <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d, yi, t, h] * pD_dy[d, yi] * Sum(n.where[d_n[d, n]], LambdaN_nythvo[n, yi, t, h, k]))\
+        - Sum(l, PL_l[l] * (muL_lythvo_lo[l, yi, t, h, k] + muL_lythvo_up[l, yi, t, h, k])) - Sum(s, US_sythv[s, yi, t, h, k] * PSC_s[s] * muSC_sythvo_up[s, yi, t, h, k]\
+        + (1 - US_sythv[s, yi, t, h, k]) * PSD_s[s] * muSD_sythvo_up[s, yi, t, h, k] - ES_s_min[s] * muS_sythvo_lo[s, yi, t, h, k]\
+        + ES_s_max[s] * muS_sythvo_up[s, yi, t, h, k]) + Sum(g, UG_gythv[g, yi, t, h, k] * (PG_g_min[g] * muG_gythvo_lo[g, yi, t, h, k] - pG_gy[g, yi] * muG_gythvo_up[g, yi, t, h, k]))\
+        - Sum(r, gammaR_ryth[r, yi, t, h] * pR_ry[r, yi] * (muR_rythvo_up[r, yi, t, h, k] - sigma_yt[yi, t] * tau_yth[yi, t, h] * CR_r[r]))\
+        - Sum(d, gammaD_dyth[d, yi, t, h] * pD_dy[d, yi] * muD_dythvo_up[d, yi, t, h, k])) + Sum(s, ES_syt0[s, yi, t] * (PhiS_sytvo[s, yi, t, k] + PhiS_sytvo_lo[s, yi, t, k]))\
+        - Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g] * muGD_gythvo[g, yi, t, h, k] + RGU_g[g] * muGU_gythvo[g, yi, t, h, k])))
 
-    lp2_eqns = [con_8b, con_8c, con_8d, con_8e, con_8f, con_8g, con_8h, con_8i, con_8j, con_8k, con_8l]
+    lp2_eqns = [lp2_obj_var, con_8b, con_8c, con_8d, con_8e, con_8f, con_8g, con_8h, con_8i, con_8j, con_8k, con_8l]
     LP2_model = Model(
         m,
         name="lp2",
         description="Second linear problem (ADA)",
         equations=lp2_eqns,
-        problem='MIP',
+        problem='LP',
         sense='max',
         objective=xiQ,
     )
@@ -793,15 +732,15 @@ def build_lp2_eqns(yi, v_range):
 def set_uncertain_params_olmp(j_iter):
     # At the first iteration, uncertain parameters equal their forecast values
     if j_iter == 1:
-        CG_gyi[g,y,str(j_iter)] = CG_g_fc[g]
-        PD_dyi[d,y,str(j_iter)] = PD_d_fc[d]
-        PG_gyi[g,y,str(j_iter)] = PG_g_fc[g]
-        PR_ryi[r,y,str(j_iter)] = PR_r_fc[r]
+        CG_gyi[g,y,j_iter] = CG_g_fc[g]
+        PD_dyi[d,y,j_iter] = PD_d_fc[d]
+        PG_gyi[g,y,j_iter] = PG_g_fc[g]
+        PR_ryi[r,y,j_iter] = PR_r_fc[r]
     else:
-        CG_gyi[g, y, str(j_iter)] = cG_gy.l[g,y]
-        PD_dyi[d, y, str(j_iter)] = pD_dy.l[d,y]
-        PG_gyi[g, y, str(j_iter)] = pG_gy.l[g,y]
-        PR_ryi[r, y, str(j_iter)] = pR_ry.l[r,y]
+        CG_gyi[g, y, j_iter] = cG_gy.l[g,y]
+        PD_dyi[d, y, j_iter] = pD_dy.l[d,y]
+        PG_gyi[g, y, j_iter] = pG_gy.l[g,y]
+        PR_ryi[r, y, j_iter] = pR_ry.l[r,y]
 
 # Set values of the uncertain parameters for the given inner loop iteration
 def set_uncertain_params_ilsp(k_iter, is_ada):
@@ -824,10 +763,11 @@ def solve_olmp_relaxed(j_iter, lb_o, static):
     while ro <= j_iter:
         # Determine the subset i as a function of j and ro
         i_range = list(range(j_iter - ro + 1, j_iter + 1))
+        ir.setRecords(i_range)
         # Solve the outer-loop master problem
         OLMP_model = build_olmp_eqns(static, i_range) # Rebuild the olmp equations to account for the change in set i
         OLMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_olmp.txt"),output=sys.stdout)
-        if OLMP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible']:
+        if OLMP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible', 'InfeasibleNoSolution']:
             raise RuntimeError('OLMP is infeasible at j = {}'.format(j_iter))
         VL_lyj[lc,y] = vL_ly.l[lc,y]
         VL_lyj_prev[lc,y] = vL_ly_prev.l[lc,y]
@@ -845,10 +785,10 @@ def solve_olmp_relaxed(j_iter, lb_o, static):
 def solve_ilsp(y_iter, j_iter, k_iter):
     ILSP_model = build_ilsp_eqns(y_iter, j_iter) # Rebuild the ilsp equations for the given year and outer loop iteration j
     ILSP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_ilsp.txt"),output=sys.stdout)
-    if ILSP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible']:
+    if ILSP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible', 'InfeasibleNoSolution']:
         raise RuntimeError('ILSP is infeasible at y = {}, j ={}, k = {}'.format(y_iter, j_iter, k_iter))
-    UG_gythv[g,y,t,h,str(k_iter)] = uG_gyth.l[g,y,t,h]
-    US_sythv[s,y,t,h,str(k_iter)] = uS_syth.l[s,y,t,h]
+    UG_gythv[g,y,t,h,k_iter] = uG_gythi.l[g,y,t,h,j_iter]
+    US_sythv[s,y,t,h,k_iter] = uS_sythi.l[s,y,t,h,j_iter]
     ilsp_ov = ILSP_model.objective_value
 
     return ilsp_ov
@@ -856,6 +796,7 @@ def solve_ilsp(y_iter, j_iter, k_iter):
 # Solve the inner-loop master problem by using ADA
 def solve_ilmp_ada(y_iter, j_iter, k_iter, tol):
     v_range = list(range(1, k_iter + 1))
+    va.setRecords(v_range)
     # Set binary decision variables to the last solved value for the given inner loop iteration
     ada_ov = 0
     o_iter = 1
@@ -865,35 +806,36 @@ def solve_ilmp_ada(y_iter, j_iter, k_iter, tol):
             PG_gyo[g,y] = PG_g_fc[g]
             PR_ryo[r,y] = PR_r_fc[r]
         LP1_model = build_lp1_eqns(y_iter, v_range)
-        LP1_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_lp1.txt"),output=sys.stdout)
-        if LP1_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible']:
-            raise RuntimeError('LP1 is infeasible at y = {}, j ={}, k = {}'.format(y_iter, j_iter, k_iter))
-        LambdaN_nythvo[n,y,t,h,v] = lambdaN_nythv.l[n,y,t,h,v]
-        muD_dythvo_up[d,y,t,h,v] = muD_dythv_up.l[d,y,t,h,v]
-        muG_gythvo_lo[g,y,t,h,v] = muG_gythv_lo.l[g,y,t,h,v]
-        muG_gythvo_up[g,y,t,h,v] = muG_gythv_up.l[g,y,t,h,v]
-        muGD_gythvo[g,y,t,h,v] = muGD_gythv.l[g,y,t,h,v]
-        muGU_gythvo[g,y,t,h,v] = muGU_gythv.l[g,y,t,h,v]
-        muL_lythvo_lo[l,y,t,h,v] = muL_lythv_lo.l[l,y,t,h,v]
-        muL_lythvo_up[l,y,t,h,v] = muL_lythv_up.l[l,y,t,h,v]
-        muR_rythvo_up[r,y,t,h,v] = muR_rythv_up.l[r,y,t,h,v]
-        muS_sythvo_lo[s,y,t,h,v] = muS_sythv_lo.l[s,y,t,h,v]
-        muS_sythvo_up[s,y,t,h,v] = muS_sythv_up.l[s,y,t,h,v]
-        muSC_sythvo_up[s,y,t,h,v] = muSC_sythv_up.l[s,y,t,h,v]
-        muSD_sythvo_up[s,y,t,h,v] = muSD_sythv_up.l[s,y,t,h,v]
-        PhiS_sytvo[s,y,t,v] = PhiS_sytv.l[s,y,t,v]
-        PhiS_sytvo_lo[s,y,t,v] = PhiS_sytv_lo.l[s,y,t,v]
+        LP1_model.solve(options=Options(relative_optimality_gap=tol, lp="CPLEX", savepoint=1, log_file="log_lp1.txt"),output=sys.stdout)
+        if LP1_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible', 'InfeasibleNoSolution']:
+            raise RuntimeError('LP1 is infeasible at y = {}, j = {}, k = {}'.format(y_iter, j_iter, k_iter))
+        LambdaN_nythvo[n,y,t,h,k] = lambdaN_nythv.l[n,y,t,h,k]
+        muD_dythvo_up[d,y,t,h,k] = muD_dythv_up.l[d,y,t,h,k]
+        muG_gythvo_lo[g,y,t,h,k] = muG_gythv_lo.l[g,y,t,h,k]
+        muG_gythvo_up[g,y,t,h,k] = muG_gythv_up.l[g,y,t,h,k]
+        muGD_gythvo[g,y,t,h,k] = muGD_gythv.l[g,y,t,h,k]
+        muGU_gythvo[g,y,t,h,k] = muGU_gythv.l[g,y,t,h,k]
+        muL_lythvo_lo[l,y,t,h,k] = muL_lythv_lo.l[l,y,t,h,k]
+        muL_lythvo_up[l,y,t,h,k] = muL_lythv_up.l[l,y,t,h,k]
+        muR_rythvo_up[r,y,t,h,k] = muR_rythv_up.l[r,y,t,h,k]
+        muS_sythvo_lo[s,y,t,h,k] = muS_sythv_lo.l[s,y,t,h,k]
+        muS_sythvo_up[s,y,t,h,k] = muS_sythv_up.l[s,y,t,h,k]
+        muSC_sythvo_up[s,y,t,h,k] = muSC_sythv_up.l[s,y,t,h,k]
+        muSD_sythvo_up[s,y,t,h,k] = muSD_sythv_up.l[s,y,t,h,k]
+        PhiS_sytvo[s,y,t,k] = PhiS_sytv.l[s,y,t,k]
+        PhiS_sytvo_lo[s,y,t,k] = PhiS_sytv_lo.l[s,y,t,k]
         lp1_ov = LP1_model.objective_value
 
         LP2_model = build_lp2_eqns(y_iter, v_range)
-        LP2_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_lp2.txt"),output=sys.stdout)
-        if LP2_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible']:
+        LP2_model.solve(options=Options(relative_optimality_gap=tol, lp="CPLEX", savepoint=1, log_file="log_lp2.txt"),output=sys.stdout)
+        if LP2_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible', 'InfeasibleNoSolution']:
             raise RuntimeError('LP2 is infeasible at y = {}, j ={}, k = {}'.format(y_iter, j_iter, k_iter))
         PD_dyo[d,y] = pD_dy.l[d,y]
         PG_gyo[g,y] = pG_gy.l[g,y]
         PR_ryo[r,y] = pR_ry.l[r,y]
         lp2_ov = LP2_model.objective_value
 
+        logger.info("LP1 = {} and LP2 = {} before computing ADA inner loop error.".format(lp1_ov, lp2_ov))
         if (abs(lp1_ov - lp2_ov) / min(lp1_ov, lp2_ov)) < tol:
             ada_ov = min(lp1_ov, lp2_ov)
             logger.info("ADA ILMP converged in {} iteration(s)".format(o_iter))
@@ -912,11 +854,12 @@ def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i):
     while ri <= k_iter:
         # Determine the subset v as a function of k and ri
         v_range = list(range(k_iter - ri + 1, k_iter + 1))
+        vr.setRecords(list(range(k_iter - ri + 1, k_iter + 1)))
         # Solve the inner-loop master problem
         ILMP_model = build_ilmp_eqns(y_iter, v_range) # Rebuild the ilmp equations to account for the change in set v
         ILMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_ilmp.txt"),output=sys.stdout)
-        if ILMP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible']:
-            raise RuntimeError('ILMP is infeasible at y = {}, j ={}, k = {}'.format(y_iter, j_iter, k_iter))
+        if ILMP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible', 'InfeasibleNoSolution']:
+            raise RuntimeError('ILMP is infeasible at y = {}, j = {}, k = {}'.format(y_iter, j_iter, k_iter))
         ilmp_ov = ILMP_model.objective_value
         # Exit if ri == k or if optimal value is less than ub_i, else increment ri and iterate again
         if ri == k_iter or ilmp_ov < ub_i:
@@ -929,7 +872,7 @@ def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i):
 
 def compute_worst_case_total_cost():
     vL_vals = vL_ly.l.records
-    xi_y_vals = xi_y.l.records
+    xi_y_vals = xi_y.records
     IL_vals = IL_l.records
     IL_vals.columns = ['lc', 'value']
     cost = 0
