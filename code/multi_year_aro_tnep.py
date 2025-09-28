@@ -58,13 +58,13 @@ GammaGP = Parameter(m, name="GammaGP", records=0, description="Uncertainty budge
 GammaRS = Parameter(m, name="GammaRS", records=0, description="Uncertainty budget for decreased solar capacity")
 GammaRW = Parameter(m, name="GammaRW", records=0, description="Uncertainty budget for decreased wind capacity")
 kappa = Parameter(m, name="kappa", records=0.1, description="Discount rate")
-IT = Parameter(m, name="IT", records=200000000, description="Investment budget")
+IT = Parameter(m, name="IT", records=400000000, description="Investment budget")
 nb_H = Parameter(m, name="nb_H", records=8, description="Number of RTPs of each RD")
 FL = Parameter(m, name="FL", records=99, description="Large constant for disjunctive linearization")
-FD = Parameter(m, name="FD", records=9999, description="Large constant for exact linearization")
-FD_up = Parameter(m, name="FD_up", records=9999, description="Large constant for exact linearization")
-FG_up = Parameter(m, name="FG_up", records=9999, description="Large constant for exact linearization")
-FR_up = Parameter(m, name="FR_up", records=9999, description="Large constant for exact linearization")
+FD = Parameter(m, name="FD", records=50000, description="Large constant for exact linearization")
+FD_up = Parameter(m, name="FD_up", records=50000, description="Large constant for exact linearization")
+FG_up = Parameter(m, name="FG_up", records=50000, description="Large constant for exact linearization")
+FR_up = Parameter(m, name="FR_up", records=50000, description="Large constant for exact linearization")
 
 gammaD_dyth = Parameter(m, name="gammaD_dyth", domain=[d, y, t, h], records=gamma_dyth_data, description="Demand factor of load d")
 gammaR_ryth = Parameter(m, name="gammaR_ryth", domain=[r, y, t, h], records=gamma_ryth_data, description="Capacity factor of renewable unit r")
@@ -238,22 +238,16 @@ con_4t = Equation(m, name="con_4t", domain=[y, t, h, ir]) # N == ref bus
 def build_olmp_eqns(static, i_range):
     imin = min(i_range)
     imax = max(i_range)
-    # ir = (i.val >= imin) & (i.val <= imax)
+    # ir = (j.val >= imin) & (j.val <= imax)
     hmax = int(nb_H.toValue())
 
-    if static:
-        OF_olmp[...] = min_inv_cost_wc == rho_y[y] + Sum(lc, 1.1627*IL_l[lc] * vL_ly[lc, y])
-        con_1c[...] = Sum(lc, IL_l[lc] * vL_ly[lc, y]) <= IT
-        con_1d[lc] = vL_ly[lc, y] <= 1
-        con_1e[lc, y] = vL_ly_prev[lc, y] == vL_ly[lc, y]
-    else:
-        OF_olmp[...] = min_inv_cost_wc == Sum(y, rho_y[y] / power(1.0 + kappa, y.val) + \
-                                              (1.0 / power(1.0 + kappa, y.val - 1)) * Sum(lc, IL_l[lc] * vL_ly[lc, y]))
-        con_1c[...] = Sum(lc, Sum(y, (1.0 / power(1.0 + kappa, y.val - 1)) * IL_l[lc] * vL_ly[lc, y])) <= IT
-        con_1d[lc] = Sum(y, vL_ly[lc, y]) <= 1
-        con_1e[lc, y] = vL_ly_prev[lc, y] == Sum(yp.where[yp.val <= y.val], vL_ly[lc, yp])
+    OF_olmp[...] = min_inv_cost_wc == Sum(y, (1.0 / power(1.0 + kappa, y.val - 1)) * ((rho_y[y] / (1.0 + kappa)) + \
+                     Sum(lc, IL_l[lc] * vL_ly[lc, y])))
+    con_1c[...] = Sum(lc, Sum(y, (1.0 / power(1.0 + kappa, y.val - 1)) * IL_l[lc] * vL_ly[lc, y])) <= IT
+    con_1d[lc] = Sum(y, vL_ly[lc, y]) <= 1
+    con_1e[lc, y] = vL_ly_prev[lc, y] == Sum(yp.where[yp.val <= y.val], vL_ly[lc, yp])
 
-    con_4c[y, ir] = rho_y[y] >= Sum(t, sigma_yt[y, t]* Sum(h, tau_yth[y, t, h] * (Sum(g, CG_gyi[g,y,ir] * pG_gythi[g, y, t, h, ir]) \
+    con_4c[y, ir] = rho_y[y] >= Sum(t, sigma_yt[y, t] * Sum(h, tau_yth[y, t, h] * (Sum(g, CG_gyi[g,y,ir] * pG_gythi[g, y, t, h, ir]) \
     + Sum(r, CR_r[r] * (gammaR_ryth[r, y, t, h] * PR_ryi[r,y,ir] - pR_rythi[r, y, t, h, ir])) \
     + Sum(d, CLS_d[d] * pLS_dythi[d, y, t, h, ir]))))
     con_4d[n, y, t, h, ir] = Sum(g.where[g_n[g, n]], pG_gythi[g, y, t, h, ir]) + Sum(r.where[r_n[r, n]], pR_rythi[r, y, t, h, ir]) \
@@ -804,7 +798,8 @@ def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i):
     while ri <= k_iter:
         # Determine the subset v as a function of k and ri
         v_range = list(range(k_iter - ri + 1, k_iter + 1))
-        vr.setRecords(list(range(k_iter - ri + 1, k_iter + 1)))
+        vr.setRecords(v_range)
+        logger.info('v_range = {}'.format(v_range))
         # Solve the inner-loop master problem
         ILMP_model = build_ilmp_eqns(y_iter, v_range) # Rebuild the ilmp equations to account for the change in set v
         ILMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_ilmp.txt"),output=sys.stdout)
@@ -831,8 +826,10 @@ def compute_worst_case_total_cost():
         merge = pd.merge(vL_vals_year, IL_vals, on='lc')
         merge['product'] = merge['level'] * merge['value']
         xi_y_year = xi_y_vals[xi_y_vals['y'] == str(year)]['level'].values[0]
+        logger.info('xi_y_year = {}'.format(xi_y_year))
+        logger.info('kappa = {}'.format((1+kappa.toValue())**(year-1)))
         cost += (1/((1+kappa.toValue())**(year-1))) * ((xi_y_year/(1+kappa.toValue())) + merge['product'].sum())
-        # cost += (1 / ((1 + kappa.toValue()) ** (year - 1))) * (merge['product'].sum())
+        # cost += (1/((1+kappa.toValue())**(year-1))) * (merge['product'].sum())
 
     return cost
 
@@ -894,7 +891,7 @@ for ol_iter in range(j_max):
                 break
             elif il_error_rel >= tol:
                 logger.info("Second inner loop (relaxed) has not converged after k = {} iterations --> Solve relaxed ILMP".format(k_iter_rel))
-                ub_i_rel = solve_ilmp_relaxed(y_iter, j_iter, k_iter_rel, tol)
+                ub_i_rel = solve_ilmp_relaxed(y_iter, j_iter, k_iter_rel, ub_i_rel)
                 k_iter_rel += 1
         if static:
             logger.info("Running static problem for y = {} --> End year loop".format(y_iter))
