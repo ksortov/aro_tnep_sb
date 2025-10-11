@@ -2,9 +2,9 @@ from pandas.compat.numpy.function import validate_round
 from pandas.core.dtypes.inference import is_re
 
 from input_data_processing import (weights, RD1, lines, buses, ESS, CG, RES, loads, years_data, sigma_yt_data,
-                                   tau_yth_data, gamma_dyth_data, gamma_ryth_data, ES_syt0_data, tol, static)
+                                   tau_yth_data, gamma_dyth_data, gamma_ryth_data, ES_syt0_data, tol, static, ess_inv)
 from gamspy import Alias, Container, Domain, Equation, Model, Options, Ord, Card, Parameter, Set, Smax, Sum, Variable
-from gamspy.math import power
+from gamspy.math import power, Max
 from utils import logger
 import pandas as pd
 import sys
@@ -60,11 +60,11 @@ GammaRW = Parameter(m, name="GammaRW", records=0, description="Uncertainty budge
 kappa = Parameter(m, name="kappa", records=0.1, description="Discount rate")
 IT = Parameter(m, name="IT", records=400000000, description="Investment budget")
 nb_H = Parameter(m, name="nb_H", records=8, description="Number of RTPs of each RD")
-FL = Parameter(m, name="FL", records=99, description="Large constant for disjunctive linearization")
-FD = Parameter(m, name="FD", records=50000, description="Large constant for exact linearization")
-FD_up = Parameter(m, name="FD_up", records=50000, description="Large constant for exact linearization")
-FG_up = Parameter(m, name="FG_up", records=50000, description="Large constant for exact linearization")
-FR_up = Parameter(m, name="FR_up", records=50000, description="Large constant for exact linearization")
+FL = Parameter(m, name="FL", records=1000000, description="Large constant for disjunctive linearization")
+FD = Parameter(m, name="FD", records=1000000, description="Large constant for exact linearization")
+FD_up = Parameter(m, name="FD_up", records=1000000, description="Large constant for exact linearization")
+FG_up = Parameter(m, name="FG_up", records=1000000, description="Large constant for exact linearization")
+FR_up = Parameter(m, name="FR_up", records=1000000, description="Large constant for exact linearization")
 
 gammaD_dyth = Parameter(m, name="gammaD_dyth", domain=[d, y, t, h], records=gamma_dyth_data, description="Demand factor of load d")
 gammaR_ryth = Parameter(m, name="gammaR_ryth", domain=[r, y, t, h], records=gamma_ryth_data, description="Capacity factor of renewable unit r")
@@ -136,6 +136,12 @@ VL_lyj_prev = Parameter(m, name='VL_lyj_prev', domain=[lc, y], description="Bina
 UG_gythv = Parameter(m, name='UG_gythv', domain=[g, y, t, h, k], description="Binary variable used to model the commitment status of conventional unit g, for relaxed inner loop iteration v")
 US_sythv = Parameter(m, name='US_sythv', domain=[s, y, t, h, k], description="Binary variable used to used to avoid the simultaneous charging and discharging of storage facility s, for relaxed inner loop iteration v")
 
+# New parameters for storage investment decisions
+se = Set(m, name="se", domain=[s], records=ESS[ESS['IS_s [$]']==0]['Storage unit'], description="Set of existing storage units indexed by s")
+sc = Set(m, name="sc", domain=[s], records=ESS[ESS['IS_s [$]']>0]['Storage unit'], description="Set of candidate storage units indexed by s")
+IS_s = Parameter(m, name="IS_s", domain=[s], records=ESS[['Storage unit', 'IS_s [$]']], description="Investment cost coefficient of candidate energy storage system s")
+VS_syj_prev = Parameter(m, name='VS_syj_prev', domain=[s, y], description="Binary variable that is equal to 1 if energy storage system s is built in year y or in previous years, which is otherwise 0, for outer loop iteration j")
+
 # VARIABLES #
 # Optimization variables
 theta_nythi = Variable(m, name="theta_nythi", domain=[n, y, t, h, j], description="Voltage angle at bus n")
@@ -172,6 +178,11 @@ zGC_gy = Variable(m, name='zGC_gy', type='binary', domain=[g, y], description="B
 zGP_gy = Variable(m, name='zGP_gy', type='binary', domain=[g, y], description="Binary variable that is equal to 1 if the worst-case realization of the capacity of conventional generating unit g is equal to its upper bound, which is otherwise 0")
 zR_ry = Variable(m, name='zR_ry', type='binary', domain=[r, y], description="Binary variable that is equal to 1 if the worst-case realization of he capacity of renewable generating unit r is equal to its upper bound, which is otherwise 0")
 
+# New decision variables
+vS_sy = Variable(m, name='vS_sy', type='binary', domain=[s, y], description="Binary variable that is equal to 1 if candidate energy storage system s is built in year y, which is otherwise 0")
+vS_sy_prev = Variable(m, name='vS_sy_prev', type='binary', domain=[s, y], description="Binary variable that is equal to 1 if candidate energy storage system s is built in year y or in previous years, which is otherwise 0")
+alphaS_sythi = Variable(m, name="alphaS_sythi", type='positive', domain=[s, y, t, h, j], description="Auxiliary variable for the linearization of zS_sy*uS_syth")
+
 # Dual variables
 lambdaN_nythv = Variable(m, name='lambdaN_nythv', domain=[n, y, t, h, k], description="Dual variable associated with the power balance equation at bus n")
 muD_dythv_up = Variable(m, name='muD_dythv_up', type='positive', domain=[d, y, t, h, k], description="Dual variable associated with the constraint imposing the upper bound for the unserved demand of load d")
@@ -205,7 +216,9 @@ min_op_cost_y = Variable(m, name="min_op_cost_y", description="Minimized operati
 # EQUATIONS #
 # Outer-loop master problem OF and constraints
 OF_olmp = Equation(m, name="OF_olmp", type="regular")
+OF_olmp_ess = Equation(m, name="OF_olmp_ess", type="regular")
 con_1c = Equation(m, name="con_1c")
+con_1c_ess = Equation(m, name="con_1c_ess")
 con_1d = Equation(m, name="con_1d", domain=[lc])
 con_1e = Equation(m, name="con_1e", domain=[lc, y])
 con_4c = Equation(m, name="con_4c", domain=[y, ir])
@@ -225,6 +238,13 @@ con_4k2 = Equation(m, name="con_4k2", domain=[s, y, t, h, ir])
 # con_4l = Equation(m, name="con_4l", domain=[S,T,H,Y])
 con_4m = Equation(m, name="con_4m", domain=[s, y, t, h, ir])
 con_4n = Equation(m, name="con_4n", domain=[s, y, t, h, ir])
+con_4v1 = Equation(m, name="con_4v1", domain=[s])
+con_4v2 = Equation(m, name="con_4v2", domain=[s,y])
+con_4ess_lin1 = Equation(m, name="con_4ess_lin1", domain=[s, y, t, h, ir]) # Linearized
+con_4ess_lin2 = Equation(m, name="con_4ess_lin2", domain=[s, y, t, h, ir]) # Linearized
+con_4ess_lin3 = Equation(m, name="con_4ess_lin3", domain=[s, y, t, h, ir]) # Linearized
+con_4m_ess = Equation(m, name="con_4m_ess", domain=[s, y, t, h, ir])
+con_4n_ess = Equation(m, name="con_4n_ess", domain=[s, y, t, h, ir])
 con_4o = Equation(m, name="con_4o", domain=[d, y, t, h, ir])
 # con_4p = Equation(m, name="con_4p", domain=[G,T,H,Y])
 con_4q1 = Equation(m, name="con_4q1", domain=[g, y, t, h, ir])
@@ -235,15 +255,22 @@ con_4s = Equation(m, name="con_4s", domain=[r, y, t, h, ir])
 con_4t = Equation(m, name="con_4t", domain=[y, t, h, ir]) # N == ref bus
 
 
-def build_olmp_eqns(static, i_range):
+def build_olmp_eqns(ess_inv, i_range):
     imin = min(i_range)
     imax = max(i_range)
     # ir = (j.val >= imin) & (j.val <= imax)
     hmax = int(nb_H.toValue())
 
+    # Original objective function and limit on investment costs
     OF_olmp[...] = min_inv_cost_wc == Sum(y, (1.0 / power(1.0 + kappa, y.val - 1)) * ((rho_y[y] / (1.0 + kappa)) + \
                      Sum(lc, IL_l[lc] * vL_ly[lc, y])))
     con_1c[...] = Sum(lc, Sum(y, (1.0 / power(1.0 + kappa, y.val - 1)) * IL_l[lc] * vL_ly[lc, y])) <= IT
+
+    # Modified objective function with ESS investment costs
+    # OF_olmp_ess[...] = min_inv_cost_wc == Sum(y, (1.0 / power(1.0 + kappa, y.val - 1)) * ((rho_y[y] / (1.0 + kappa)) + \
+    #                 Sum(lc, IL_l[lc] * vL_ly[lc, y]) + Sum(s, IS_s[s] * vS_sy[s, y])))
+    # con_1c_ess[...] = Sum(y, (1.0 / power(1.0 + kappa, y.val - 1)) * (Sum(lc, IL_l[lc] * vL_ly[lc, y]) + Sum(s, IS_s[s] * vS_sy[s, y]))) <= IT
+
     con_1d[lc] = Sum(y, vL_ly[lc, y]) <= 1
     con_1e[lc, y] = vL_ly_prev[lc, y] == Sum(yp.where[yp.val <= y.val], vL_ly[lc, yp])
 
@@ -271,8 +298,20 @@ def build_olmp_eqns(static, i_range):
     con_4j[s, y, t, ir] =  eS_sythi[s, y, t, hmax, ir] >= ES_syt0[s, y, t]
     con_4k1[s, y, t, h, ir] = eS_sythi[s, y, t, h, ir] <= ES_s_max[s]
     con_4k2[s, y, t, h, ir] = eS_sythi[s, y, t, h, ir] >= ES_s_min[s]
+    # Original constraints for avoiding simultaneous charging and discharging, max and min charging/discharging power
     con_4m[s, y, t, h, ir] = pSC_sythi[s, y, t, h, ir] <= uS_sythi[s, y, t, h, ir] * PSC_s[s]
     con_4n[s, y, t, h, ir] = pSD_sythi[s, y, t, h, ir] <= (1 - uS_sythi[s, y, t, h, ir]) * PSD_s[s]
+    # Modified constraints for avoiding simultaneous charging and discharging, max and min charging/discharging power
+    # con_4v1[s] = Sum(y, vS_sy[s, y]) <= 1
+    # con_4v2[s, y] = vS_sy_prev[s, y] == Sum(yp.where[yp.val <= y.val], vS_sy[s, yp])
+    # con_4ess_lin1[s, y, t, h, ir] = alphaS_sythi[s, y, t, h, ir] <= vS_sy_prev[s, y]
+    # con_4ess_lin2[s, y, t, h, ir] = alphaS_sythi[s, y, t, h, ir] <= uS_sythi[s, y, t, h, ir]
+    # con_4ess_lin3[s, y, t, h, ir] = alphaS_sythi[s, y, t, h, ir] >= vS_sy_prev[s, y] + uS_sythi[s, y, t, h, ir] - 1
+    # # con_4m_ess[s, y, t, h, ir] = pSC_sythi[s, y, t, h, ir] <= alphaS_sythi[s,y,t,h,ir] * PSC_s[s]
+    # # con_4n_ess[s, y, t, h, ir] = pSD_sythi[s, y, t, h, ir] <= (vS_sy_prev[s,y] - alphaS_sythi[s,y,t,h,ir]) * PSD_s[s]
+    # con_4m_ess[s, y, t, h, ir] = pSC_sythi[s, y, t, h, ir] <= vS_sy_prev[s, y]*200
+    # con_4n_ess[s, y, t, h, ir] = pSD_sythi[s, y, t, h, ir] <= vS_sy_prev[s, y]*200
+
     con_4o[d, y, t, h, ir] = pLS_dythi[d, y, t, h, ir] <= gammaD_dyth[d, y, t, h] * PD_dyi[d,y,ir]  # pD_dy[D,Y]
     con_4q1[g, y, t, h, ir] = pG_gythi[g, y, t, h, ir] <= uG_gythi[g, y, t, h, ir] * PG_gyi[g,y,ir]  # pG_gy[G,Y]
     con_4q2[g, y, t, h, ir] = pG_gythi[g, y, t, h, ir] >= uG_gythi[g, y, t, h, ir] * PG_g_min[g]
@@ -284,11 +323,15 @@ def build_olmp_eqns(static, i_range):
     olmp_eqns = [OF_olmp, con_1c, con_1d, con_1e, con_4c, con_4d, con_4e, con_4f_lin1, con_4f_lin2, con_4g_exist_lin1,
              con_4g_exist_lin2, con_4g_can_lin1, con_4g_can_lin2, con_4h, con_4i, con_4j, con_4k1, con_4k2, con_4m,
              con_4n, con_4o, con_4q1, con_4q2, con_4r1, con_4r2, con_4s, con_4t]
+    olmp_ess_eqns = [OF_olmp_ess, con_1c_ess, con_1d, con_1e, con_4c, con_4d, con_4e, con_4f_lin1, con_4f_lin2, con_4g_exist_lin1,
+                 con_4g_exist_lin2, con_4g_can_lin1, con_4g_can_lin2, con_4h, con_4i, con_4j, con_4k1, con_4k2, con_4m, con_4n, con_4m_ess,
+                 con_4n_ess, con_4o, con_4q1, con_4q2, con_4r1, con_4r2, con_4s, con_4t, con_4v1, con_4v2]
+    eqns = olmp_ess_eqns if ess_inv else olmp_eqns
     OLMP_model = Model(
         m,
         name="OLMP",
         description="Outer-loop master problem",
-        equations=olmp_eqns,
+        equations=eqns,
         problem='MIP',
         sense='min',
         objective=min_inv_cost_wc,
@@ -464,12 +507,14 @@ con_3i2 = Equation(m, name="con_3i2", domain=[s, y, t, h])
 # con_3j = Equation(m, name="con_3j", domain=[n, t, h])
 con_3k = Equation(m, name="con_3k", domain=[s, y, t, h])
 con_3l = Equation(m, name="con_3l", domain=[s, y, t, h])
+con_3k_ess = Equation(m, name="con_3k_ess", domain=[s, y, t, h])
+con_3l_ess = Equation(m, name="con_3l_ess", domain=[s, y, t, h])
 # con_3n = Equation(m, name="con_3n", domain=[n, t, h])
 con_3p1 = Equation(m, name="con_3p1", domain=[g, y, t, h])
 con_3p2 = Equation(m, name="con_3p2", domain=[g, y, t, h])
 con_3r = Equation(m, name="con_3r", domain=[y, t, h]) # n == ref bus
 
-def build_ilsp_eqns(yi, ji):
+def build_ilsp_eqns(ess_inv, yi, ji):
     hmax = int(nb_H.toValue())
 
     OF_ilsp[...] = min_op_cost_y == Sum(t, sigma_yt[yi, t] * Sum(h, tau_yth[yi, t, h] * (Sum(g, CG_gyk[g, yi] * pG_gythi[g, yi, t, h, ji])\
@@ -498,17 +543,22 @@ def build_ilsp_eqns(yi, ji):
     con_3i2[s, yi, t, h] = eS_sythi[s, yi, t, h, ji] >= ES_s_min[s]
     con_3k[s, yi, t, h] = pSC_sythi[s, yi, t, h, ji] <= uS_sythi[s, yi, t, h, ji] * PSC_s[s]
     con_3l[s, yi, t, h] = pSD_sythi[s, yi, t, h, ji] <= (1 - uS_sythi[s, yi, t, h, ji]) * PSD_s[s]
+    # con_3k_ess[s, yi, t, h] = pSC_sythi[s, yi, t, h, ji] <= uS_sythi[s, yi, t, h, ji] * PSC_s[s] * VS_syj_prev[s,yi]
+    # con_3l_ess[s, yi, t, h] = pSD_sythi[s, yi, t, h, ji] <= (1 - uS_sythi[s, yi, t, h, ji]) * PSD_s[s] * VS_syj_prev[s,yi]
     con_3p1[g, yi, t, h].where[Ord(h)>1] = pG_gythi[g, yi, t, h, ji] - pG_gythi[g, yi, t, h.lag(1), ji] <= RGU_g[g]
     con_3p2[g, yi, t, h].where[Ord(h)>1] = pG_gythi[g, yi, t, h, ji] - pG_gythi[g, yi, t, h.lag(1), ji] >= -RGD_g[g]
     con_3r[yi, t, h] = theta_nythi[1, yi, t, h, ji] == 0
 
     ilsp_eqns = [OF_ilsp, con_6b, con_6c, con_6d, con_6e1, con_6e2, con_6f, con_3c, con_3e1, con_3e2, con_3f, con_3g, con_3h,
              con_3i1, con_3i2, con_3k, con_3l, con_3p1, con_3p2, con_3r]
+    ilsp_ess_eqns = [OF_ilsp, con_6b, con_6c, con_6d, con_6e1, con_6e2, con_6f, con_3c, con_3e1, con_3e2, con_3f, con_3g,
+                 con_3h, con_3i1, con_3i2, con_3k_ess, con_3l_ess, con_3p1, con_3p2, con_3r]
+    eqns = ilsp_ess_eqns if ess_inv else ilsp_eqns
     ILSP_model = Model(
         m,
         name="ILSP",
         description="Inner-loop subproblem",
-        equations=ilsp_eqns,
+        equations=eqns,
         problem='MIP',
         sense='min',
         objective=min_op_cost_y,
@@ -701,7 +751,7 @@ def set_uncertain_params_ilsp(k_iter, is_ada):
         PR_ryk[r,y] = pR_ry.l[r,y]
 
 # Solve the relaxed outer-loop master problem
-def solve_olmp_relaxed(j_iter, lb_o, static):
+def solve_olmp_relaxed(j_iter, lb_o, ess_inv):
     ro = 1 # Initialize relaxed iteration counter
     # Solve at least once, until ro == j
     while ro <= j_iter:
@@ -709,12 +759,13 @@ def solve_olmp_relaxed(j_iter, lb_o, static):
         i_range = list(range(j_iter - ro + 1, j_iter + 1))
         ir.setRecords(i_range)
         # Solve the outer-loop master problem
-        OLMP_model = build_olmp_eqns(static, i_range) # Rebuild the olmp equations to account for the change in set i
+        OLMP_model = build_olmp_eqns(ess_inv, i_range) # Rebuild the olmp equations to account for the change in set i
         OLMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_olmp.txt"),output=sys.stdout)
         if OLMP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible', 'InfeasibleNoSolution']:
             raise RuntimeError('OLMP is infeasible at j = {}'.format(j_iter))
         VL_lyj[lc,y] = vL_ly.l[lc,y]
         VL_lyj_prev[lc,y] = vL_ly_prev.l[lc,y]
+        VS_syj_prev[s,y] = vS_sy_prev.l[s,y]
         olmp_ov = OLMP_model.objective_value
         # Exit if ro == j or if optimal value exceeds lb_o, else increment ro and iterate again
         if ro == j_iter or olmp_ov > lb_o:
@@ -726,8 +777,8 @@ def solve_olmp_relaxed(j_iter, lb_o, static):
     return olmp_ov
 
 # Solve the inner-loop subproblem
-def solve_ilsp(y_iter, j_iter, k_iter):
-    ILSP_model = build_ilsp_eqns(y_iter, j_iter) # Rebuild the ilsp equations for the given year and outer loop iteration j
+def solve_ilsp(ess_inv, y_iter, j_iter, k_iter):
+    ILSP_model = build_ilsp_eqns(ess_inv, y_iter, j_iter) # Rebuild the ilsp equations for the given year and outer loop iteration j
     ILSP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_ilsp.txt"),output=sys.stdout)
     if ILSP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible', 'InfeasibleNoSolution']:
         raise RuntimeError('ILSP is infeasible at y = {}, j ={}, k = {}'.format(y_iter, j_iter, k_iter))
@@ -795,6 +846,10 @@ def solve_ilmp_ada(y_iter, j_iter, k_iter, tol):
 def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i):
     ri = 1 # Initialize relaxed iteration counter
     # Solve at least once, until ri == k
+    cG_solved = None
+    pD_solved = None
+    pG_solved = None
+    pR_solved = None
     while ri <= k_iter:
         # Determine the subset v as a function of k and ri
         v_range = list(range(k_iter - ri + 1, k_iter + 1))
@@ -810,26 +865,46 @@ def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i):
         if ri == k_iter or ilmp_ov < ub_i:
             logger.info("Relaxed ILMP iteration (ri = {}) equals inner-loop iteration (k = {}) or UBI has decreased --> Exit ILMP".format(ri, k_iter))
             break
+        # elif cG_gy.l.records.equals(cG_solved) and pD_dy.l.records.equals(pD_solved) and pG_gy.l.records.equals(pG_solved) and pR_ry.l.records.equals(pR_solved):
+        #     logger.info("Relaxed ILMP iteration (ri = {}): no change in solution --> Exit ILMP".format(ri, k_iter))
+        #     break
         else:
             ri += 1
+            cG_solved = cG_gy.l.records
+            pD_solved = pD_dy.l.records
+            pG_solved = pG_gy.l.records
+            pR_solved = pR_ry.l.records
 
     return ilmp_ov
 
-def compute_worst_case_total_cost():
+def  compute_worst_case_total_cost(ess_inv):
     vL_vals = vL_ly.l.records
     xi_y_vals = xi_y.records
     IL_vals = IL_l.records
     IL_vals.columns = ['lc', 'value']
+    if ess_inv:
+        vS_vals = vS_sy.l.records
+        IS_vals = IS_s.records
+        IS_vals.columns = ['s', 'value']
     cost = 0
     for year in years_data:
-        vL_vals_year = vL_vals[vL_vals['y'] == str(year)]
-        merge = pd.merge(vL_vals_year, IL_vals, on='lc')
-        merge['product'] = merge['level'] * merge['value']
-        xi_y_year = xi_y_vals[xi_y_vals['y'] == str(year)]['level'].values[0]
-        logger.info('xi_y_year = {}'.format(xi_y_year))
-        logger.info('kappa = {}'.format((1+kappa.toValue())**(year-1)))
-        cost += (1/((1+kappa.toValue())**(year-1))) * ((xi_y_year/(1+kappa.toValue())) + merge['product'].sum())
-        # cost += (1/((1+kappa.toValue())**(year-1))) * (merge['product'].sum())
+        try:
+            vL_vals_year = vL_vals[vL_vals['y'] == str(year)]
+            vL_IL = pd.merge(vL_vals_year, IL_vals, on='lc')
+            vL_IL['line_cost'] = vL_IL['level'] * vL_IL['value']
+            xi_y_year = xi_y_vals[xi_y_vals['y'] == str(year)]['level'].values[0]
+            logger.info('xi_y_year = {}'.format(xi_y_year))
+            logger.info('kappa = {}'.format((1+kappa.toValue())**(year-1)))
+            if ess_inv:
+                vS_vals_year = vS_vals[vS_vals['y'] == str(year)]
+                vS_IL = pd.merge(vS_vals_year, IS_vals, on='s')
+                vS_IL['ess_cost'] = vS_IL['level'] * vS_IL['value']
+                cost += (1/((1+kappa.toValue())**(year-1))) * ((xi_y_year/(1+kappa.toValue())) + vL_IL['line_cost'].sum() + vS_IL['ess_cost'].sum())
+            else:
+                cost += (1/((1+kappa.toValue())**(year-1))) * ((xi_y_year/(1+kappa.toValue())) + vL_IL['line_cost'].sum())
+        except:
+            xi_y_year = xi_y_vals[xi_y_vals['y'] == str(year)]['level'].values[0]
+            cost += (1/((1+kappa.toValue())**(year-1))) * ((xi_y_year/(1+kappa.toValue())))
 
     return cost
 
@@ -847,15 +922,13 @@ j_iter = 1
 for ol_iter in range(j_max):
     logger.info("Starting outer loop problem for j = {}".format(j_iter))
     set_uncertain_params_olmp(j_iter)
-    lb_o = solve_olmp_relaxed(j_iter, lb_o, static)
-    if j_iter > 1:
-        if VL_lyj.records.equals(VL_lyjm1_rec) and VL_lyj_prev.records.equals(VL_lyjm1_prev_rec):
+    lb_o = solve_olmp_relaxed(j_iter, lb_o, ess_inv)
+    if j_iter > 1 and vL_ly.l.records is not None:
+        if vL_ly.l.records.equals(VL_lyjm1_rec):
             logger.info("No change in investment decision variables --> End outer loop")
             break
     # YEAR LOOP
     for y_iter in years_data:
-        if static:
-            y_iter = max(years_data)
         logger.info("Starting inner loop problems for y = {}".format(y_iter))
         # INNER LOOP: ILSP + ADA ILMP #
         lb_i_ada = -999999999999
@@ -865,7 +938,7 @@ for ol_iter in range(j_max):
         for il_ada_iter in range(k_max):
             logger.info("Starting ADA inner loop iteration k = {}".format(k_iter_ada))
             set_uncertain_params_ilsp(k_iter_ada, is_ada=True)
-            lb_i_ada = solve_ilsp(y_iter, j_iter, k_iter_ada)
+            lb_i_ada = solve_ilsp(ess_inv, y_iter, j_iter, k_iter_ada)
             logger.info("LBI = {} and UBI = {} before computing ADA inner loop error.".format(lb_i_ada, ub_i_ada))
             il_error_ada = (ub_i_ada - lb_i_ada) / lb_i_ada
             if il_error_ada < tol:
@@ -879,11 +952,15 @@ for ol_iter in range(j_max):
         lb_i_rel = -999999999999
         ub_i_rel = 999999999999
         k_iter_rel = 1
+        cG_solved = None
+        pD_solved = None
+        pG_solved = None
+        pR_solved = None
         logger.info("Starting second inner loop (relaxed) for y = {}".format(y_iter))
         for il_rel_iter in range(k_max):
             logger.info("Starting relaxed inner loop iteration  k = {}".format(k_iter_rel))
             set_uncertain_params_ilsp(k_iter_rel, is_ada=False)
-            lb_i_rel = solve_ilsp(y_iter, j_iter, k_iter_rel)
+            lb_i_rel = solve_ilsp(ess_inv, y_iter, j_iter, k_iter_rel)
             logger.info("LBI = {} and UBI = {} before computing relaxed inner loop error.".format(lb_i_rel, ub_i_rel))
             il_error_rel = (ub_i_rel - lb_i_rel) / lb_i_rel
             if il_error_rel < tol:
@@ -892,18 +969,22 @@ for ol_iter in range(j_max):
             elif il_error_rel >= tol:
                 logger.info("Second inner loop (relaxed) has not converged after k = {} iterations --> Solve relaxed ILMP".format(k_iter_rel))
                 ub_i_rel = solve_ilmp_relaxed(y_iter, j_iter, k_iter_rel, ub_i_rel)
+                if k_iter_rel > 1 and cG_gy.l.records.equals(cG_solved) and pD_dy.l.records.equals(pD_solved) and pG_gy.l.records.equals(pG_solved) and pR_ry.l.records.equals(pR_solved):
+                    logger.info("Second inner loop (relaxed): no change in solution after k = {} iterations-->  End relaxed inner loop".format(k_iter_rel))
+                    break
                 k_iter_rel += 1
-        if static:
-            logger.info("Running static problem for y = {} --> End year loop".format(y_iter))
-            break
-        elif y_iter == max(years_data):
+                cG_solved = cG_gy.l.records
+                pD_solved = pD_dy.l.records
+                pG_solved = pG_gy.l.records
+                pR_solved = pR_ry.l.records
+        if y_iter == max(years_data):
             logger.info("Reached end of last year (y = {}) in the planning horizon --> End year loop".format(y_iter))
             break
         else:
             y_iter += 1
 
     # Update ub_o
-    wc_cost = compute_worst_case_total_cost()
+    wc_cost = compute_worst_case_total_cost(ess_inv)
     ub_o = wc_cost
     logger.info("LBO = {} and UBO = {} before computing outer loop error.".format(lb_o, ub_o))
     print("Total worst-case cost = {}".format(ub_o))
@@ -913,6 +994,9 @@ for ol_iter in range(j_max):
         break
     else:
         j_iter += 1
+        VL_lyjm1_rec = vL_ly.l.records
 print(min_inv_cost_wc.records)
-print(vL_ly.records)
+print(vL_ly.l.records)
+if ess_inv:
+    print(vS_sy.l.records)
 m.write(r'C:\Users\Kevin\OneDrive - McGill University\Research\Sandbox\optimization\multi-year_AROTNEP\results\aro_tnep_results.gdx')
