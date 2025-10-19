@@ -58,13 +58,13 @@ GammaGP = Parameter(m, name="GammaGP", records=0, description="Uncertainty budge
 GammaRS = Parameter(m, name="GammaRS", records=0, description="Uncertainty budget for decreased solar capacity")
 GammaRW = Parameter(m, name="GammaRW", records=0, description="Uncertainty budget for decreased wind capacity")
 kappa = Parameter(m, name="kappa", records=0.1, description="Discount rate")
-IT = Parameter(m, name="IT", records=400000000, description="Investment budget")
+IT = Parameter(m, name="IT", records=1200000000, description="Investment budget")
 nb_H = Parameter(m, name="nb_H", records=8, description="Number of RTPs of each RD")
-FL = Parameter(m, name="FL", records=1000000, description="Large constant for disjunctive linearization")
-FD = Parameter(m, name="FD", records=1000000, description="Large constant for exact linearization")
-FD_up = Parameter(m, name="FD_up", records=1000000, description="Large constant for exact linearization")
-FG_up = Parameter(m, name="FG_up", records=1000000, description="Large constant for exact linearization")
-FR_up = Parameter(m, name="FR_up", records=1000000, description="Large constant for exact linearization")
+FL = Parameter(m, name="FL", records=1000, description="Large constant for disjunctive linearization")
+FD = Parameter(m, name="FD", records=100000, description="Large constant for exact linearization")
+FD_up = Parameter(m, name="FD_up", records=100000, description="Large constant for exact linearization")
+FG_up = Parameter(m, name="FG_up", records=100000, description="Large constant for exact linearization")
+FR_up = Parameter(m, name="FR_up", records=100000, description="Large constant for exact linearization")
 
 gammaD_dyth = Parameter(m, name="gammaD_dyth", domain=[d, y, t, h], records=gamma_dyth_data, description="Demand factor of load d")
 gammaR_ryth = Parameter(m, name="gammaR_ryth", domain=[r, y, t, h], records=gamma_ryth_data, description="Capacity factor of renewable unit r")
@@ -140,6 +140,7 @@ US_sythv = Parameter(m, name='US_sythv', domain=[s, y, t, h, k], description="Bi
 se = Set(m, name="se", domain=[s], records=ESS[ESS['IS_s [$]']==0]['Storage unit'], description="Set of existing storage units indexed by s")
 sc = Set(m, name="sc", domain=[s], records=ESS[ESS['IS_s [$]']>0]['Storage unit'], description="Set of candidate storage units indexed by s")
 IS_s = Parameter(m, name="IS_s", domain=[s], records=ESS[['Storage unit', 'IS_s [$]']], description="Investment cost coefficient of candidate energy storage system s")
+sigma_s = Parameter(m, name="sigma_s", domain=[s], records=ESS[['Storage unit', 'sigma_s']], description="Fixed operation ans maintenance cost of candidate energy storage system s as pe percentage of the investments costs")
 VS_syj_prev = Parameter(m, name='VS_syj_prev', domain=[s, y], description="Binary variable that is equal to 1 if energy storage system s is built in year y or in previous years, which is otherwise 0, for outer loop iteration j")
 
 # VARIABLES #
@@ -231,10 +232,17 @@ con_4g_exist_lin2 = Equation(m, name="con_4g_exist_lin2", domain=[le, y, t, h, i
 con_4g_can_lin1 = Equation(m, name="con_4g_can_lin1", domain=[lc, y, t, h, ir])
 con_4g_can_lin2 = Equation(m, name="con_4g_can_lin2", domain=[lc, y, t, h, ir])
 con_4h = Equation(m, name="con_4h", domain=[s, y, t, ir]) # H == 1
+con_4h_ess_lin1 = Equation(m, name="con_4h_ess_lin1", domain=[s, y, t, ir]) # H == 1
+con_4h_ess_lin2 = Equation(m, name="con_4h_ess_lin2", domain=[s, y, t, ir]) # H == 1
 con_4i = Equation(m, name="con_4i", domain=[s, y, t, h, ir]) # H =/= 1
+con_4i_ess_lin1 = Equation(m, name="con_4i_ess_lin1", domain=[s, y, t, h, ir]) # H =/= 1
+con_4i_ess_lin2 = Equation(m, name="con_4i_ess_lin2", domain=[s, y, t, h, ir]) # H =/= 1
 con_4j = Equation(m, name="con_4j", domain=[s, y, t, ir]) # H == Hmax
 con_4k1 = Equation(m, name="con_4k1", domain=[s, y, t, h, ir])
 con_4k2 = Equation(m, name="con_4k2", domain=[s, y, t, h, ir])
+con_4j_ess = Equation(m, name="con_4j_ess", domain=[s, y, t, ir]) # H == Hmax
+con_4k1_ess = Equation(m, name="con_4k1_ess", domain=[s, y, t, h, ir])
+con_4k2_ess = Equation(m, name="con_4k2_ess", domain=[s, y, t, h, ir])
 # con_4l = Equation(m, name="con_4l", domain=[S,T,H,Y])
 con_4m = Equation(m, name="con_4m", domain=[s, y, t, h, ir])
 con_4n = Equation(m, name="con_4n", domain=[s, y, t, h, ir])
@@ -254,6 +262,7 @@ con_4r2 = Equation(m, name="con_4r2", domain=[g, y, t, h, ir]) # H =/= 1
 con_4s = Equation(m, name="con_4s", domain=[r, y, t, h, ir])
 con_4t = Equation(m, name="con_4t", domain=[y, t, h, ir]) # N == ref bus
 
+con_4q_ess = Equation(m, name="con_4q_ess", domain=[n])
 
 def build_olmp_eqns(ess_inv, i_range):
     imin = min(i_range)
@@ -267,9 +276,9 @@ def build_olmp_eqns(ess_inv, i_range):
     con_1c[...] = Sum(lc, Sum(y, (1.0 / power(1.0 + kappa, y.val - 1)) * IL_l[lc] * vL_ly[lc, y])) <= IT
 
     # Modified objective function with ESS investment costs
-    # OF_olmp_ess[...] = min_inv_cost_wc == Sum(y, (1.0 / power(1.0 + kappa, y.val - 1)) * ((rho_y[y] / (1.0 + kappa)) + \
-    #                 Sum(lc, IL_l[lc] * vL_ly[lc, y]) + Sum(s, IS_s[s] * vS_sy[s, y])))
-    # con_1c_ess[...] = Sum(y, (1.0 / power(1.0 + kappa, y.val - 1)) * (Sum(lc, IL_l[lc] * vL_ly[lc, y]) + Sum(s, IS_s[s] * vS_sy[s, y]))) <= IT
+    OF_olmp_ess[...] = min_inv_cost_wc == Sum(y, (1.0 / power(1.0 + kappa, y.val - 1)) * ((rho_y[y] / (1.0 + kappa)) + \
+                    Sum(lc, IL_l[lc] * vL_ly[lc, y]) + Sum(sc, IS_s[sc] * vS_sy[sc, y])))
+    con_1c_ess[...] = Sum(y, (1.0 / power(1.0 + kappa, y.val - 1)) * (Sum(lc, IL_l[lc] * vL_ly[lc, y]) + Sum(sc, IS_s[sc] * vS_sy[sc, y]))) <= IT
 
     con_1d[lc] = Sum(y, vL_ly[lc, y]) <= 1
     con_1e[lc, y] = vL_ly_prev[lc, y] == Sum(yp.where[yp.val <= y.val], vL_ly[lc, yp])
@@ -291,26 +300,42 @@ def build_olmp_eqns(ess_inv, i_range):
     con_4g_exist_lin2[le, y, t, h, ir] = pL_lythi[le, y, t, h, ir] >= -PL_l[le]
     con_4g_can_lin1[lc, y, t, h, ir] = pL_lythi[lc, y, t, h, ir] <= vL_ly_prev[lc, y] * PL_l[lc]
     con_4g_can_lin2[lc, y, t, h, ir] = pL_lythi[lc, y, t, h, ir] >= -vL_ly_prev[lc, y] * PL_l[lc]
-    con_4h[s, y, t, ir] = eS_sythi[s, y, t, 1, ir] == ES_syt0[s, y, t] + (pSC_sythi[s, y, t, 1, ir] * etaSC_s[s] \
-    - (pSD_sythi[s, y, t, 1, ir] / etaSD_s[s])) * tau_yth[y, t, 1]
-    con_4i[s, y, t, h, ir].where[(Ord(h) > 1)] = eS_sythi[s, y, t, h, ir] == eS_sythi[s, y, t, h.lag(1), ir] \
-    + (pSC_sythi[s, y, t, h, ir] * etaSC_s[s] - (pSD_sythi[s, y, t, h, ir] / etaSD_s[s])) * tau_yth[y, t, h]
-    con_4j[s, y, t, ir] =  eS_sythi[s, y, t, hmax, ir] >= ES_syt0[s, y, t]
-    con_4k1[s, y, t, h, ir] = eS_sythi[s, y, t, h, ir] <= ES_s_max[s]
-    con_4k2[s, y, t, h, ir] = eS_sythi[s, y, t, h, ir] >= ES_s_min[s]
+    con_4h[se, y, t, ir] = eS_sythi[se, y, t, 1, ir] == ES_syt0[se, y, t] + (pSC_sythi[se, y, t, 1, ir] * etaSC_s[se] \
+    - (pSD_sythi[se, y, t, 1, ir] / etaSD_s[se])) * tau_yth[y, t, 1]
+
+    con_4h_ess_lin1[sc,y,t,ir] = eS_sythi[sc, y, t, 1, ir] - (ES_syt0[sc, y, t] + (pSC_sythi[sc, y, t, 1, ir] * etaSC_s[sc] \
+    - (pSD_sythi[sc, y, t, 1, ir] / etaSD_s[sc])) * tau_yth[y, t, 1]) <= (1 - vS_sy_prev[sc, y]) * FL
+    con_4h_ess_lin2[sc, y, t, ir] = eS_sythi[sc, y, t, 1, ir] - (ES_syt0[sc, y, t] + (pSC_sythi[sc, y, t, 1, ir] * etaSC_s[sc] \
+                - (pSD_sythi[sc, y, t, 1, ir] / etaSD_s[sc])) * tau_yth[y, t, 1]) >= -(1 - vS_sy_prev[sc, y]) * FL
+
+    con_4i[se, y, t, h, ir].where[(Ord(h) > 1)] = eS_sythi[se, y, t, h, ir] == eS_sythi[se, y, t, h.lag(1), ir] \
+    + (pSC_sythi[se, y, t, h, ir] * etaSC_s[se] - (pSD_sythi[se, y, t, h, ir] / etaSD_s[se])) * tau_yth[y, t, h]
+
+    con_4i_ess_lin1[sc, y, t, h, ir].where[(Ord(h) > 1)] = eS_sythi[sc, y, t, h, ir] - (eS_sythi[sc, y, t, h.lag(1), ir] \
+    + (pSC_sythi[sc, y, t, h, ir] * etaSC_s[sc] - (pSD_sythi[sc, y, t, h, ir] / etaSD_s[sc])) * tau_yth[y, t, h]) <= (1 - vS_sy_prev[sc, y]) * FL
+    con_4i_ess_lin2[sc, y, t, h, ir].where[(Ord(h) > 1)] = eS_sythi[sc, y, t, h, ir] - (eS_sythi[sc, y, t, h.lag(1), ir] \
+    + (pSC_sythi[sc, y, t, h, ir] * etaSC_s[sc] - (pSD_sythi[sc, y, t, h, ir] / etaSD_s[sc])) * tau_yth[y, t, h]) >= -(1 - vS_sy_prev[sc, y]) * FL
+
+    con_4j[se, y, t, ir] =  eS_sythi[se, y, t, hmax, ir] >= ES_syt0[se, y, t]
+    con_4k1[se, y, t, h, ir] = eS_sythi[se, y, t, h, ir] <= ES_s_max[se]
+    con_4k2[se, y, t, h, ir] = eS_sythi[se, y, t, h, ir] >= ES_s_min[se]
+    con_4j_ess[sc, y, t, ir] = eS_sythi[sc, y, t, hmax, ir] >= vS_sy_prev[sc,y] * ES_syt0[sc, y, t]
+    con_4k1_ess[sc, y, t, h, ir] = eS_sythi[sc, y, t, h, ir] <= vS_sy_prev[sc,y] * ES_s_max[sc]
+    con_4k2_ess[sc, y, t, h, ir] = eS_sythi[sc, y, t, h, ir] >= vS_sy_prev[sc,y] * ES_s_min[sc]
     # Original constraints for avoiding simultaneous charging and discharging, max and min charging/discharging power
     con_4m[s, y, t, h, ir] = pSC_sythi[s, y, t, h, ir] <= uS_sythi[s, y, t, h, ir] * PSC_s[s]
     con_4n[s, y, t, h, ir] = pSD_sythi[s, y, t, h, ir] <= (1 - uS_sythi[s, y, t, h, ir]) * PSD_s[s]
+
     # Modified constraints for avoiding simultaneous charging and discharging, max and min charging/discharging power
-    # con_4v1[s] = Sum(y, vS_sy[s, y]) <= 1
-    # con_4v2[s, y] = vS_sy_prev[s, y] == Sum(yp.where[yp.val <= y.val], vS_sy[s, yp])
-    # con_4ess_lin1[s, y, t, h, ir] = alphaS_sythi[s, y, t, h, ir] <= vS_sy_prev[s, y]
-    # con_4ess_lin2[s, y, t, h, ir] = alphaS_sythi[s, y, t, h, ir] <= uS_sythi[s, y, t, h, ir]
-    # con_4ess_lin3[s, y, t, h, ir] = alphaS_sythi[s, y, t, h, ir] >= vS_sy_prev[s, y] + uS_sythi[s, y, t, h, ir] - 1
-    # # con_4m_ess[s, y, t, h, ir] = pSC_sythi[s, y, t, h, ir] <= alphaS_sythi[s,y,t,h,ir] * PSC_s[s]
-    # # con_4n_ess[s, y, t, h, ir] = pSD_sythi[s, y, t, h, ir] <= (vS_sy_prev[s,y] - alphaS_sythi[s,y,t,h,ir]) * PSD_s[s]
-    # con_4m_ess[s, y, t, h, ir] = pSC_sythi[s, y, t, h, ir] <= vS_sy_prev[s, y]*200
-    # con_4n_ess[s, y, t, h, ir] = pSD_sythi[s, y, t, h, ir] <= vS_sy_prev[s, y]*200
+    con_4v1[sc] = Sum(y, vS_sy[sc, y]) <= 1
+    con_4v2[sc, y] = vS_sy_prev[sc, y] == Sum(yp.where[yp.val <= y.val], vS_sy[sc, yp])
+    con_4ess_lin1[s, y, t, h, ir] = alphaS_sythi[s, y, t, h, ir] <= vS_sy_prev[s, y]
+    con_4ess_lin2[s, y, t, h, ir] = alphaS_sythi[s, y, t, h, ir] <= uS_sythi[s, y, t, h, ir]
+    con_4ess_lin3[s, y, t, h, ir] = alphaS_sythi[s, y, t, h, ir] >= vS_sy_prev[s, y] + uS_sythi[s, y, t, h, ir] - 1
+    # con_4m_ess[s, y, t, h, ir] = pSC_sythi[s, y, t, h, ir] <= alphaS_sythi[s,y,t,h,ir] * PSC_s[s]
+    # con_4n_ess[s, y, t, h, ir] = pSD_sythi[s, y, t, h, ir] <= (vS_sy_prev[s,y] - alphaS_sythi[s,y,t,h,ir]) * PSD_s[s]
+    con_4m_ess[sc, y, t, h, ir] = pSC_sythi[sc, y, t, h, ir] <= vS_sy_prev[sc, y]*2000000
+    con_4n_ess[sc, y, t, h, ir] = pSD_sythi[sc, y, t, h, ir] <= vS_sy_prev[sc, y]*2000000
 
     con_4o[d, y, t, h, ir] = pLS_dythi[d, y, t, h, ir] <= gammaD_dyth[d, y, t, h] * PD_dyi[d,y,ir]  # pD_dy[D,Y]
     con_4q1[g, y, t, h, ir] = pG_gythi[g, y, t, h, ir] <= uG_gythi[g, y, t, h, ir] * PG_gyi[g,y,ir]  # pG_gy[G,Y]
@@ -319,13 +344,15 @@ def build_olmp_eqns(ess_inv, i_range):
     con_4r2[g, y, t, h, ir].where[Ord(h) > 1] = pG_gythi[g, y, t, h, ir] - pG_gythi[g, y, t, h.lag(1), ir] >= -RGD_g[g]
     con_4s[r, y, t, h, ir] = pR_rythi[r, y, t, h, ir] <= gammaR_ryth[r, y, t, h] * PR_ryi[r,y,ir]  # pR_ry[R,Y]
     con_4t[y, t, h, ir] = theta_nythi[1, y, t, h, ir] == 0
+    # Only one candidate ESS may be built per bus
+    con_4q_ess[n] = Sum(y, Sum(sc.where[s_n[sc,n]], vS_sy[sc,y])) <= 1
 
     olmp_eqns = [OF_olmp, con_1c, con_1d, con_1e, con_4c, con_4d, con_4e, con_4f_lin1, con_4f_lin2, con_4g_exist_lin1,
              con_4g_exist_lin2, con_4g_can_lin1, con_4g_can_lin2, con_4h, con_4i, con_4j, con_4k1, con_4k2, con_4m,
              con_4n, con_4o, con_4q1, con_4q2, con_4r1, con_4r2, con_4s, con_4t]
     olmp_ess_eqns = [OF_olmp_ess, con_1c_ess, con_1d, con_1e, con_4c, con_4d, con_4e, con_4f_lin1, con_4f_lin2, con_4g_exist_lin1,
-                 con_4g_exist_lin2, con_4g_can_lin1, con_4g_can_lin2, con_4h, con_4i, con_4j, con_4k1, con_4k2, con_4m, con_4n, con_4m_ess,
-                 con_4n_ess, con_4o, con_4q1, con_4q2, con_4r1, con_4r2, con_4s, con_4t, con_4v1, con_4v2]
+                 con_4g_exist_lin2, con_4g_can_lin1, con_4g_can_lin2, con_4h, con_4i, con_4j, con_4k1, con_4k2, con_4j_ess, con_4k1_ess, con_4k2_ess, con_4m, con_4n, con_4m_ess,
+                 con_4n_ess, con_4o, con_4q1, con_4q2, con_4r1, con_4r2, con_4s, con_4t, con_4v1, con_4v2, con_4i_ess_lin1, con_4i_ess_lin2, con_4h_ess_lin1, con_4h_ess_lin2, con_4q_ess]
     eqns = olmp_ess_eqns if ess_inv else olmp_eqns
     OLMP_model = Model(
         m,
@@ -489,7 +516,8 @@ def build_ilmp_eqns(yi, v_range):
     return ILMP_model
 
 # Inner-loop subproblem OF and constraints
-OF_ilsp = Equation(m, name="OF_ilsp", type="regular") # Double-check
+OF_ilsp = Equation(m, name="OF_ilsp", type="regular")
+OF_ilsp_ess = Equation(m, name="OF_ilsp_ess", type="regular")
 con_6b = Equation(m, name="con_6b", domain=[n, t, h])
 con_6c = Equation(m, name="con_6c", domain=[lc, t, h])
 con_6d = Equation(m, name="con_6d", domain=[d, t, h])
@@ -501,9 +529,14 @@ con_3e1 = Equation(m, name="con_3e1", domain=[l, y, t, h])
 con_3e2 = Equation(m, name="con_3e2", domain=[l, y, t, h])
 con_3f = Equation(m, name="con_3f", domain=[s, y, t])
 con_3g = Equation(m, name="con_3g", domain=[s, y, t, h])
+con_3f_ess = Equation(m, name="con_3f_ess", domain=[s, y, t])
+con_3g_ess = Equation(m, name="con_3g_ess", domain=[s, y, t, h])
 con_3h = Equation(m, name="con_3h", domain=[s, y, t])
+con_3h_ess = Equation(m, name="con_3h_ess", domain=[s, y, t])
 con_3i1 = Equation(m, name="con_3i1", domain=[s, y, t, h])
 con_3i2 = Equation(m, name="con_3i2", domain=[s, y, t, h])
+con_3i1_ess = Equation(m, name="con_3i1_ess", domain=[s, y, t, h])
+con_3i2_ess = Equation(m, name="con_3i2_ess", domain=[s, y, t, h])
 # con_3j = Equation(m, name="con_3j", domain=[n, t, h])
 con_3k = Equation(m, name="con_3k", domain=[s, y, t, h])
 con_3l = Equation(m, name="con_3l", domain=[s, y, t, h])
@@ -520,6 +553,10 @@ def build_ilsp_eqns(ess_inv, yi, ji):
     OF_ilsp[...] = min_op_cost_y == Sum(t, sigma_yt[yi, t] * Sum(h, tau_yth[yi, t, h] * (Sum(g, CG_gyk[g, yi] * pG_gythi[g, yi, t, h, ji])\
     + Sum(r, CR_r[r] * (gammaR_ryth[r, yi, t, h] * PR_ryk[r, yi] - pR_rythi[r, yi, t, h, ji]))\
     + Sum(d, CLS_d[d] * pLS_dythi[d, yi, t, h, ji]))))
+    OF_ilsp_ess[...] = min_op_cost_y == Sum(t, sigma_yt[yi, t] * Sum(h, tau_yth[yi, t, h] * (Sum(g, CG_gyk[g, yi] * pG_gythi[g, yi, t, h, ji])\
+    + Sum(r, CR_r[r] * (gammaR_ryth[r, yi, t, h] * PR_ryk[r, yi] - pR_rythi[r, yi, t, h, ji]))\
+    + Sum(d, CLS_d[d] * pLS_dythi[d, yi, t, h, ji])))) + Sum(sc, VS_syj_prev[sc,yi]*(IS_s[sc]*(1+sigma_s[sc]))/power(1+kappa, yi-1))
+
     con_6b[n, t, h] = Sum(g.where[g_n[g,n]], pG_gythi[g, yi, t, h, ji]) + Sum(r.where[r_n[r,n]], pR_rythi[r, yi, t, h, ji])\
     + Sum(l.where[rel_n[l, n]], pL_lythi[l, yi, t, h, ji])\
     - Sum(l.where[sel_n[l, n]], pL_lythi[l, yi, t, h, ji])\
@@ -536,23 +573,28 @@ def build_ilsp_eqns(ess_inv, yi, ji):
     - Sum(n.where[rel_n[le, n]], theta_nythi[n, yi, t, h, ji]))
     con_3e1[l, yi, t, h] = pL_lythi[l, yi, t, h, ji] <= PL_l[l]
     con_3e2[l, yi, t, h] = pL_lythi[l, yi, t, h, ji] >= -PL_l[l]
-    con_3f[s, yi, t] = eS_sythi[s, yi, t, 1, ji] == ES_syt0[s, yi, t] + (pSC_sythi[s, yi, t, 1, ji] * etaSC_s[s] - (pSD_sythi[s, yi, t, 1, ji] / etaSD_s[s])) * tau_yth[yi, t, 1]
-    con_3g[s, yi, t, h].where[Ord(h) > 1] = eS_sythi[s, yi, t, h, ji] == eS_sythi[s, yi, t, h.lag(1), ji] + (pSC_sythi[s, yi, t, h, ji] * etaSC_s[s] - (pSD_sythi[s, yi, t, h, ji] / etaSD_s[s])) * tau_yth[yi, t, h]
-    con_3h[s, yi, t] = eS_sythi[s, yi, t, hmax, ji] >= ES_syt0[s, yi, t]
-    con_3i1[s, yi, t, h] = eS_sythi[s, yi, t, h, ji] <= ES_s_max[s]
-    con_3i2[s, yi, t, h] = eS_sythi[s, yi, t, h, ji] >= ES_s_min[s]
-    con_3k[s, yi, t, h] = pSC_sythi[s, yi, t, h, ji] <= uS_sythi[s, yi, t, h, ji] * PSC_s[s]
-    con_3l[s, yi, t, h] = pSD_sythi[s, yi, t, h, ji] <= (1 - uS_sythi[s, yi, t, h, ji]) * PSD_s[s]
-    # con_3k_ess[s, yi, t, h] = pSC_sythi[s, yi, t, h, ji] <= uS_sythi[s, yi, t, h, ji] * PSC_s[s] * VS_syj_prev[s,yi]
-    # con_3l_ess[s, yi, t, h] = pSD_sythi[s, yi, t, h, ji] <= (1 - uS_sythi[s, yi, t, h, ji]) * PSD_s[s] * VS_syj_prev[s,yi]
+    con_3f[se, yi, t] = eS_sythi[se, yi, t, 1, ji] == ES_syt0[se, yi, t] + (pSC_sythi[se, yi, t, 1, ji] * etaSC_s[se] - (pSD_sythi[se, yi, t, 1, ji] / etaSD_s[se])) * tau_yth[yi, t, 1]
+    con_3g[se, yi, t, h].where[Ord(h) > 1] = eS_sythi[se, yi, t, h, ji] == eS_sythi[se, yi, t, h.lag(1), ji] + (pSC_sythi[se, yi, t, h, ji] * etaSC_s[se] - (pSD_sythi[se, yi, t, h, ji] / etaSD_s[se])) * tau_yth[yi, t, h]
+    con_3f_ess[sc, yi, t] = eS_sythi[sc, yi, t, 1, ji] == VS_syj_prev[sc,yi] * (ES_syt0[sc, yi, t] + (pSC_sythi[sc, yi, t, 1, ji] * etaSC_s[sc] - (pSD_sythi[sc, yi, t, 1, ji] / etaSD_s[sc])) * tau_yth[yi, t, 1])
+    con_3g_ess[sc, yi, t, h].where[Ord(h) > 1] = eS_sythi[sc, yi, t, h, ji] == VS_syj_prev[sc,yi] * (eS_sythi[sc, yi, t, h.lag(1), ji] + (pSC_sythi[sc, yi, t, h, ji] * etaSC_s[sc] - (pSD_sythi[sc, yi, t, h, ji] / etaSD_s[sc])) * tau_yth[yi, t, h])
+    con_3h[se, yi, t] = eS_sythi[se, yi, t, hmax, ji] >= ES_syt0[se, yi, t]
+    con_3h_ess[sc, yi, t] = eS_sythi[sc, yi, t, hmax, ji] >= VS_syj_prev[sc,yi] * ES_syt0[sc, yi, t]
+    con_3i1[se, yi, t, h] = eS_sythi[se, yi, t, h, ji] <= ES_s_max[se]
+    con_3i2[se, yi, t, h] = eS_sythi[se, yi, t, h, ji] >= ES_s_min[se]
+    con_3i1_ess[sc, yi, t, h] = eS_sythi[sc, yi, t, h, ji] <= VS_syj_prev[sc,yi] * ES_s_max[sc]
+    con_3i2_ess[sc, yi, t, h] = eS_sythi[sc, yi, t, h, ji] >= VS_syj_prev[sc,yi] * ES_s_min[sc]
+    con_3k[se, yi, t, h] = pSC_sythi[se, yi, t, h, ji] <= uS_sythi[se, yi, t, h, ji] * PSC_s[se]
+    con_3l[se, yi, t, h] = pSD_sythi[se, yi, t, h, ji] <= (1 - uS_sythi[se, yi, t, h, ji]) * PSD_s[se]
+    con_3k_ess[sc, yi, t, h] = pSC_sythi[sc, yi, t, h, ji] <= uS_sythi[sc, yi, t, h, ji] * PSC_s[sc] * VS_syj_prev[sc,yi]
+    con_3l_ess[sc, yi, t, h] = pSD_sythi[sc, yi, t, h, ji] <= (1 - uS_sythi[sc, yi, t, h, ji]) * PSD_s[sc] * VS_syj_prev[sc,yi]
     con_3p1[g, yi, t, h].where[Ord(h)>1] = pG_gythi[g, yi, t, h, ji] - pG_gythi[g, yi, t, h.lag(1), ji] <= RGU_g[g]
     con_3p2[g, yi, t, h].where[Ord(h)>1] = pG_gythi[g, yi, t, h, ji] - pG_gythi[g, yi, t, h.lag(1), ji] >= -RGD_g[g]
     con_3r[yi, t, h] = theta_nythi[1, yi, t, h, ji] == 0
 
     ilsp_eqns = [OF_ilsp, con_6b, con_6c, con_6d, con_6e1, con_6e2, con_6f, con_3c, con_3e1, con_3e2, con_3f, con_3g, con_3h,
              con_3i1, con_3i2, con_3k, con_3l, con_3p1, con_3p2, con_3r]
-    ilsp_ess_eqns = [OF_ilsp, con_6b, con_6c, con_6d, con_6e1, con_6e2, con_6f, con_3c, con_3e1, con_3e2, con_3f, con_3g,
-                 con_3h, con_3i1, con_3i2, con_3k_ess, con_3l_ess, con_3p1, con_3p2, con_3r]
+    ilsp_ess_eqns = [OF_ilsp_ess, con_6b, con_6c, con_6d, con_6e1, con_6e2, con_6f, con_3c, con_3e1, con_3e2, con_3f, con_3g,
+                 con_3f_ess, con_3g_ess, con_3h, con_3h_ess, con_3i1, con_3i2, con_3i1_ess, con_3i2_ess, con_3k_ess, con_3k, con_3l, con_3l_ess, con_3p1, con_3p2, con_3r]
     eqns = ilsp_ess_eqns if ess_inv else ilsp_eqns
     ILSP_model = Model(
         m,
@@ -765,7 +807,7 @@ def solve_olmp_relaxed(j_iter, lb_o, ess_inv):
             raise RuntimeError('OLMP is infeasible at j = {}'.format(j_iter))
         VL_lyj[lc,y] = vL_ly.l[lc,y]
         VL_lyj_prev[lc,y] = vL_ly_prev.l[lc,y]
-        VS_syj_prev[s,y] = vS_sy_prev.l[s,y]
+        VS_syj_prev[sc,y] = vS_sy_prev.l[sc,y]
         olmp_ov = OLMP_model.objective_value
         # Exit if ro == j or if optimal value exceeds lb_o, else increment ro and iterate again
         if ro == j_iter or olmp_ov > lb_o:
@@ -781,7 +823,7 @@ def solve_ilsp(ess_inv, y_iter, j_iter, k_iter):
     ILSP_model = build_ilsp_eqns(ess_inv, y_iter, j_iter) # Rebuild the ilsp equations for the given year and outer loop iteration j
     ILSP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_ilsp.txt"),output=sys.stdout)
     if ILSP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible', 'InfeasibleNoSolution']:
-        raise RuntimeError('ILSP is infeasible at y = {}, j ={}, k = {}'.format(y_iter, j_iter, k_iter))
+        raise RuntimeError('ILSP is infeasible at y = {}, j = {}, k = {}'.format(y_iter, j_iter, k_iter))
     UG_gythv[g,y,t,h,k_iter] = uG_gythi.l[g,y,t,h,j_iter]
     US_sythv[s,y,t,h,k_iter] = uS_sythi.l[s,y,t,h,j_iter]
     ilsp_ov = ILSP_model.objective_value
@@ -833,11 +875,11 @@ def solve_ilmp_ada(y_iter, j_iter, k_iter, tol):
         # logger.info("LP1 = {} and LP2 = {} before computing ADA inner loop error.".format(lp1_ov, lp2_ov))
         if (abs(lp1_ov - lp2_ov) / min(lp1_ov, lp2_ov)) < tol:
             ada_ov = min(lp1_ov, lp2_ov)
-            logger.info("ADA ILMP converged in {} iteration(s)".format(o_iter))
+            logger.info("ADA ILMP converged in o = {} iteration(s)".format(o_iter))
             break
         else:
             o_iter += 1
-            if o_iter == max(range(5)):
+            if o_iter == max(range(5+1)):
                 logger.info("ADA ILMP did not converge in max number of iterations")
 
     return ada_ov
@@ -923,9 +965,13 @@ for ol_iter in range(j_max):
     logger.info("Starting outer loop problem for j = {}".format(j_iter))
     set_uncertain_params_olmp(j_iter)
     lb_o = solve_olmp_relaxed(j_iter, lb_o, ess_inv)
-    if j_iter > 1 and vL_ly.l.records is not None:
-        if vL_ly.l.records.equals(VL_lyjm1_rec):
-            logger.info("No change in investment decision variables --> End outer loop")
+    if j_iter > 1:
+        if vL_ly.l.records is not None:
+            if vL_ly.l.records.equals(VL_lyjm1_rec):
+                logger.info("No change in investment decision variables --> End outer loop")
+                break
+        elif vL_ly.l.records is None and VL_lyjm1_rec is None:
+            logger.info("No change in investment decision variables (zero investment) --> End outer loop")
             break
     # YEAR LOOP
     for y_iter in years_data:
@@ -969,9 +1015,9 @@ for ol_iter in range(j_max):
             elif il_error_rel >= tol:
                 logger.info("Second inner loop (relaxed) has not converged after k = {} iterations --> Solve relaxed ILMP".format(k_iter_rel))
                 ub_i_rel = solve_ilmp_relaxed(y_iter, j_iter, k_iter_rel, ub_i_rel)
-                if k_iter_rel > 1 and cG_gy.l.records.equals(cG_solved) and pD_dy.l.records.equals(pD_solved) and pG_gy.l.records.equals(pG_solved) and pR_ry.l.records.equals(pR_solved):
-                    logger.info("Second inner loop (relaxed): no change in solution after k = {} iterations-->  End relaxed inner loop".format(k_iter_rel))
-                    break
+                # if k_iter_rel > 1 and cG_gy.l.records.equals(cG_solved) and pD_dy.l.records.equals(pD_solved) and pG_gy.l.records.equals(pG_solved) and pR_ry.l.records.equals(pR_solved):
+                #     logger.info("Second inner loop (relaxed): no change in solution after k = {} iterations-->  End relaxed inner loop".format(k_iter_rel))
+                #     break
                 k_iter_rel += 1
                 cG_solved = cG_gy.l.records
                 pD_solved = pD_dy.l.records
@@ -996,6 +1042,7 @@ for ol_iter in range(j_max):
         j_iter += 1
         VL_lyjm1_rec = vL_ly.l.records
 print(min_inv_cost_wc.records)
+print(wc_cost)
 print(vL_ly.l.records)
 if ess_inv:
     print(vS_sy.l.records)

@@ -30,8 +30,8 @@ RD9 = weights_rd['RD9']
 RD10 = weights_rd['RD10']
 
 static = False
-ess_inv = False
-lines = rts_24['TL_static']
+ess_inv = True
+lines = rts_24['TL_ESS']
 buses = rts_24['Buses']
 ESS = rts_24['ESS_can']
 CG = rts_24['CG']
