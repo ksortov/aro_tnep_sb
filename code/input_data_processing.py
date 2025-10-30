@@ -39,8 +39,8 @@ RES = rts_24['RES']
 loads = rts_24['loads']
 UB = rts_24['UB']
 
-years_data = range(1,2)
-tol = 0.005
+years_data = range(1,3)
+tol = 0.008
 
 SEl_data = []
 for line, rel in zip(lines['Transmission line'], lines['From bus']):
@@ -90,5 +90,5 @@ for y in years_data:
 ES_syt0_data = []
 for s, es0 in zip(ESS['Storage unit'], ESS['ES_s0 [MWh]']):
     for y in years_data:
-        for RTP in RD1['RTP']:
-            ES_syt0_data.append([s, y, RTP, es0])
+        for RD in weights['RD']:
+            ES_syt0_data.append([s, y, RD, es0])
