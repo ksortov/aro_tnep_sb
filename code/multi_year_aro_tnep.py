@@ -60,11 +60,11 @@ GammaRW = Parameter(m, name="GammaRW", records=3, description="Uncertainty budge
 kappa = Parameter(m, name="kappa", records=0.1, description="Discount rate")
 IT = Parameter(m, name="IT", records=1500000000, description="Investment budget")
 nb_H = Parameter(m, name="nb_H", records=8, description="Number of RTPs of each RD")
-FL = Parameter(m, name="FL", records=150, description="Large constant for disjunctive linearization")
-FD = Parameter(m, name="FD", records=100000, description="Large constant for exact linearization")
-FD_up = Parameter(m, name="FD_up", records=100000, description="Large constant for exact linearization")
-FG_up = Parameter(m, name="FG_up", records=100000, description="Large constant for exact linearization")
-FR_up = Parameter(m, name="FR_up", records=100000, description="Large constant for exact linearization")
+FL = Parameter(m, name="FL", records=100000000, description="Large constant for disjunctive linearization")
+FD = Parameter(m, name="FD", records=100000000, description="Large constant for exact linearization")
+FD_up = Parameter(m, name="FD_up", records=100000000, description="Large constant for exact linearization")
+FG_up = Parameter(m, name="FG_up", records=100000000, description="Large constant for exact linearization")
+FR_up = Parameter(m, name="FR_up", records=100000000, description="Large constant for exact linearization")
 
 gammaD_dyth = Parameter(m, name="gammaD_dyth", domain=[d, y, t, h], records=gamma_dyth_data, description="Demand factor of load d")
 gammaR_ryth = Parameter(m, name="gammaR_ryth", domain=[r, y, t, h], records=gamma_ryth_data, description="Capacity factor of renewable unit r")
@@ -142,6 +142,7 @@ sc = Set(m, name="sc", domain=[s], records=ESS[ESS['IS_s [$]']>0]['Storage unit'
 IS_s = Parameter(m, name="IS_s", domain=[s], records=ESS[['Storage unit', 'IS_s [$]']], description="Investment cost coefficient of candidate energy storage system s")
 sigma_s = Parameter(m, name="sigma_s", domain=[s], records=ESS[['Storage unit', 'sigma_s']], description="Fixed operation ans maintenance cost of candidate energy storage system s as pe percentage of the investments costs")
 VS_syj_prev = Parameter(m, name='VS_syj_prev', domain=[s, y], description="Binary variable that is equal to 1 if energy storage system s is built in year y or in previous years, which is otherwise 0, for outer loop iteration j")
+PhiS_syt0vo = Parameter(m, name='PhiS_syt0vo', domain=[s, y, t, k], description="Dual variable associated with the constraint imposing the initial energy in storage facility s at the last RTP of RD")
 
 # VARIABLES #
 # Optimization variables
@@ -184,7 +185,7 @@ vS_sy = Variable(m, name='vS_sy', type='binary', domain=[s, y], description="Bin
 vS_sy_prev = Variable(m, name='vS_sy_prev', type='binary', domain=[s, y], description="Binary variable that is equal to 1 if candidate energy storage system s is built in year y or in previous years, which is otherwise 0")
 alphaS_sythi = Variable(m, name="alphaS_sythi", type='positive', domain=[s, y, t, h, j], description="Auxiliary variable for the linearization of zS_sy*uS_syth")
 eS_syt0_ess = Variable(m, name="eS_syt0_ess", type='positive', domain=[s, y, t], description="Energy initially stored of storage facility s")
-PhiS_syt0v = Variable(m, name='PhiS_syt0v_lo', type='positive', domain=[s, y, t, k], description="Dual variable associated with the constraint imposing the initial energy in storage facility s at the last RTP of RD")
+PhiS_syt0v = Variable(m, name='PhiS_syt0v', type='positive', domain=[s, y, t, k], description="Dual variable associated with the constraint imposing the initial energy in storage facility s at the last RTP of RD")
 
 # Dual variables
 lambdaN_nythv = Variable(m, name='lambdaN_nythv', domain=[n, y, t, h, k], description="Dual variable associated with the power balance equation at bus n")
@@ -775,7 +776,7 @@ def build_lp2_eqns(yi, v_range, ess_inv):
         + (1 - US_sythv[s, yi, t, h, va]) * PSD_s[s] * muSD_sythvo_up[s, yi, t, h, va] - ES_s_min[s] * muS_sythvo_lo[s, yi, t, h, va]\
         + ES_s_max[s] * muS_sythvo_up[s, yi, t, h, va])) + Sum(g, UG_gythv[g, yi, t, h, va] * (PG_g_min[g] * muG_gythvo_lo[g, yi, t, h, va] - pG_gy[g, yi] * muG_gythvo_up[g, yi, t, h, va]))\
         - Sum(r, gammaR_ryth[r, yi, t, h] * pR_ry[r, yi] * (muR_rythvo_up[r, yi, t, h, va] - sigma_yt[yi, t] * tau_yth[yi, t, h] * CR_r[r]))\
-        - Sum(d, gammaD_dyth[d, yi, t, h] * pD_dy[d, yi] * muD_dythvo_up[d, yi, t, h, va])) + Sum(s, VS_syj_prev[s,yi]*ES_syt0[s, yi, t] * (PhiS_syt0v[s, yi, t, va] + PhiS_sytvo_lo[s, yi, t, va]))\
+        - Sum(d, gammaD_dyth[d, yi, t, h] * pD_dy[d, yi] * muD_dythvo_up[d, yi, t, h, va])) + Sum(s, VS_syj_prev[s,yi]*ES_syt0[s, yi, t] * (PhiS_syt0vo[s, yi, t, va] + PhiS_sytvo_lo[s, yi, t, va]))\
         - Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g] * muGD_gythvo[g, yi, t, h, va] + RGU_g[g] * muGU_gythvo[g, yi, t, h, va])))
 
     # con_8l[k].where[kr] = xiQ_y[yi] <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d, yi, t, h] * pD_dy[d, yi] * Sum(n.where[d_n[d, n]], LambdaN_nythvo[n, yi, t, h, k]))\
@@ -897,6 +898,7 @@ def solve_ilmp_ada(y_iter, j_iter, k_iter, tol):
         muSD_sythvo_up[s,y,t,h,k] = muSD_sythv_up.l[s,y,t,h,k]
         PhiS_sytvo[s,y,t,k] = PhiS_sytv.l[s,y,t,k]
         PhiS_sytvo_lo[s,y,t,k] = PhiS_sytv_lo.l[s,y,t,k]
+        PhiS_syt0vo[s,y,t,k] = PhiS_syt0v.l[s,y,t,k]
         lp1_ov = LP1_model.objective_value
 
         LP2_model = build_lp2_eqns(y_iter, v_range, ess_inv)
@@ -963,7 +965,7 @@ def  compute_worst_case_total_cost(ess_inv):
     if ess_inv:
         vS_vals = vS_sy.l.records
         IS_vals = IS_s.records
-        IS_vals.columns = ['sc', 'value']
+        IS_vals.columns = ['s', 'value']
     cost = 0
     for year in years_data:
         # try:
@@ -976,7 +978,7 @@ def  compute_worst_case_total_cost(ess_inv):
         sum_ess_cost = 0
         if ess_inv and vS_vals is not None:
             vS_vals_year = vS_vals[vS_vals['y'] == str(year)]
-            vS_IS = pd.merge(vS_vals_year, IS_vals, on='sc')
+            vS_IS = pd.merge(vS_vals_year, IS_vals, on='s')
             vS_IS['ess_cost'] = vS_IS['level'] * vS_IS['value']
             sum_ess_cost = vS_IS['ess_cost'].sum()
         xi_y_year = xi_y_vals[xi_y_vals['y'] == str(year)]['level'].values[0]

@@ -39,7 +39,7 @@ RES = rts_24['RES']
 loads = rts_24['loads']
 UB = rts_24['UB']
 
-years_data = range(1,3)
+years_data = range(1,2)
 tol = 0.008
 
 SEl_data = []
