@@ -52,19 +52,19 @@ yp = Alias(m, name="yp", alias_with=y)
 
 # PARAMETERS #
 # Scalars
-GammaD = Parameter(m, name="GammaD", records=8, description="Uncertainty budget for increased loads")
-GammaGC = Parameter(m, name="GammaGC", records=5, description="Uncertainty budget for increased CG marginal cost")
-GammaGP = Parameter(m, name="GammaGP", records=5, description="Uncertainty budget for decreased CG marginal cost")
-GammaRS = Parameter(m, name="GammaRS", records=3, description="Uncertainty budget for decreased solar capacity")
-GammaRW = Parameter(m, name="GammaRW", records=3, description="Uncertainty budget for decreased wind capacity")
+GammaD = Parameter(m, name="GammaD", records=0, description="Uncertainty budget for increased loads")
+GammaGC = Parameter(m, name="GammaGC", records=0, description="Uncertainty budget for increased CG marginal cost")
+GammaGP = Parameter(m, name="GammaGP", records=0, description="Uncertainty budget for decreased CG marginal cost")
+GammaRS = Parameter(m, name="GammaRS", records=0, description="Uncertainty budget for decreased solar capacity")
+GammaRW = Parameter(m, name="GammaRW", records=0, description="Uncertainty budget for decreased wind capacity")
 kappa = Parameter(m, name="kappa", records=0.1, description="Discount rate")
 IT = Parameter(m, name="IT", records=1500000000, description="Investment budget")
 nb_H = Parameter(m, name="nb_H", records=8, description="Number of RTPs of each RD")
-FL = Parameter(m, name="FL", records=100000000, description="Large constant for disjunctive linearization")
-FD = Parameter(m, name="FD", records=100000000, description="Large constant for exact linearization")
-FD_up = Parameter(m, name="FD_up", records=100000000, description="Large constant for exact linearization")
-FG_up = Parameter(m, name="FG_up", records=100000000, description="Large constant for exact linearization")
-FR_up = Parameter(m, name="FR_up", records=100000000, description="Large constant for exact linearization")
+FL = Parameter(m, name="FL", records=2500, description="Large constant for disjunctive linearization")
+FD = Parameter(m, name="FD", records=60000, description="Large constant for exact linearization")
+FD_up = Parameter(m, name="FD_up", records=60000, description="Large constant for exact linearization")
+FG_up = Parameter(m, name="FG_up", records=60000, description="Large constant for exact linearization")
+FR_up = Parameter(m, name="FR_up", records=60000, description="Large constant for exact linearization")
 
 gammaD_dyth = Parameter(m, name="gammaD_dyth", domain=[d, y, t, h], records=gamma_dyth_data, description="Demand factor of load d")
 gammaR_ryth = Parameter(m, name="gammaR_ryth", domain=[r, y, t, h], records=gamma_ryth_data, description="Capacity factor of renewable unit r")
@@ -926,10 +926,6 @@ def solve_ilmp_ada(y_iter, j_iter, k_iter, tol):
 def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i):
     ri = 1 # Initialize relaxed iteration counter
     # Solve at least once, until ri == k
-    cG_solved = None
-    pD_solved = None
-    pG_solved = None
-    pR_solved = None
     while ri <= k_iter:
         # Determine the subset v as a function of k and ri
         v_range = list(range(k_iter - ri + 1, k_iter + 1))
@@ -945,21 +941,14 @@ def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i):
         if ri == k_iter or ilmp_ov < ub_i:
             logger.info("Relaxed ILMP iteration (ri = {}) equals inner-loop iteration (k = {}) or UBI has decreased --> Exit ILMP".format(ri, k_iter))
             break
-        # elif cG_gy.l.records.equals(cG_solved) and pD_dy.l.records.equals(pD_solved) and pG_gy.l.records.equals(pG_solved) and pR_ry.l.records.equals(pR_solved):
-        #     logger.info("Relaxed ILMP iteration (ri = {}): no change in solution --> Exit ILMP".format(ri, k_iter))
-        #     break
         else:
             ri += 1
-            cG_solved = cG_gy.l.records
-            pD_solved = pD_dy.l.records
-            pG_solved = pG_gy.l.records
-            pR_solved = pR_ry.l.records
 
     return ilmp_ov
 
-def  compute_worst_case_total_cost(ess_inv):
+def  compute_worst_case_total_cost(ess_inv, xi_ada):
     vL_vals = vL_ly.l.records
-    xi_y_vals = xi_y.records
+    # xi_y_vals = xi_y.records
     IL_vals = IL_l.records
     IL_vals.columns = ['lc', 'value']
     if ess_inv:
@@ -968,7 +957,6 @@ def  compute_worst_case_total_cost(ess_inv):
         IS_vals.columns = ['s', 'value']
     cost = 0
     for year in years_data:
-        # try:
         sum_line_cost = 0
         if vL_vals is not None:
             vL_vals_year = vL_vals[vL_vals['y'] == str(year)]
@@ -981,14 +969,12 @@ def  compute_worst_case_total_cost(ess_inv):
             vS_IS = pd.merge(vS_vals_year, IS_vals, on='s')
             vS_IS['ess_cost'] = vS_IS['level'] * vS_IS['value']
             sum_ess_cost = vS_IS['ess_cost'].sum()
-        xi_y_year = xi_y_vals[xi_y_vals['y'] == str(year)]['level'].values[0]
+        # xi_y_year = xi_y_vals[xi_y_vals['y'] == str(year)]['level'].values[0]
+        xi_y_year = xi_ada[year-1]
         logger.info('sum_line_cost = {}'.format(sum_line_cost))
         logger.info('sum_ess_cost = {}'.format(sum_ess_cost))
         logger.info('xi_y_year = {}'.format(xi_y_year))
         cost += (1/((1+kappa.toValue())**(year-1))) * (((xi_y_year+0.04*sum_ess_cost)/(1+kappa.toValue())) + sum_line_cost + sum_ess_cost)
-        # except:
-        #     xi_y_year = xi_y_vals[xi_y_vals['y'] == str(year)]['level'].values[0]
-        #     cost += (1/((1+kappa.toValue())**(year-1))) * ((xi_y_year/(1+kappa.toValue())))
 
     return cost
 
@@ -1017,6 +1003,7 @@ for ol_iter in range(j_max):
             logger.info("No change in investment decision variables (zero investment) --> End outer loop")
             break
     # YEAR LOOP
+    xi_ada = []
     for y_iter in years_data:
         logger.info("Starting inner loop problems for y = {}".format(y_iter))
         # INNER LOOP: ILSP + ADA ILMP #
@@ -1032,40 +1019,41 @@ for ol_iter in range(j_max):
             il_error_ada = (ub_i_ada - lb_i_ada) / lb_i_ada
             if il_error_ada < tol:
                 logger.info("First inner loop (ADA) has converged after k = {} iterations --> End ADA inner loop".format(k_iter_ada))
+                xi_ada.append(ub_i_ada)
                 break
             elif il_error_ada >= tol:
                 logger.info("First inner loop (ADA) has not converged after k = {} iterations --> Solve ADA ILMP".format(k_iter_ada))
                 ub_i_ada = solve_ilmp_ada(y_iter, j_iter, k_iter_ada, tol)
                 k_iter_ada += 1
         # INNER LOOP: ILSP + relaxed ILMP #
-        lb_i_rel = -999999999999
-        ub_i_rel = 999999999999
-        k_iter_rel = 1
-        cG_solved = None
-        pD_solved = None
-        pG_solved = None
-        pR_solved = None
-        logger.info("Starting second inner loop (relaxed) for y = {}".format(y_iter))
-        for il_rel_iter in range(k_max):
-            logger.info("Starting relaxed inner loop iteration  k = {}".format(k_iter_rel))
-            set_uncertain_params_ilsp(k_iter_rel, is_ada=False)
-            lb_i_rel = solve_ilsp(ess_inv, y_iter, j_iter, k_iter_rel)
-            logger.info("LBI = {} and UBI = {} before computing relaxed inner loop error.".format(lb_i_rel, ub_i_rel))
-            il_error_rel = (ub_i_rel - lb_i_rel) / lb_i_rel
-            if il_error_rel < tol:
-                logger.info("Second inner loop (relaxed) has converged after k = {} iterations --> End relaxed inner loop".format(k_iter_rel))
-                break
-            elif il_error_rel >= tol:
-                logger.info("Second inner loop (relaxed) has not converged after k = {} iterations --> Solve relaxed ILMP".format(k_iter_rel))
-                ub_i_rel = solve_ilmp_relaxed(y_iter, j_iter, k_iter_rel, ub_i_rel)
-                # if k_iter_rel > 1 and cG_gy.l.records.equals(cG_solved) and pD_dy.l.records.equals(pD_solved) and pG_gy.l.records.equals(pG_solved) and pR_ry.l.records.equals(pR_solved):
-                #     logger.info("Second inner loop (relaxed): no change in solution after k = {} iterations-->  End relaxed inner loop".format(k_iter_rel))
-                #     break
-                k_iter_rel += 1
-                cG_solved = cG_gy.l.records
-                pD_solved = pD_dy.l.records
-                pG_solved = pG_gy.l.records
-                pR_solved = pR_ry.l.records
+        # lb_i_rel = -999999999999
+        # ub_i_rel = 999999999999
+        # k_iter_rel = 1
+        # cG_solved = None
+        # pD_solved = None
+        # pG_solved = None
+        # pR_solved = None
+        # logger.info("Starting second inner loop (relaxed) for y = {}".format(y_iter))
+        # for il_rel_iter in range(k_max):
+        #     logger.info("Starting relaxed inner loop iteration  k = {}".format(k_iter_rel))
+        #     set_uncertain_params_ilsp(k_iter_rel, is_ada=False)
+        #     lb_i_rel = solve_ilsp(ess_inv, y_iter, j_iter, k_iter_rel)
+        #     logger.info("LBI = {} and UBI = {} before computing relaxed inner loop error.".format(lb_i_rel, ub_i_rel))
+        #     il_error_rel = (ub_i_rel - lb_i_rel) / lb_i_rel
+        #     if il_error_rel < tol:
+        #         logger.info("Second inner loop (relaxed) has converged after k = {} iterations --> End relaxed inner loop".format(k_iter_rel))
+        #         break
+        #     elif il_error_rel >= tol:
+        #         logger.info("Second inner loop (relaxed) has not converged after k = {} iterations --> Solve relaxed ILMP".format(k_iter_rel))
+        #         ub_i_rel = solve_ilmp_relaxed(y_iter, j_iter, k_iter_rel, ub_i_rel)
+        #         # if k_iter_rel > 1 and cG_gy.l.records.equals(cG_solved) and pD_dy.l.records.equals(pD_solved) and pG_gy.l.records.equals(pG_solved) and pR_ry.l.records.equals(pR_solved):
+        #         #     logger.info("Second inner loop (relaxed): no change in solution after k = {} iterations-->  End relaxed inner loop".format(k_iter_rel))
+        #         #     break
+        #         k_iter_rel += 1
+        #         cG_solved = cG_gy.l.records
+        #         pD_solved = pD_dy.l.records
+        #         pG_solved = pG_gy.l.records
+        #         pR_solved = pR_ry.l.records
         if y_iter == max(years_data):
             logger.info("Reached end of last year (y = {}) in the planning horizon --> End year loop".format(y_iter))
             break
@@ -1073,7 +1061,7 @@ for ol_iter in range(j_max):
             y_iter += 1
 
     # Update ub_o
-    wc_cost = compute_worst_case_total_cost(ess_inv)
+    wc_cost = compute_worst_case_total_cost(ess_inv, xi_ada)
     ub_o = wc_cost
     logger.info("LBO = {} and UBO = {} before computing outer loop error.".format(lb_o, ub_o))
     print("Total worst-case cost = {}".format(ub_o))
