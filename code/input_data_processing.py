@@ -33,13 +33,13 @@ static = False
 ess_inv = True
 lines = rts_24['TL_ESS']
 buses = rts_24['Buses']
-ESS = rts_24['ESS_can']
+ESS = rts_24['ESS_none']
 CG = rts_24['CG']
 RES = rts_24['RES']
 loads = rts_24['loads']
 UB = rts_24['UB']
 
-years_data = range(1,2)
+years_data = range(1,8)
 tol = 0.008
 
 SEl_data = []
@@ -92,3 +92,5 @@ for s, es0 in zip(ESS['Storage unit'], ESS['ES_s0 [MWh]']):
     for y in years_data:
         for RD in weights['RD']:
             ES_syt0_data.append([s, y, RD, es0])
+
+print("Input Data Processed")

@@ -1,0 +1,476 @@
+2026-07-26 16:27:51,572 - INFO - FL_val = 1575.0
+2026-07-26 16:27:51,572 - INFO - FD_val = 36000.0
+2026-07-26 16:27:53,950 - INFO - Starting outer loop problem for j = 1
+2026-07-26 16:28:45,880 - INFO - Relaxed OLMP iteration (ro = 1) equals outer-loop iteration (j = 1) or LBO has increased --> Exit OLMP
+2026-07-26 16:28:45,880 - INFO - Starting inner loop problems for y = 1
+2026-07-26 16:28:45,880 - INFO - Starting first inner loop (ADA) for y = 1
+2026-07-26 16:28:45,880 - INFO - Starting ADA inner loop iteration k = 1
+2026-07-26 16:28:46,987 - INFO - LBI = 111785982.03864083 and UBI = 999999999999 before computing ADA inner loop error.
+2026-07-26 16:28:46,987 - INFO - IL ADA error = 894466.5474%.
+2026-07-26 16:28:46,987 - INFO - First inner loop (ADA) has not converged after k = 1 iterations --> Solve ADA ILMP
+2026-07-26 16:28:50,945 - INFO - ADA ILMP converged in o = 3 iteration(s)
+2026-07-26 16:28:50,945 - INFO - Starting ADA inner loop iteration k = 2
+2026-07-26 16:28:52,105 - INFO - LBI = 445731631.3226786 and UBI = 445731631.32268053 before computing ADA inner loop error.
+2026-07-26 16:28:52,105 - INFO - IL ADA error = 0.0000%.
+2026-07-26 16:28:52,105 - INFO - First inner loop (ADA) has converged after k = 2 iterations --> End ADA inner loop
+2026-07-26 16:28:52,105 - INFO - Starting second inner loop (relaxed) for y = 1
+2026-07-26 16:28:52,105 - INFO - Starting relaxed inner loop iteration  k = 1
+2026-07-26 16:28:53,201 - INFO - LBI = 445731631.3226786 and UBI = 445731631.32268053 before computing relaxed inner loop error.
+2026-07-26 16:28:53,201 - INFO - IL relaxed error = 0.0000%.
+2026-07-26 16:28:53,201 - INFO - Second inner loop (relaxed) has converged after k = 1 iterations --> End relaxed inner loop
+2026-07-26 16:28:53,201 - INFO - Starting inner loop problems for y = 2
+2026-07-26 16:28:53,201 - INFO - Starting first inner loop (ADA) for y = 2
+2026-07-26 16:28:53,201 - INFO - Starting ADA inner loop iteration k = 1
+2026-07-26 16:28:54,304 - INFO - LBI = 111785982.03864083 and UBI = 999999999999 before computing ADA inner loop error.
+2026-07-26 16:28:54,304 - INFO - IL ADA error = 894466.5474%.
+2026-07-26 16:28:54,304 - INFO - First inner loop (ADA) has not converged after k = 1 iterations --> Solve ADA ILMP
+2026-07-26 16:28:58,501 - INFO - ADA ILMP converged in o = 3 iteration(s)
+2026-07-26 16:28:58,501 - INFO - Starting ADA inner loop iteration k = 2
+2026-07-26 16:28:59,690 - INFO - LBI = 528057347.0549776 and UBI = 532722349.32904315 before computing ADA inner loop error.
+2026-07-26 16:28:59,690 - INFO - IL ADA error = 0.8834%.
+2026-07-26 16:28:59,691 - INFO - First inner loop (ADA) has not converged after k = 2 iterations --> Solve ADA ILMP
+2026-07-26 16:29:05,186 - INFO - ADA ILMP converged in o = 3 iteration(s)
+2026-07-26 16:29:05,186 - INFO - Starting ADA inner loop iteration k = 3
+2026-07-26 16:29:06,433 - INFO - LBI = 528463098.9681552 and UBI = 527210987.19791704 before computing ADA inner loop error.
+2026-07-26 16:29:06,433 - INFO - IL ADA error = 0.2369%.
+2026-07-26 16:29:06,433 - INFO - First inner loop (ADA) has converged after k = 3 iterations --> End ADA inner loop
+2026-07-26 16:29:06,433 - INFO - Starting second inner loop (relaxed) for y = 2
+2026-07-26 16:29:06,434 - INFO - Starting relaxed inner loop iteration  k = 1
+2026-07-26 16:29:07,615 - INFO - LBI = 528463098.9681552 and UBI = 527210987.19791704 before computing relaxed inner loop error.
+2026-07-26 16:29:07,616 - INFO - IL relaxed error = 0.2369%.
+2026-07-26 16:29:07,616 - INFO - Second inner loop (relaxed) has converged after k = 1 iterations --> End relaxed inner loop
+2026-07-26 16:29:07,616 - INFO - Starting inner loop problems for y = 3
+2026-07-26 16:29:07,616 - INFO - Starting first inner loop (ADA) for y = 3
+2026-07-26 16:29:07,616 - INFO - Starting ADA inner loop iteration k = 1
+2026-07-26 16:29:08,883 - INFO - LBI = 111785982.03864083 and UBI = 999999999999 before computing ADA inner loop error.
+2026-07-26 16:29:08,884 - INFO - IL ADA error = 894466.5474%.
+2026-07-26 16:29:08,884 - INFO - First inner loop (ADA) has not converged after k = 1 iterations --> Solve ADA ILMP
+2026-07-26 16:29:13,648 - INFO - ADA ILMP converged in o = 3 iteration(s)
+2026-07-26 16:29:13,649 - INFO - Starting ADA inner loop iteration k = 2
+2026-07-26 16:29:14,973 - INFO - LBI = 649169476.0754278 and UBI = 653452621.2673924 before computing ADA inner loop error.
+2026-07-26 16:29:14,973 - INFO - IL ADA error = 0.6598%.
+2026-07-26 16:29:14,973 - INFO - First inner loop (ADA) has converged after k = 2 iterations --> End ADA inner loop
+2026-07-26 16:29:14,973 - INFO - Starting second inner loop (relaxed) for y = 3
+2026-07-26 16:29:14,974 - INFO - Starting relaxed inner loop iteration  k = 1
+2026-07-26 16:29:16,203 - INFO - LBI = 649169476.0754278 and UBI = 653452621.2673924 before computing relaxed inner loop error.
+2026-07-26 16:29:16,203 - INFO - IL relaxed error = 0.6598%.
+2026-07-26 16:29:16,203 - INFO - Second inner loop (relaxed) has converged after k = 1 iterations --> End relaxed inner loop
+2026-07-26 16:29:16,203 - INFO - Starting inner loop problems for y = 4
+2026-07-26 16:29:16,203 - INFO - Starting first inner loop (ADA) for y = 4
+2026-07-26 16:29:16,203 - INFO - Starting ADA inner loop iteration k = 1
+2026-07-26 16:29:17,520 - INFO - LBI = 111785982.03864083 and UBI = 999999999999 before computing ADA inner loop error.
+2026-07-26 16:29:17,520 - INFO - IL ADA error = 894466.5474%.
+2026-07-26 16:29:17,520 - INFO - First inner loop (ADA) has not converged after k = 1 iterations --> Solve ADA ILMP
+2026-07-26 16:29:22,525 - INFO - ADA ILMP converged in o = 3 iteration(s)
+2026-07-26 16:29:22,525 - INFO - Starting ADA inner loop iteration k = 2
+2026-07-26 16:29:24,004 - INFO - LBI = 878293036.8392558 and UBI = 885320614.2121116 before computing ADA inner loop error.
+2026-07-26 16:29:24,004 - INFO - IL ADA error = 0.8001%.
+2026-07-26 16:29:24,005 - INFO - First inner loop (ADA) has not converged after k = 2 iterations --> Solve ADA ILMP
+2026-07-26 16:29:30,189 - INFO - ADA ILMP converged in o = 3 iteration(s)
+2026-07-26 16:29:30,189 - INFO - Starting ADA inner loop iteration k = 3
+2026-07-26 16:29:31,690 - INFO - LBI = 878293036.8392559 and UBI = 878293036.8392215 before computing ADA inner loop error.
+2026-07-26 16:29:31,690 - INFO - IL ADA error = 0.0000%.
+2026-07-26 16:29:31,690 - INFO - First inner loop (ADA) has converged after k = 3 iterations --> End ADA inner loop
+2026-07-26 16:29:31,691 - INFO - Starting second inner loop (relaxed) for y = 4
+2026-07-26 16:29:31,691 - INFO - Starting relaxed inner loop iteration  k = 1
+2026-07-26 16:29:33,091 - INFO - LBI = 878293036.8392559 and UBI = 878293036.8392215 before computing relaxed inner loop error.
+2026-07-26 16:29:33,091 - INFO - IL relaxed error = 0.0000%.
+2026-07-26 16:29:33,091 - INFO - Second inner loop (relaxed) has converged after k = 1 iterations --> End relaxed inner loop
+2026-07-26 16:29:33,091 - INFO - Starting inner loop problems for y = 5
+2026-07-26 16:29:33,091 - INFO - Starting first inner loop (ADA) for y = 5
+2026-07-26 16:29:33,092 - INFO - Starting ADA inner loop iteration k = 1
+2026-07-26 16:29:34,490 - INFO - LBI = 111785982.03864083 and UBI = 999999999999 before computing ADA inner loop error.
+2026-07-26 16:29:34,490 - INFO - IL ADA error = 894466.5474%.
+2026-07-26 16:29:34,490 - INFO - First inner loop (ADA) has not converged after k = 1 iterations --> Solve ADA ILMP
+2026-07-26 16:29:39,964 - INFO - ADA ILMP converged in o = 3 iteration(s)
+2026-07-26 16:29:39,965 - INFO - Starting ADA inner loop iteration k = 2
+2026-07-26 16:29:41,410 - INFO - LBI = 1356002964.1562073 and UBI = 1356002964.1561158 before computing ADA inner loop error.
+2026-07-26 16:29:41,410 - INFO - IL ADA error = 0.0000%.
+2026-07-26 16:29:41,410 - INFO - First inner loop (ADA) has converged after k = 2 iterations --> End ADA inner loop
+2026-07-26 16:29:41,410 - INFO - Starting second inner loop (relaxed) for y = 5
+2026-07-26 16:29:41,410 - INFO - Starting relaxed inner loop iteration  k = 1
+2026-07-26 16:29:42,827 - INFO - LBI = 1356002964.1562073 and UBI = 1356002964.1561158 before computing relaxed inner loop error.
+2026-07-26 16:29:42,828 - INFO - IL relaxed error = 0.0000%.
+2026-07-26 16:29:42,828 - INFO - Second inner loop (relaxed) has converged after k = 1 iterations --> End relaxed inner loop
+2026-07-26 16:29:42,828 - INFO - Starting inner loop problems for y = 6
+2026-07-26 16:29:42,828 - INFO - Starting first inner loop (ADA) for y = 6
+2026-07-26 16:29:42,828 - INFO - Starting ADA inner loop iteration k = 1
+2026-07-26 16:29:44,307 - INFO - LBI = 111785982.03864083 and UBI = 999999999999 before computing ADA inner loop error.
+2026-07-26 16:29:44,308 - INFO - IL ADA error = 894466.5474%.
+2026-07-26 16:29:44,308 - INFO - First inner loop (ADA) has not converged after k = 1 iterations --> Solve ADA ILMP
+2026-07-26 16:29:50,031 - INFO - ADA ILMP converged in o = 3 iteration(s)
+2026-07-26 16:29:50,032 - INFO - Starting ADA inner loop iteration k = 2
+2026-07-26 16:29:51,525 - INFO - LBI = 1998502977.5139503 and UBI = 1998502977.51393 before computing ADA inner loop error.
+2026-07-26 16:29:51,525 - INFO - IL ADA error = 0.0000%.
+2026-07-26 16:29:51,525 - INFO - First inner loop (ADA) has converged after k = 2 iterations --> End ADA inner loop
+2026-07-26 16:29:51,525 - INFO - Starting second inner loop (relaxed) for y = 6
+2026-07-26 16:29:51,525 - INFO - Starting relaxed inner loop iteration  k = 1
+2026-07-26 16:29:52,961 - INFO - LBI = 1998502977.5139503 and UBI = 1998502977.51393 before computing relaxed inner loop error.
+2026-07-26 16:29:52,961 - INFO - IL relaxed error = 0.0000%.
+2026-07-26 16:29:52,961 - INFO - Second inner loop (relaxed) has converged after k = 1 iterations --> End relaxed inner loop
+2026-07-26 16:29:52,961 - INFO - Starting inner loop problems for y = 7
+2026-07-26 16:29:52,961 - INFO - Starting first inner loop (ADA) for y = 7
+2026-07-26 16:29:52,962 - INFO - Starting ADA inner loop iteration k = 1
+2026-07-26 16:29:54,521 - INFO - LBI = 111785982.03864083 and UBI = 999999999999 before computing ADA inner loop error.
+2026-07-26 16:29:54,522 - INFO - IL ADA error = 894466.5474%.
+2026-07-26 16:29:54,522 - INFO - First inner loop (ADA) has not converged after k = 1 iterations --> Solve ADA ILMP
+2026-07-26 16:30:00,572 - INFO - ADA ILMP converged in o = 3 iteration(s)
+2026-07-26 16:30:00,573 - INFO - Starting ADA inner loop iteration k = 2
+2026-07-26 16:30:02,116 - INFO - LBI = 2852004011.1234794 and UBI = 2852004011.1234736 before computing ADA inner loop error.
+2026-07-26 16:30:02,116 - INFO - IL ADA error = 0.0000%.
+2026-07-26 16:30:02,116 - INFO - First inner loop (ADA) has converged after k = 2 iterations --> End ADA inner loop
+2026-07-26 16:30:02,116 - INFO - Starting second inner loop (relaxed) for y = 7
+2026-07-26 16:30:02,116 - INFO - Starting relaxed inner loop iteration  k = 1
+2026-07-26 16:30:03,636 - INFO - LBI = 2852004011.1234794 and UBI = 2852004011.1234736 before computing relaxed inner loop error.
+2026-07-26 16:30:03,636 - INFO - IL relaxed error = 0.0000%.
+2026-07-26 16:30:03,636 - INFO - Second inner loop (relaxed) has converged after k = 1 iterations --> End relaxed inner loop
+2026-07-26 16:30:03,636 - INFO - Reached end of last year (y = 7) in the planning horizon --> End year loop
+2026-07-26 16:30:03,721 - INFO - sum_line_cost = 168000000.0
+2026-07-26 16:30:03,721 - INFO - sum_ess_cost = 0
+2026-07-26 16:30:03,721 - INFO - xi_y_year = 445731631.32268053
+2026-07-26 16:30:03,723 - INFO - sum_line_cost = 0.0
+2026-07-26 16:30:03,723 - INFO - sum_ess_cost = 0
+2026-07-26 16:30:03,723 - INFO - xi_y_year = 527210987.19791704
+2026-07-26 16:30:03,724 - INFO - sum_line_cost = 0.0
+2026-07-26 16:30:03,724 - INFO - sum_ess_cost = 0
+2026-07-26 16:30:03,724 - INFO - xi_y_year = 653452621.2673924
+2026-07-26 16:30:03,725 - INFO - sum_line_cost = 0.0
+2026-07-26 16:30:03,725 - INFO - sum_ess_cost = 0
+2026-07-26 16:30:03,725 - INFO - xi_y_year = 878293036.8392215
+2026-07-26 16:30:03,726 - INFO - sum_line_cost = 0.0
+2026-07-26 16:30:03,726 - INFO - sum_ess_cost = 0
+2026-07-26 16:30:03,726 - INFO - xi_y_year = 1356002964.1561158
+2026-07-26 16:30:03,728 - INFO - sum_line_cost = 0.0
+2026-07-26 16:30:03,728 - INFO - sum_ess_cost = 0
+2026-07-26 16:30:03,728 - INFO - xi_y_year = 1998502977.51393
+2026-07-26 16:30:03,729 - INFO - sum_line_cost = 0.0
+2026-07-26 16:30:03,729 - INFO - sum_ess_cost = 0
+2026-07-26 16:30:03,729 - INFO - xi_y_year = 2852004011.1234736
+2026-07-26 16:30:03,729 - INFO - LBO = 711118800.8575413 and UBO = 5533359717.610136 before computing outer loop error.
+2026-07-26 16:30:03,730 - INFO - OL error = 678.1203%.
+2026-07-26 16:30:03,810 - INFO - Starting outer loop problem for j = 2
+2026-07-26 17:01:32,961 - INFO - Relaxed OLMP iteration (ro = 1) equals outer-loop iteration (j = 2) or LBO has increased --> Exit OLMP
+2026-07-26 17:01:33,080 - INFO - Starting inner loop problems for y = 1
+2026-07-26 17:01:33,081 - INFO - Starting first inner loop (ADA) for y = 1
+2026-07-26 17:01:33,081 - INFO - Starting ADA inner loop iteration k = 1
+2026-07-26 17:01:34,872 - INFO - LBI = 107604064.11961287 and UBI = 999999999999 before computing ADA inner loop error.
+2026-07-26 17:01:34,872 - INFO - IL ADA error = 929232.9283%.
+2026-07-26 17:01:34,872 - INFO - First inner loop (ADA) has not converged after k = 1 iterations --> Solve ADA ILMP
+2026-07-26 17:01:39,490 - INFO - ADA ILMP converged in o = 2 iteration(s)
+2026-07-26 17:01:39,490 - INFO - Starting ADA inner loop iteration k = 2
+2026-07-26 17:01:41,190 - INFO - LBI = 143033843.06416446 and UBI = 142988815.24581096 before computing ADA inner loop error.
+2026-07-26 17:01:41,190 - INFO - IL ADA error = 0.0315%.
+2026-07-26 17:01:41,190 - INFO - First inner loop (ADA) has converged after k = 2 iterations --> End ADA inner loop
+2026-07-26 17:01:41,191 - INFO - Starting second inner loop (relaxed) for y = 1
+2026-07-26 17:01:41,191 - INFO - Starting relaxed inner loop iteration  k = 1
+2026-07-26 17:01:42,823 - INFO - LBI = 143033843.06416446 and UBI = 142988815.24581096 before computing relaxed inner loop error.
+2026-07-26 17:01:42,824 - INFO - IL relaxed error = 0.0315%.
+2026-07-26 17:01:42,824 - INFO - Second inner loop (relaxed) has converged after k = 1 iterations --> End relaxed inner loop
+2026-07-26 17:01:42,824 - INFO - Starting inner loop problems for y = 2
+2026-07-26 17:01:42,824 - INFO - Starting first inner loop (ADA) for y = 2
+2026-07-26 17:01:42,824 - INFO - Starting ADA inner loop iteration k = 1
+2026-07-26 17:01:44,542 - INFO - LBI = 107604064.11961287 and UBI = 999999999999 before computing ADA inner loop error.
+2026-07-26 17:01:44,542 - INFO - IL ADA error = 929232.9283%.
+2026-07-26 17:01:44,542 - INFO - First inner loop (ADA) has not converged after k = 1 iterations --> Solve ADA ILMP
+2026-07-26 17:01:49,093 - INFO - ADA ILMP converged in o = 2 iteration(s)
+2026-07-26 17:01:49,093 - INFO - Starting ADA inner loop iteration k = 2
+2026-07-26 17:01:50,781 - INFO - LBI = 150933909.1116331 and UBI = 148473854.80246437 before computing ADA inner loop error.
+2026-07-26 17:01:50,781 - INFO - IL ADA error = 1.6299%.
+2026-07-26 17:01:50,781 - INFO - First inner loop (ADA) has not converged after k = 2 iterations --> Solve ADA ILMP
+2026-07-26 17:01:56,358 - INFO - ADA ILMP converged in o = 2 iteration(s)
+2026-07-26 17:01:56,358 - INFO - Starting ADA inner loop iteration k = 3
+2026-07-26 17:01:58,042 - INFO - LBI = 151171564.71362904 and UBI = 148489076.1878751 before computing ADA inner loop error.
+2026-07-26 17:01:58,042 - INFO - IL ADA error = 1.7745%.
+2026-07-26 17:01:58,042 - INFO - First inner loop (ADA) has not converged after k = 3 iterations --> Solve ADA ILMP
+2026-07-26 17:02:03,749 - INFO - ADA ILMP converged in o = 2 iteration(s)
+2026-07-26 17:02:03,749 - INFO - Starting ADA inner loop iteration k = 4
+2026-07-26 17:02:05,437 - INFO - LBI = 151171564.71363053 and UBI = 148489076.18787512 before computing ADA inner loop error.
+2026-07-26 17:02:05,438 - INFO - IL ADA error = 1.7745%.
+2026-07-26 17:02:05,438 - INFO - First inner loop (ADA) has not converged after k = 4 iterations --> Solve ADA ILMP
+2026-07-26 17:02:11,830 - INFO - ADA ILMP converged in o = 2 iteration(s)
+2026-07-26 17:02:11,830 - INFO - Starting ADA inner loop iteration k = 5
+2026-07-26 17:02:13,639 - INFO - LBI = 153118101.17611024 and UBI = 148512583.35882688 before computing ADA inner loop error.
+2026-07-26 17:02:13,639 - INFO - IL ADA error = 3.0078%.
+2026-07-26 17:02:13,639 - INFO - First inner loop (ADA) has not converged after k = 5 iterations --> Solve ADA ILMP
+2026-07-26 17:02:21,086 - INFO - ADA ILMP converged in o = 2 iteration(s)
+2026-07-26 17:02:21,086 - INFO - Starting second inner loop (relaxed) for y = 2
+2026-07-26 17:02:21,086 - INFO - Starting relaxed inner loop iteration  k = 1
+2026-07-26 17:02:23,040 - INFO - LBI = 151171564.7136301 and UBI = 148489076.187875 before computing relaxed inner loop error.
+2026-07-26 17:02:23,040 - INFO - IL relaxed error = 1.7745%.
+2026-07-26 17:02:23,040 - INFO - Second inner loop (relaxed) has not converged after k = 1 iterations --> Solve relaxed ILMP
+2026-07-26 17:02:23,086 - INFO - v_range = [1]
+2026-07-26 17:02:33,862 - INFO - Relaxed ILMP iteration (ri = 1) equals inner-loop iteration (k = 1) or UBI has decreased --> Exit ILMP
+2026-07-26 17:02:34,069 - INFO - Starting relaxed inner loop iteration  k = 2
+2026-07-26 17:02:36,019 - INFO - LBI = 147594464.33042166 and UBI = 148743907.5882398 before computing relaxed inner loop error.
+2026-07-26 17:02:36,019 - INFO - IL relaxed error = 0.7788%.
+2026-07-26 17:02:36,020 - INFO - Second inner loop (relaxed) has converged after k = 2 iterations --> End relaxed inner loop
+2026-07-26 17:02:36,020 - INFO - Starting inner loop problems for y = 3
+2026-07-26 17:02:36,020 - INFO - Starting first inner loop (ADA) for y = 3
+2026-07-26 17:02:36,020 - INFO - Starting ADA inner loop iteration k = 1
+2026-07-26 17:02:38,091 - INFO - LBI = 107604064.11961287 and UBI = 999999999999 before computing ADA inner loop error.
+2026-07-26 17:02:38,091 - INFO - IL ADA error = 929232.9283%.
+2026-07-26 17:02:38,091 - INFO - First inner loop (ADA) has not converged after k = 1 iterations --> Solve ADA ILMP
+2026-07-26 17:02:46,512 - INFO - ADA ILMP converged in o = 3 iteration(s)
+2026-07-26 17:02:46,513 - INFO - Starting ADA inner loop iteration k = 2
+2026-07-26 17:02:48,531 - INFO - LBI = 197444748.4156034 and UBI = 197444748.41560498 before computing ADA inner loop error.
+2026-07-26 17:02:48,531 - INFO - IL ADA error = 0.0000%.
+2026-07-26 17:02:48,531 - INFO - First inner loop (ADA) has converged after k = 2 iterations --> End ADA inner loop
+2026-07-26 17:02:48,531 - INFO - Starting second inner loop (relaxed) for y = 3
+2026-07-26 17:02:48,532 - INFO - Starting relaxed inner loop iteration  k = 1
+2026-07-26 17:02:50,420 - INFO - LBI = 197444748.4156034 and UBI = 197444748.41560498 before computing relaxed inner loop error.
+2026-07-26 17:02:50,420 - INFO - IL relaxed error = 0.0000%.
+2026-07-26 17:02:50,420 - INFO - Second inner loop (relaxed) has converged after k = 1 iterations --> End relaxed inner loop
+2026-07-26 17:02:50,421 - INFO - Starting inner loop problems for y = 4
+2026-07-26 17:02:50,421 - INFO - Starting first inner loop (ADA) for y = 4
+2026-07-26 17:02:50,421 - INFO - Starting ADA inner loop iteration k = 1
+2026-07-26 17:02:52,437 - INFO - LBI = 107604064.11961287 and UBI = 999999999999 before computing ADA inner loop error.
+2026-07-26 17:02:52,437 - INFO - IL ADA error = 929232.9283%.
+2026-07-26 17:02:52,437 - INFO - First inner loop (ADA) has not converged after k = 1 iterations --> Solve ADA ILMP
+2026-07-26 17:03:00,957 - INFO - ADA ILMP converged in o = 3 iteration(s)
+2026-07-26 17:03:00,957 - INFO - Starting ADA inner loop iteration k = 2
+2026-07-26 17:03:03,022 - INFO - LBI = 234444184.91934088 and UBI = 234444184.91934055 before computing ADA inner loop error.
+2026-07-26 17:03:03,023 - INFO - IL ADA error = 0.0000%.
+2026-07-26 17:03:03,023 - INFO - First inner loop (ADA) has converged after k = 2 iterations --> End ADA inner loop
+2026-07-26 17:03:03,023 - INFO - Starting second inner loop (relaxed) for y = 4
+2026-07-26 17:03:03,023 - INFO - Starting relaxed inner loop iteration  k = 1
+2026-07-26 17:03:04,931 - INFO - LBI = 234444184.91934088 and UBI = 234444184.91934055 before computing relaxed inner loop error.
+2026-07-26 17:03:04,931 - INFO - IL relaxed error = 0.0000%.
+2026-07-26 17:03:04,931 - INFO - Second inner loop (relaxed) has converged after k = 1 iterations --> End relaxed inner loop
+2026-07-26 17:03:04,931 - INFO - Starting inner loop problems for y = 5
+2026-07-26 17:03:04,932 - INFO - Starting first inner loop (ADA) for y = 5
+2026-07-26 17:03:04,932 - INFO - Starting ADA inner loop iteration k = 1
+2026-07-26 17:03:06,945 - INFO - LBI = 107604064.11961287 and UBI = 999999999999 before computing ADA inner loop error.
+2026-07-26 17:03:06,945 - INFO - IL ADA error = 929232.9283%.
+2026-07-26 17:03:06,945 - INFO - First inner loop (ADA) has not converged after k = 1 iterations --> Solve ADA ILMP
+2026-07-26 17:03:15,360 - INFO - ADA ILMP converged in o = 3 iteration(s)
+2026-07-26 17:03:15,361 - INFO - Starting ADA inner loop iteration k = 2
+2026-07-26 17:03:17,312 - INFO - LBI = 287461338.34153837 and UBI = 287461338.3415377 before computing ADA inner loop error.
+2026-07-26 17:03:17,312 - INFO - IL ADA error = 0.0000%.
+2026-07-26 17:03:17,313 - INFO - First inner loop (ADA) has converged after k = 2 iterations --> End ADA inner loop
+2026-07-26 17:03:17,313 - INFO - Starting second inner loop (relaxed) for y = 5
+2026-07-26 17:03:17,313 - INFO - Starting relaxed inner loop iteration  k = 1
+2026-07-26 17:03:19,222 - INFO - LBI = 287461338.34153837 and UBI = 287461338.3415377 before computing relaxed inner loop error.
+2026-07-26 17:03:19,222 - INFO - IL relaxed error = 0.0000%.
+2026-07-26 17:03:19,222 - INFO - Second inner loop (relaxed) has converged after k = 1 iterations --> End relaxed inner loop
+2026-07-26 17:03:19,223 - INFO - Starting inner loop problems for y = 6
+2026-07-26 17:03:19,223 - INFO - Starting first inner loop (ADA) for y = 6
+2026-07-26 17:03:19,223 - INFO - Starting ADA inner loop iteration k = 1
+2026-07-26 17:03:21,228 - INFO - LBI = 107604064.11961287 and UBI = 999999999999 before computing ADA inner loop error.
+2026-07-26 17:03:21,228 - INFO - IL ADA error = 929232.9283%.
+2026-07-26 17:03:21,228 - INFO - First inner loop (ADA) has not converged after k = 1 iterations --> Solve ADA ILMP
+2026-07-26 17:03:29,650 - INFO - ADA ILMP converged in o = 3 iteration(s)
+2026-07-26 17:03:29,650 - INFO - Starting ADA inner loop iteration k = 2
+2026-07-26 17:03:31,588 - INFO - LBI = 369130969.3709231 and UBI = 369130969.37091637 before computing ADA inner loop error.
+2026-07-26 17:03:31,589 - INFO - IL ADA error = 0.0000%.
+2026-07-26 17:03:31,589 - INFO - First inner loop (ADA) has converged after k = 2 iterations --> End ADA inner loop
+2026-07-26 17:03:31,589 - INFO - Starting second inner loop (relaxed) for y = 6
+2026-07-26 17:03:31,589 - INFO - Starting relaxed inner loop iteration  k = 1
+2026-07-26 17:03:33,541 - INFO - LBI = 369130969.3709231 and UBI = 369130969.37091637 before computing relaxed inner loop error.
+2026-07-26 17:03:33,541 - INFO - IL relaxed error = 0.0000%.
+2026-07-26 17:03:33,541 - INFO - Second inner loop (relaxed) has converged after k = 1 iterations --> End relaxed inner loop
+2026-07-26 17:03:33,541 - INFO - Starting inner loop problems for y = 7
+2026-07-26 17:03:33,541 - INFO - Starting first inner loop (ADA) for y = 7
+2026-07-26 17:03:33,541 - INFO - Starting ADA inner loop iteration k = 1
+2026-07-26 17:03:35,529 - INFO - LBI = 107604064.11961287 and UBI = 999999999999 before computing ADA inner loop error.
+2026-07-26 17:03:35,529 - INFO - IL ADA error = 929232.9283%.
+2026-07-26 17:03:35,529 - INFO - First inner loop (ADA) has not converged after k = 1 iterations --> Solve ADA ILMP
+2026-07-26 17:03:43,954 - INFO - ADA ILMP converged in o = 3 iteration(s)
+2026-07-26 17:03:43,954 - INFO - Starting ADA inner loop iteration k = 2
+2026-07-26 17:03:45,864 - INFO - LBI = 471274325.2896344 and UBI = 471216121.0512881 before computing ADA inner loop error.
+2026-07-26 17:03:45,865 - INFO - IL ADA error = 0.0124%.
+2026-07-26 17:03:45,865 - INFO - First inner loop (ADA) has converged after k = 2 iterations --> End ADA inner loop
+2026-07-26 17:03:45,865 - INFO - Starting second inner loop (relaxed) for y = 7
+2026-07-26 17:03:45,865 - INFO - Starting relaxed inner loop iteration  k = 1
+2026-07-26 17:03:47,790 - INFO - LBI = 471274325.2896344 and UBI = 471216121.0512881 before computing relaxed inner loop error.
+2026-07-26 17:03:47,790 - INFO - IL relaxed error = 0.0124%.
+2026-07-26 17:03:47,790 - INFO - Second inner loop (relaxed) has converged after k = 1 iterations --> End relaxed inner loop
+2026-07-26 17:03:47,791 - INFO - Reached end of last year (y = 7) in the planning horizon --> End year loop
+2026-07-26 17:03:47,895 - INFO - sum_line_cost = 1050000000.0
+2026-07-26 17:03:47,896 - INFO - sum_ess_cost = 0
+2026-07-26 17:03:47,896 - INFO - xi_y_year = 142988815.24581096
+2026-07-26 17:03:47,897 - INFO - sum_line_cost = 0.0
+2026-07-26 17:03:47,897 - INFO - sum_ess_cost = 0
+2026-07-26 17:03:47,897 - INFO - xi_y_year = 148743907.58823973
+2026-07-26 17:03:47,899 - INFO - sum_line_cost = 0.0
+2026-07-26 17:03:47,899 - INFO - sum_ess_cost = 0
+2026-07-26 17:03:47,899 - INFO - xi_y_year = 197444748.41560498
+2026-07-26 17:03:47,900 - INFO - sum_line_cost = 0.0
+2026-07-26 17:03:47,900 - INFO - sum_ess_cost = 0
+2026-07-26 17:03:47,900 - INFO - xi_y_year = 234444184.91934055
+2026-07-26 17:03:47,902 - INFO - sum_line_cost = 0.0
+2026-07-26 17:03:47,902 - INFO - sum_ess_cost = 0
+2026-07-26 17:03:47,902 - INFO - xi_y_year = 287461338.3415377
+2026-07-26 17:03:47,903 - INFO - sum_line_cost = 0.0
+2026-07-26 17:03:47,903 - INFO - sum_ess_cost = 0
+2026-07-26 17:03:47,903 - INFO - xi_y_year = 369130969.37091637
+2026-07-26 17:03:47,905 - INFO - sum_line_cost = 0.0
+2026-07-26 17:03:47,905 - INFO - sum_ess_cost = 0
+2026-07-26 17:03:47,905 - INFO - xi_y_year = 471216121.0512881
+2026-07-26 17:03:47,905 - INFO - LBO = 2149631831.493206 and UBO = 2240054437.4404607 before computing outer loop error.
+2026-07-26 17:03:47,905 - INFO - OL error = 4.2064%.
+2026-07-26 17:03:48,031 - INFO - Starting outer loop problem for j = 3
+2026-07-26 17:37:55,985 - INFO - Relaxed OLMP iteration (ro = 1) equals outer-loop iteration (j = 3) or LBO has increased --> Exit OLMP
+2026-07-26 17:37:56,181 - INFO - Starting inner loop problems for y = 1
+2026-07-26 17:37:56,181 - INFO - Starting first inner loop (ADA) for y = 1
+2026-07-26 17:37:56,181 - INFO - Starting ADA inner loop iteration k = 1
+2026-07-26 17:37:58,619 - INFO - LBI = 108426938.63462153 and UBI = 999999999999 before computing ADA inner loop error.
+2026-07-26 17:37:58,619 - INFO - IL ADA error = 922180.0280%.
+2026-07-26 17:37:58,619 - INFO - First inner loop (ADA) has not converged after k = 1 iterations --> Solve ADA ILMP
+2026-07-26 17:38:08,108 - INFO - ADA ILMP converged in o = 3 iteration(s)
+2026-07-26 17:38:08,108 - INFO - Starting ADA inner loop iteration k = 2
+2026-07-26 17:38:10,280 - INFO - LBI = 174643002.87562984 and UBI = 177212334.4009132 before computing ADA inner loop error.
+2026-07-26 17:38:10,280 - INFO - IL ADA error = 1.4712%.
+2026-07-26 17:38:10,280 - INFO - First inner loop (ADA) has not converged after k = 2 iterations --> Solve ADA ILMP
+2026-07-26 17:38:20,827 - INFO - ADA ILMP converged in o = 3 iteration(s)
+2026-07-26 17:38:20,827 - INFO - Starting ADA inner loop iteration k = 3
+2026-07-26 17:38:23,042 - INFO - LBI = 174643002.87562943 and UBI = 174643002.87559032 before computing ADA inner loop error.
+2026-07-26 17:38:23,042 - INFO - IL ADA error = 0.0000%.
+2026-07-26 17:38:23,042 - INFO - First inner loop (ADA) has converged after k = 3 iterations --> End ADA inner loop
+2026-07-26 17:38:23,042 - INFO - Starting second inner loop (relaxed) for y = 1
+2026-07-26 17:38:23,043 - INFO - Starting relaxed inner loop iteration  k = 1
+2026-07-26 17:38:25,162 - INFO - LBI = 174643002.87562943 and UBI = 174643002.87559032 before computing relaxed inner loop error.
+2026-07-26 17:38:25,162 - INFO - IL relaxed error = 0.0000%.
+2026-07-26 17:38:25,162 - INFO - Second inner loop (relaxed) has converged after k = 1 iterations --> End relaxed inner loop
+2026-07-26 17:38:25,162 - INFO - Starting inner loop problems for y = 2
+2026-07-26 17:38:25,162 - INFO - Starting first inner loop (ADA) for y = 2
+2026-07-26 17:38:25,163 - INFO - Starting ADA inner loop iteration k = 1
+2026-07-26 17:38:27,502 - INFO - LBI = 107604064.11961287 and UBI = 999999999999 before computing ADA inner loop error.
+2026-07-26 17:38:27,503 - INFO - IL ADA error = 929232.9283%.
+2026-07-26 17:38:27,503 - INFO - First inner loop (ADA) has not converged after k = 1 iterations --> Solve ADA ILMP
+2026-07-26 17:38:34,007 - INFO - ADA ILMP converged in o = 2 iteration(s)
+2026-07-26 17:38:34,008 - INFO - Starting ADA inner loop iteration k = 2
+2026-07-26 17:38:36,191 - INFO - LBI = 150933909.1116331 and UBI = 148473854.80246404 before computing ADA inner loop error.
+2026-07-26 17:38:36,191 - INFO - IL ADA error = 1.6299%.
+2026-07-26 17:38:36,191 - INFO - First inner loop (ADA) has not converged after k = 2 iterations --> Solve ADA ILMP
+2026-07-26 17:38:43,554 - INFO - ADA ILMP converged in o = 2 iteration(s)
+2026-07-26 17:38:43,554 - INFO - Starting ADA inner loop iteration k = 3
+2026-07-26 17:38:45,698 - INFO - LBI = 150933909.11163276 and UBI = 148473854.8024645 before computing ADA inner loop error.
+2026-07-26 17:38:45,698 - INFO - IL ADA error = 1.6299%.
+2026-07-26 17:38:45,698 - INFO - First inner loop (ADA) has not converged after k = 3 iterations --> Solve ADA ILMP
+2026-07-26 17:38:53,080 - INFO - ADA ILMP converged in o = 2 iteration(s)
+2026-07-26 17:38:53,080 - INFO - Starting ADA inner loop iteration k = 4
+2026-07-26 17:38:55,300 - INFO - LBI = 153118101.17610997 and UBI = 148512583.35882682 before computing ADA inner loop error.
+2026-07-26 17:38:55,300 - INFO - IL ADA error = 3.0078%.
+2026-07-26 17:38:55,300 - INFO - First inner loop (ADA) has not converged after k = 4 iterations --> Solve ADA ILMP
+2026-07-26 17:39:02,853 - INFO - ADA ILMP converged in o = 2 iteration(s)
+2026-07-26 17:39:02,853 - INFO - Starting ADA inner loop iteration k = 5
+2026-07-26 17:39:05,192 - INFO - LBI = 153118101.17610997 and UBI = 148512583.35882688 before computing ADA inner loop error.
+2026-07-26 17:39:05,192 - INFO - IL ADA error = 3.0078%.
+2026-07-26 17:39:05,192 - INFO - First inner loop (ADA) has not converged after k = 5 iterations --> Solve ADA ILMP
+2026-07-26 17:39:13,944 - INFO - ADA ILMP converged in o = 2 iteration(s)
+2026-07-26 17:39:13,944 - INFO - Starting second inner loop (relaxed) for y = 2
+2026-07-26 17:39:13,944 - INFO - Starting relaxed inner loop iteration  k = 1
+2026-07-26 17:39:16,121 - INFO - LBI = 153118101.17610914 and UBI = 148512583.35882708 before computing relaxed inner loop error.
+2026-07-26 17:39:16,121 - INFO - IL relaxed error = 3.0078%.
+2026-07-26 17:39:16,122 - INFO - Second inner loop (relaxed) has not converged after k = 1 iterations --> Solve relaxed ILMP
+2026-07-26 17:39:16,179 - INFO - v_range = [1]
+2026-07-26 17:39:27,381 - INFO - Relaxed ILMP iteration (ri = 1) equals inner-loop iteration (k = 1) or UBI has decreased --> Exit ILMP
+2026-07-26 17:39:27,651 - INFO - Starting relaxed inner loop iteration  k = 2
+2026-07-26 17:39:29,902 - INFO - LBI = 147594464.33042166 and UBI = 148743907.5882398 before computing relaxed inner loop error.
+2026-07-26 17:39:29,902 - INFO - IL relaxed error = 0.7788%.
+2026-07-26 17:39:29,902 - INFO - Second inner loop (relaxed) has converged after k = 2 iterations --> End relaxed inner loop
+2026-07-26 17:39:29,903 - INFO - Starting inner loop problems for y = 3
+2026-07-26 17:39:29,903 - INFO - Starting first inner loop (ADA) for y = 3
+2026-07-26 17:39:29,903 - INFO - Starting ADA inner loop iteration k = 1
+2026-07-26 17:39:32,237 - INFO - LBI = 107604064.11961287 and UBI = 999999999999 before computing ADA inner loop error.
+2026-07-26 17:39:32,237 - INFO - IL ADA error = 929232.9283%.
+2026-07-26 17:39:32,237 - INFO - First inner loop (ADA) has not converged after k = 1 iterations --> Solve ADA ILMP
+2026-07-26 17:39:41,815 - INFO - ADA ILMP converged in o = 3 iteration(s)
+2026-07-26 17:39:41,815 - INFO - Starting ADA inner loop iteration k = 2
+2026-07-26 17:39:44,018 - INFO - LBI = 197444748.41560343 and UBI = 197444748.41560456 before computing ADA inner loop error.
+2026-07-26 17:39:44,018 - INFO - IL ADA error = 0.0000%.
+2026-07-26 17:39:44,018 - INFO - First inner loop (ADA) has converged after k = 2 iterations --> End ADA inner loop
+2026-07-26 17:39:44,018 - INFO - Starting second inner loop (relaxed) for y = 3
+2026-07-26 17:39:44,018 - INFO - Starting relaxed inner loop iteration  k = 1
+2026-07-26 17:39:46,177 - INFO - LBI = 197444748.41560343 and UBI = 197444748.41560456 before computing relaxed inner loop error.
+2026-07-26 17:39:46,177 - INFO - IL relaxed error = 0.0000%.
+2026-07-26 17:39:46,177 - INFO - Second inner loop (relaxed) has converged after k = 1 iterations --> End relaxed inner loop
+2026-07-26 17:39:46,177 - INFO - Starting inner loop problems for y = 4
+2026-07-26 17:39:46,177 - INFO - Starting first inner loop (ADA) for y = 4
+2026-07-26 17:39:46,177 - INFO - Starting ADA inner loop iteration k = 1
+2026-07-26 17:39:48,478 - INFO - LBI = 107604064.11961287 and UBI = 999999999999 before computing ADA inner loop error.
+2026-07-26 17:39:48,478 - INFO - IL ADA error = 929232.9283%.
+2026-07-26 17:39:48,478 - INFO - First inner loop (ADA) has not converged after k = 1 iterations --> Solve ADA ILMP
+2026-07-26 17:39:58,095 - INFO - ADA ILMP converged in o = 3 iteration(s)
+2026-07-26 17:39:58,095 - INFO - Starting ADA inner loop iteration k = 2
+2026-07-26 17:40:00,499 - INFO - LBI = 234444184.91934088 and UBI = 234444184.91934052 before computing ADA inner loop error.
+2026-07-26 17:40:00,499 - INFO - IL ADA error = 0.0000%.
+2026-07-26 17:40:00,499 - INFO - First inner loop (ADA) has converged after k = 2 iterations --> End ADA inner loop
+2026-07-26 17:40:00,499 - INFO - Starting second inner loop (relaxed) for y = 4
+2026-07-26 17:40:00,499 - INFO - Starting relaxed inner loop iteration  k = 1
+2026-07-26 17:40:02,669 - INFO - LBI = 234444184.91934088 and UBI = 234444184.91934052 before computing relaxed inner loop error.
+2026-07-26 17:40:02,669 - INFO - IL relaxed error = 0.0000%.
+2026-07-26 17:40:02,669 - INFO - Second inner loop (relaxed) has converged after k = 1 iterations --> End relaxed inner loop
+2026-07-26 17:40:02,669 - INFO - Starting inner loop problems for y = 5
+2026-07-26 17:40:02,669 - INFO - Starting first inner loop (ADA) for y = 5
+2026-07-26 17:40:02,670 - INFO - Starting ADA inner loop iteration k = 1
+2026-07-26 17:40:04,984 - INFO - LBI = 107604064.11961287 and UBI = 999999999999 before computing ADA inner loop error.
+2026-07-26 17:40:04,984 - INFO - IL ADA error = 929232.9283%.
+2026-07-26 17:40:04,984 - INFO - First inner loop (ADA) has not converged after k = 1 iterations --> Solve ADA ILMP
+2026-07-26 17:40:14,523 - INFO - ADA ILMP converged in o = 3 iteration(s)
+2026-07-26 17:40:14,523 - INFO - Starting ADA inner loop iteration k = 2
+2026-07-26 17:40:16,733 - INFO - LBI = 287461338.34153837 and UBI = 287461338.3415377 before computing ADA inner loop error.
+2026-07-26 17:40:16,733 - INFO - IL ADA error = 0.0000%.
+2026-07-26 17:40:16,733 - INFO - First inner loop (ADA) has converged after k = 2 iterations --> End ADA inner loop
+2026-07-26 17:40:16,733 - INFO - Starting second inner loop (relaxed) for y = 5
+2026-07-26 17:40:16,734 - INFO - Starting relaxed inner loop iteration  k = 1
+2026-07-26 17:40:18,864 - INFO - LBI = 287461338.34153837 and UBI = 287461338.3415377 before computing relaxed inner loop error.
+2026-07-26 17:40:18,865 - INFO - IL relaxed error = 0.0000%.
+2026-07-26 17:40:18,865 - INFO - Second inner loop (relaxed) has converged after k = 1 iterations --> End relaxed inner loop
+2026-07-26 17:40:18,865 - INFO - Starting inner loop problems for y = 6
+2026-07-26 17:40:18,865 - INFO - Starting first inner loop (ADA) for y = 6
+2026-07-26 17:40:18,865 - INFO - Starting ADA inner loop iteration k = 1
+2026-07-26 17:40:21,220 - INFO - LBI = 107604064.11961287 and UBI = 999999999999 before computing ADA inner loop error.
+2026-07-26 17:40:21,220 - INFO - IL ADA error = 929232.9283%.
+2026-07-26 17:40:21,220 - INFO - First inner loop (ADA) has not converged after k = 1 iterations --> Solve ADA ILMP
+2026-07-26 17:40:30,853 - INFO - ADA ILMP converged in o = 3 iteration(s)
+2026-07-26 17:40:30,853 - INFO - Starting ADA inner loop iteration k = 2
+2026-07-26 17:40:33,046 - INFO - LBI = 369130969.37092304 and UBI = 369130969.3709191 before computing ADA inner loop error.
+2026-07-26 17:40:33,046 - INFO - IL ADA error = 0.0000%.
+2026-07-26 17:40:33,046 - INFO - First inner loop (ADA) has converged after k = 2 iterations --> End ADA inner loop
+2026-07-26 17:40:33,046 - INFO - Starting second inner loop (relaxed) for y = 6
+2026-07-26 17:40:33,046 - INFO - Starting relaxed inner loop iteration  k = 1
+2026-07-26 17:40:35,219 - INFO - LBI = 369130969.37092304 and UBI = 369130969.3709191 before computing relaxed inner loop error.
+2026-07-26 17:40:35,219 - INFO - IL relaxed error = 0.0000%.
+2026-07-26 17:40:35,219 - INFO - Second inner loop (relaxed) has converged after k = 1 iterations --> End relaxed inner loop
+2026-07-26 17:40:35,219 - INFO - Starting inner loop problems for y = 7
+2026-07-26 17:40:35,219 - INFO - Starting first inner loop (ADA) for y = 7
+2026-07-26 17:40:35,219 - INFO - Starting ADA inner loop iteration k = 1
+2026-07-26 17:40:37,541 - INFO - LBI = 107604064.11961287 and UBI = 999999999999 before computing ADA inner loop error.
+2026-07-26 17:40:37,541 - INFO - IL ADA error = 929232.9283%.
+2026-07-26 17:40:37,541 - INFO - First inner loop (ADA) has not converged after k = 1 iterations --> Solve ADA ILMP
+2026-07-26 17:40:47,272 - INFO - ADA ILMP converged in o = 3 iteration(s)
+2026-07-26 17:40:47,273 - INFO - Starting ADA inner loop iteration k = 2
+2026-07-26 17:40:49,478 - INFO - LBI = 471274325.2896344 and UBI = 471216121.0512886 before computing ADA inner loop error.
+2026-07-26 17:40:49,478 - INFO - IL ADA error = 0.0124%.
+2026-07-26 17:40:49,478 - INFO - First inner loop (ADA) has converged after k = 2 iterations --> End ADA inner loop
+2026-07-26 17:40:49,478 - INFO - Starting second inner loop (relaxed) for y = 7
+2026-07-26 17:40:49,478 - INFO - Starting relaxed inner loop iteration  k = 1
+2026-07-26 17:40:51,688 - INFO - LBI = 471274325.2896344 and UBI = 471216121.0512886 before computing relaxed inner loop error.
+2026-07-26 17:40:51,689 - INFO - IL relaxed error = 0.0124%.
+2026-07-26 17:40:51,689 - INFO - Second inner loop (relaxed) has converged after k = 1 iterations --> End relaxed inner loop
+2026-07-26 17:40:51,689 - INFO - Reached end of last year (y = 7) in the planning horizon --> End year loop
+2026-07-26 17:40:51,806 - INFO - sum_line_cost = 777000000.0
+2026-07-26 17:40:51,806 - INFO - sum_ess_cost = 0
+2026-07-26 17:40:51,806 - INFO - xi_y_year = 174643002.87559032
+2026-07-26 17:40:51,808 - INFO - sum_line_cost = 273000000.0
+2026-07-26 17:40:51,808 - INFO - sum_ess_cost = 0
+2026-07-26 17:40:51,808 - INFO - xi_y_year = 148743907.58823973
+2026-07-26 17:40:51,809 - INFO - sum_line_cost = 0.0
+2026-07-26 17:40:51,810 - INFO - sum_ess_cost = 0
+2026-07-26 17:40:51,810 - INFO - xi_y_year = 197444748.41560456
+2026-07-26 17:40:51,811 - INFO - sum_line_cost = 0.0
+2026-07-26 17:40:51,811 - INFO - sum_ess_cost = 0
+2026-07-26 17:40:51,811 - INFO - xi_y_year = 234444184.91934052
+2026-07-26 17:40:51,812 - INFO - sum_line_cost = 0.0
+2026-07-26 17:40:51,813 - INFO - sum_ess_cost = 0
+2026-07-26 17:40:51,813 - INFO - xi_y_year = 287461338.3415377
+2026-07-26 17:40:51,814 - INFO - sum_line_cost = 0.0
+2026-07-26 17:40:51,814 - INFO - sum_ess_cost = 0
+2026-07-26 17:40:51,814 - INFO - xi_y_year = 369130969.3709191
+2026-07-26 17:40:51,816 - INFO - sum_line_cost = 0.0
+2026-07-26 17:40:51,816 - INFO - sum_ess_cost = 0
+2026-07-26 17:40:51,816 - INFO - xi_y_year = 471216121.0512886
+2026-07-26 17:40:51,816 - INFO - LBO = 2236490717.1280813 and UBO = 2244012789.8311706 before computing outer loop error.
+2026-07-26 17:40:51,816 - INFO - OL error = 0.3363%.
+2026-07-26 17:40:51,816 - INFO - Outer loop has converged after j = 3 iterations --> End problem

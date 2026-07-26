@@ -1,0 +1,214 @@
+--- Job _hW8NHoPUQyKE5O9NY3GZFw.gms Start 07/30/25 12:36:31 50.2.0 d60bb663 WEX-WEI x86 64bit/MS Windows
+--- Applying:
+    C:\Users\Kevin\AppData\Local\Programs\Python\Python313\Lib\site-packages\gamspy_base\gmsprmNT.txt
+--- GAMS Parameters defined
+    MIP CPLEX
+    Input C:\Users\Kevin\AppData\Local\Temp\tmppx927mar\_hW8NHoPUQyKE5O9NY3GZFw.gms
+    Output C:\Users\Kevin\AppData\Local\Temp\tmppx927mar\_hW8NHoPUQyKE5O9NY3GZFw.lst
+    ScrDir C:\Users\Kevin\AppData\Local\Temp\tmppx927mar\tmppynjcxa4\
+    SysDir C:\Users\Kevin\AppData\Local\Programs\Python\Python313\Lib\site-packages\gamspy_base\
+    LogOption 4
+    LogFile log_debug.txt
+    Trace C:\Users\Kevin\AppData\Local\Temp\tmppx927mar\_hW8NHoPUQyKE5O9NY3GZFw.txt
+    License C:\Users\Kevin\Documents\GAMSPy\gamspy_license.txt
+    OptFile 0
+    OptDir C:\Users\Kevin\AppData\Local\Temp\tmppx927mar\
+    LimRow 0
+    LimCol 0
+    TraceOpt 3
+    GDX C:\Users\Kevin\AppData\Local\Temp\tmppx927mar\_hW8NHoPUQyKE5O9NY3GZFwout.gdx
+    OptCR 0.005
+    SolPrint 0
+    SavePoint 1
+    PreviousWork 1
+    gdxSymbols newOrChanged
+System information: 8 physical cores and 32 Gb physical memory detected
+--- Starting compilation
+--- _hW8NHoPUQyKE5O9NY3GZFw.gms(71) 4 Mb
+--- Starting execution: elapsed 0:00:00.008
+--- Generating MIP model OLMP
+--- _hW8NHoPUQyKE5O9NY3GZFw.gms(2520) 10 Mb
+---   29,021 rows  12,290 columns  69,803 non-zeroes
+---   1,248 discrete-columns
+--- Range statistics (absolute non-zero finite values)
+--- RHS       [min, max] : [ 2.800E-01, 4.000E+08] - Zero values observed as well
+--- Bound     [min, max] : [ 1.000E+00, 1.000E+00] - Zero values observed as well
+--- Matrix    [min, max] : [ 8.000E-01, 3.000E+07]
+--- Executing CPLEX (Solvelink=2): elapsed 0:00:00.031
+
+IBM ILOG CPLEX   50.2.0 d60bb663 Jul 14, 2025          WEI x86 64bit/MS Window
+
+--- GAMS/CPLEX licensed for continuous and discrete problems.
+--- GMO setup time: 0.00s
+--- Space for names approximately 1.12 Mb
+--- Use option 'names no' to turn use of names off
+--- GMO memory 8.16 Mb (peak 8.26 Mb)
+--- Dictionary memory 0.00 Mb
+--- Cplex 22.1.2.0 link memory 0.57 Mb (peak 2.75 Mb)
+--- Starting Cplex
+
+Version identifier: 22.1.2.0 | 2024-11-25 | 0edbb82fd
+CPXPARAM_Advance                                 0
+CPXPARAM_MIP_Display                             4
+CPXPARAM_MIP_Pool_Capacity                       0
+CPXPARAM_MIP_Tolerances_AbsMIPGap                0
+CPXPARAM_MIP_Tolerances_MIPGap                   0.0050000000000000001
+Generic callback                                 0x50
+Tried aggregator 2 times.
+MIP Presolve eliminated 13755 rows and 650 columns.
+MIP Presolve modified 13662 coefficients.
+Aggregator did 548 substitutions.
+Reduced MIP has 14717 rows, 11092 columns, and 50278 nonzeros.
+Reduced MIP has 814 binaries, 0 generals, 0 SOSs, and 0 indicators.
+Presolve time = 0.03 sec. (50.38 ticks)
+Found incumbent of value 2.2462317e+11 after 0.08 sec. (178.17 ticks)
+Probing fixed 0 vars, tightened 100 bounds.
+Probing time = 0.00 sec. (2.00 ticks)
+Tried aggregator 2 times.
+Detecting symmetries...
+MIP Presolve eliminated 320 rows and 320 columns.
+MIP Presolve modified 175 coefficients.
+Aggregator did 40 substitutions.
+Reduced MIP has 14357 rows, 10732 columns, and 48598 nonzeros.
+Reduced MIP has 814 binaries, 0 generals, 0 SOSs, and 0 indicators.
+Presolve time = 0.02 sec. (45.40 ticks)
+Probing time = 0.00 sec. (1.58 ticks)
+MIP emphasis: balance optimality and feasibility.
+MIP search method: dynamic search.
+Parallel mode: deterministic, using up to 16 threads.
+Parallel mode: deterministic, using up to 3 threads for parallel tasks at root LP.
+Parallel mode: deterministic, using up to 13 threads for concurrent optimization:
+ * Starting dual Simplex on 1 thread...
+ * Starting Barrier on 11 threads...
+ * Starting primal Simplex on 1 thread...
+
+Iteration log . . .
+Iteration:     1   Dual objective     =            -0.000000
+Perturbation started.
+Iteration:   101   Dual objective     =            -0.000000
+Iteration:   588   Dual objective     =             0.072829
+Iteration:  1151   Dual objective     =       3967646.822137
+Iteration:  1675   Dual objective     =       4022216.564060
+Iteration:  2195   Dual objective     =       4083343.283144
+Iteration:  2706   Dual objective     =       4321215.437339
+Iteration:  3163   Dual objective     =       6196080.877530
+Iteration:  3578   Dual objective     =      26261619.780807
+Iteration:  3986   Dual objective     =      30863710.305275
+Iteration:  4375   Dual objective     =      31362410.711250
+Iteration:  4754   Dual objective     =      31903624.180787
+Iteration:  5132   Dual objective     =      32445374.442289
+Iteration:  5513   Dual objective     =      32561095.576469
+Iteration:  5925   Dual objective     =      32758716.357718
+Iteration:  6325   Dual objective     =      32828687.767198
+Iteration:  6611   Dual objective     =      33046917.899800
+Iteration:  6919   Dual objective     =      33074536.662121
+Iteration:  7220   Dual objective     =      34644752.308593
+Iteration:  7524   Dual objective     =      58644321.457933
+Iteration:  7834   Dual objective     =      73832492.326516
+Iteration:  8105   Dual objective     =      79471166.378492
+Iteration:  8424   Dual objective     =      80627542.280205
+Iteration:  8716   Dual objective     =      81646971.267385
+Iteration:  8987   Dual objective     =      83237933.728676
+Iteration:  9261   Dual objective     =      83999879.801844
+Iteration:  9511   Dual objective     =      84308219.002859
+Iteration:  9830   Dual objective     =      85850346.618570
+Iteration: 10090   Dual objective     =      85921734.290718
+Iteration: 10355   Dual objective     =      86031075.095717
+Iteration: 10657   Dual objective     =      86039101.756112
+Iteration: 10959   Dual objective     =      86039101.770888
+Iteration: 11264   Dual objective     =      86104625.030899
+Iteration: 11603   Dual objective     =      86105829.476776
+Iteration: 11889   Dual objective     =      86142364.065987
+Removing perturbation.
+
+Barrier solved model.
+
+Initializing dual steep norms . . .
+
+Iteration log . . .
+Iteration:     1   Dual objective     =      96077524.785583
+Root relaxation solution time = 0.38 sec. (436.15 ticks)
+
+        Nodes                                         Cuts/
+   Node  Left     Objective  IInf  Best Integer    Best Bound    ItCnt     Gap
+
+*     0+    0                       2.24623e+11       -0.0000           100.00%
+Found incumbent of value 2.2462317e+11 after 0.50 sec. (681.44 ticks)
+*     0+    0                       1.03133e+11       -0.0000           100.00%
+Found incumbent of value 1.0313326e+11 after 0.50 sec. (681.57 ticks)
+      0     0   9.60775e+07    58   1.03133e+11   9.60775e+07       33   99.91%
+*     0+    0                       9.65115e+07   9.60775e+07             0.45%
+Found incumbent of value 9.6511465e+07 after 0.55 sec. (789.67 ticks)
+
+Root node processing (before b&c):
+  Real time             =    0.62 sec. (790.63 ticks)
+Parallel b&c, 16 threads:
+  Real time             =    0.00 sec. (0.00 ticks)
+  Sync time (average)   =    0.00 sec.
+  Wait time (average)   =    0.00 sec.
+                          ------------
+Total (root+branch&cut) =    0.62 sec. (790.63 ticks)
+
+--- MIP status (102): integer optimal, tolerance.
+--- Cplex Time: 0.62sec (det. 790.66 ticks)
+
+--- Returning a primal only solution to GAMS (marginals all set to NA).
+--- Fixing integer variables and solving final LP...
+
+Version identifier: 22.1.2.0 | 2024-11-25 | 0edbb82fd
+CPXPARAM_Advance                                 2
+CPXPARAM_MIP_Display                             4
+CPXPARAM_MIP_Pool_Capacity                       0
+CPXPARAM_MIP_Tolerances_AbsMIPGap                0
+CPXPARAM_MIP_Tolerances_MIPGap                   0.0050000000000000001
+Parallel mode: deterministic, using up to 16 threads for concurrent optimization:
+ * Starting dual Simplex on 1 thread...
+ * Starting Barrier on 14 threads...
+ * Starting primal Simplex on 1 thread...
+Tried aggregator 1 time.
+LP Presolve eliminated 23315 rows and 3961 columns.
+Aggregator did 2111 substitutions.
+Reduced LP has 3594 rows, 6218 columns, and 18587 nonzeros.
+Presolve time = 0.02 sec. (20.62 ticks)
+Initializing dual steep norms . . .
+
+Iteration log . . .
+Iteration:     1   Dual objective     =      14575977.745455
+Iteration:   217   Dual objective     =      19100437.580183
+Iteration:   433   Dual objective     =      27053626.087775
+Iteration:   621   Dual objective     =      49803616.582038
+Iteration:   833   Dual objective     =      71952027.057337
+Iteration:  1037   Dual objective     =      76530818.178514
+Iteration:  1240   Dual objective     =      78164694.043448
+Iteration:  1450   Dual objective     =      79224522.203196
+Iteration:  1644   Dual objective     =      81038108.736913
+Iteration:  1829   Dual objective     =      82279220.637345
+Iteration:  2034   Dual objective     =      84131873.014336
+Iteration:  2221   Dual objective     =      85960322.305273
+Iteration:  2410   Dual objective     =      86643646.030275
+Iteration:  2594   Dual objective     =      87699400.022776
+Iteration:  2782   Dual objective     =      88490206.705247
+Iteration:  2961   Dual objective     =      89182884.256486
+Iteration:  3143   Dual objective     =      89829686.460175
+Iteration:  3315   Dual objective     =      90764121.598112
+Iteration:  3486   Dual objective     =      92527671.398700
+Iteration:  3638   Dual objective     =      93412562.227145
+Iteration:  3792   Dual objective     =      94710993.831821
+Iteration:  3943   Dual objective     =      96506538.802440
+
+Dual simplex solved model.
+
+
+--- Fixed MIP status (1): optimal.
+--- Cplex Time: 0.09sec (det. 178.58 ticks)
+
+
+Solution satisfies tolerances
+
+--- Reading solution for model OLMP
+--- GDX Point C:\Users\Kevin\repos\aro_tnep_sb_local\aro_tnep_sb\code\OLMP_p.gdx
+--- Executing after solve: elapsed 0:00:00.828
+--- _hW8NHoPUQyKE5O9NY3GZFw.gms(2579) 10 Mb
+--- GDX File C:\Users\Kevin\AppData\Local\Temp\tmppx927mar\_hW8NHoPUQyKE5O9NY3GZFwout.gdx
+*** Status: Normal completion
+--- Job _hW8NHoPUQyKE5O9NY3GZFw.gms Stop 07/30/25 12:36:31 elapsed 0:00:00.831
