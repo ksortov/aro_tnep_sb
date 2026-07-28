@@ -13,4 +13,6 @@ __pycache__/
 
 # GAMS temporary outputs & log files
 *.gdx
-# *.log
+*.txt
+*.gms
+*.log

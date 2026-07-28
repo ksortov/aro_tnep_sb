@@ -5,9 +5,12 @@ from input_data_processing import (weights, RD1, lines, buses, ESS, CG, RES, loa
                                    tau_yth_data, gamma_dyth_data, gamma_ryth_data, ES_syt0_data, tol, static, ess_inv)
 from gamspy import Alias, Container, Domain, Equation, Model, Options, Ord, Card, Parameter, Set, Smax, Sum, Variable
 from gamspy.math import power, Max
-from utils import logger
+from utils import logger, notify_mobile, setup_ntfy_exception_handler
 import pandas as pd
 import sys
+
+# Setup automatic ntfy alert on runtime crash
+setup_ntfy_exception_handler(topic="kevin_aro_tnep_job_0919", script_name="multi_year_aro_tnep.py")
 
 # Optimization problem definition
 m = Container()
@@ -1097,3 +1100,12 @@ print(vL_ly.l.records)
 if ess_inv:
     print(vS_sy.l.records)
 m.write(r'C:\Users\Kevin\OneDrive - McGill University\Research\Sandbox\optimization\multi-year_AROTNEP\results\antigravity_test\aro_tnep_results.gdx')
+
+# At the end of the script:
+msg = f"multi_year_aro_tnep.py completed successfully!\n\nvL_ly records:\n{vL_ly.l.records}"
+if ess_inv:
+    msg += f"\n\nvS_sy records:\n{vS_sy.l.records}"
+
+notify_mobile(topic="kevin_aro_tnep_job_0919", title="Execution SUCCESS", message=msg, tags="white_check_mark")
+
+
