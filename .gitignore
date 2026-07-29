@@ -1,0 +1,18 @@
+# Virtual environments
+.venv/
+code/.venv/
+.venv*
+
+# Python cache & compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE settings
+.idea/
+
+# GAMS temporary outputs & log files
+*.gdx
+*.txt
+*.gms
+*.log

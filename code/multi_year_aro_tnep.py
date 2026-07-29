@@ -5,9 +5,12 @@ from input_data_processing import (weights, RD1, lines, buses, ESS, CG, RES, loa
                                    tau_yth_data, gamma_dyth_data, gamma_ryth_data, ES_syt0_data, tol, static, ess_inv)
 from gamspy import Alias, Container, Domain, Equation, Model, Options, Ord, Card, Parameter, Set, Smax, Sum, Variable
 from gamspy.math import power, Max
-from utils import logger
+from utils import logger, notify_mobile, setup_ntfy_exception_handler
 import pandas as pd
 import sys
+
+# Setup automatic ntfy alert on runtime crash
+setup_ntfy_exception_handler(topic="kevin_aro_tnep_job_0919", script_name="multi_year_aro_tnep.py")
 
 # Optimization problem definition
 m = Container()
@@ -52,19 +55,27 @@ yp = Alias(m, name="yp", alias_with=y)
 
 # PARAMETERS #
 # Scalars
-GammaD = Parameter(m, name="GammaD", records=0, description="Uncertainty budget for increased loads")
-GammaGC = Parameter(m, name="GammaGC", records=0, description="Uncertainty budget for increased CG marginal cost")
-GammaGP = Parameter(m, name="GammaGP", records=0, description="Uncertainty budget for decreased CG marginal cost")
-GammaRS = Parameter(m, name="GammaRS", records=0, description="Uncertainty budget for decreased solar capacity")
-GammaRW = Parameter(m, name="GammaRW", records=0, description="Uncertainty budget for decreased wind capacity")
+GammaD = Parameter(m, name="GammaD", records=14, description="Uncertainty budget for increased loads")
+GammaGC = Parameter(m, name="GammaGC", records=8, description="Uncertainty budget for increased CG marginal cost")
+GammaGP = Parameter(m, name="GammaGP", records=8, description="Uncertainty budget for decreased CG marginal cost")
+GammaRS = Parameter(m, name="GammaRS", records=4, description="Uncertainty budget for decreased solar capacity")
+GammaRW = Parameter(m, name="GammaRW", records=4, description="Uncertainty budget for decreased wind capacity")
 kappa = Parameter(m, name="kappa", records=0.1, description="Discount rate")
 IT = Parameter(m, name="IT", records=1500000000, description="Investment budget")
 nb_H = Parameter(m, name="nb_H", records=8, description="Number of RTPs of each RD")
-FL = Parameter(m, name="FL", records=2500, description="Large constant for disjunctive linearization")
-FD = Parameter(m, name="FD", records=60000, description="Large constant for exact linearization")
-FD_up = Parameter(m, name="FD_up", records=60000, description="Large constant for exact linearization")
-FG_up = Parameter(m, name="FG_up", records=60000, description="Large constant for exact linearization")
-FR_up = Parameter(m, name="FR_up", records=60000, description="Large constant for exact linearization")
+# Systematically computed Big-M parameters for tight linearizations
+max_cls = loads['CLS_d [$/MWh]'].max()
+# Tight flow Big-M based on maximum line rating
+FL_val = lines['PL_l'].max() * 10.5
+# Tight dual Big-M based on maximum load shedding cost
+FD_val = max_cls * 1.2
+logger.info('FL_val = {}'.format(FL_val))
+logger.info('FD_val = {}'.format(FD_val))
+FL = Parameter(m, name="FL", records=FL_val, description="Large constant for disjunctive linearization")
+FD = Parameter(m, name="FD", records=FD_val, description="Large constant for exact linearization")
+FD_up = Parameter(m, name="FD_up", records=FD_val, description="Large constant for exact linearization")
+FG_up = Parameter(m, name="FG_up", records=FD_val, description="Large constant for exact linearization")
+FR_up = Parameter(m, name="FR_up", records=FD_val, description="Large constant for exact linearization")
 
 gammaD_dyth = Parameter(m, name="gammaD_dyth", domain=[d, y, t, h], records=gamma_dyth_data, description="Demand factor of load d")
 gammaR_ryth = Parameter(m, name="gammaR_ryth", domain=[r, y, t, h], records=gamma_ryth_data, description="Capacity factor of renewable unit r")
@@ -874,7 +885,7 @@ def solve_ilmp_ada(y_iter, j_iter, k_iter, tol):
     # Set binary decision variables to the last solved value for the given inner loop iteration
     ada_ov = 0
     o_iter = 1
-    for ada_iter in range(5):
+    for ada_iter in range(10):
         if o_iter == 1:
             PD_dyo[d,y] = PD_d_fc[d]
             PG_gyo[g,y] = PG_g_fc[g]
@@ -948,7 +959,7 @@ def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i):
 
 def  compute_worst_case_total_cost(ess_inv, xi_ada):
     vL_vals = vL_ly.l.records
-    # xi_y_vals = xi_y.records
+    xi_y_vals = xi_y.records
     IL_vals = IL_l.records
     IL_vals.columns = ['lc', 'value']
     if ess_inv:
@@ -959,18 +970,25 @@ def  compute_worst_case_total_cost(ess_inv, xi_ada):
     for year in years_data:
         sum_line_cost = 0
         if vL_vals is not None:
-            vL_vals_year = vL_vals[vL_vals['y'] == str(year)]
+            vL_vals_year = vL_vals[vL_vals['y'].astype(str) == str(year)]
             vL_IL = pd.merge(vL_vals_year, IL_vals, on='lc')
             vL_IL['line_cost'] = vL_IL['level'] * vL_IL['value']
             sum_line_cost = vL_IL['line_cost'].sum()
         sum_ess_cost = 0
         if ess_inv and vS_vals is not None:
-            vS_vals_year = vS_vals[vS_vals['y'] == str(year)]
+            vS_vals_year = vS_vals[vS_vals['y'].astype(str) == str(year)]
             vS_IS = pd.merge(vS_vals_year, IS_vals, on='s')
             vS_IS['ess_cost'] = vS_IS['level'] * vS_IS['value']
             sum_ess_cost = vS_IS['ess_cost'].sum()
-        # xi_y_year = xi_y_vals[xi_y_vals['y'] == str(year)]['level'].values[0]
-        xi_y_year = xi_ada[year-1]
+        if xi_y_vals is not None and not xi_y_vals.empty:
+            matching_xi = xi_y_vals[xi_y_vals['y'].astype(str) == str(year)]
+            if not matching_xi.empty:
+                xi_y_year = matching_xi['level'].values[0]
+            else:
+                xi_y_year = xi_ada[year - 1]
+        else:
+            xi_y_year = xi_ada[year - 1]
+
         logger.info('sum_line_cost = {}'.format(sum_line_cost))
         logger.info('sum_ess_cost = {}'.format(sum_ess_cost))
         logger.info('xi_y_year = {}'.format(xi_y_year))
@@ -1016,44 +1034,46 @@ for ol_iter in range(j_max):
             set_uncertain_params_ilsp(k_iter_ada, is_ada=True)
             lb_i_ada = solve_ilsp(ess_inv, y_iter, j_iter, k_iter_ada)
             logger.info("LBI = {} and UBI = {} before computing ADA inner loop error.".format(lb_i_ada, ub_i_ada))
-            il_error_ada = (ub_i_ada - lb_i_ada) / lb_i_ada
+            il_error_ada = abs(ub_i_ada - lb_i_ada) / lb_i_ada
+            logger.info("IL ADA error = {:.4f}%.".format(il_error_ada * 100))
             if il_error_ada < tol:
                 logger.info("First inner loop (ADA) has converged after k = {} iterations --> End ADA inner loop".format(k_iter_ada))
-                xi_ada.append(ub_i_ada)
                 break
             elif il_error_ada >= tol:
                 logger.info("First inner loop (ADA) has not converged after k = {} iterations --> Solve ADA ILMP".format(k_iter_ada))
                 ub_i_ada = solve_ilmp_ada(y_iter, j_iter, k_iter_ada, tol)
                 k_iter_ada += 1
+        xi_ada.append(ub_i_ada)
         # INNER LOOP: ILSP + relaxed ILMP #
-        # lb_i_rel = -999999999999
-        # ub_i_rel = 999999999999
-        # k_iter_rel = 1
-        # cG_solved = None
-        # pD_solved = None
-        # pG_solved = None
-        # pR_solved = None
-        # logger.info("Starting second inner loop (relaxed) for y = {}".format(y_iter))
-        # for il_rel_iter in range(k_max):
-        #     logger.info("Starting relaxed inner loop iteration  k = {}".format(k_iter_rel))
-        #     set_uncertain_params_ilsp(k_iter_rel, is_ada=False)
-        #     lb_i_rel = solve_ilsp(ess_inv, y_iter, j_iter, k_iter_rel)
-        #     logger.info("LBI = {} and UBI = {} before computing relaxed inner loop error.".format(lb_i_rel, ub_i_rel))
-        #     il_error_rel = (ub_i_rel - lb_i_rel) / lb_i_rel
-        #     if il_error_rel < tol:
-        #         logger.info("Second inner loop (relaxed) has converged after k = {} iterations --> End relaxed inner loop".format(k_iter_rel))
-        #         break
-        #     elif il_error_rel >= tol:
-        #         logger.info("Second inner loop (relaxed) has not converged after k = {} iterations --> Solve relaxed ILMP".format(k_iter_rel))
-        #         ub_i_rel = solve_ilmp_relaxed(y_iter, j_iter, k_iter_rel, ub_i_rel)
-        #         # if k_iter_rel > 1 and cG_gy.l.records.equals(cG_solved) and pD_dy.l.records.equals(pD_solved) and pG_gy.l.records.equals(pG_solved) and pR_ry.l.records.equals(pR_solved):
-        #         #     logger.info("Second inner loop (relaxed): no change in solution after k = {} iterations-->  End relaxed inner loop".format(k_iter_rel))
-        #         #     break
-        #         k_iter_rel += 1
-        #         cG_solved = cG_gy.l.records
-        #         pD_solved = pD_dy.l.records
-        #         pG_solved = pG_gy.l.records
-        #         pR_solved = pR_ry.l.records
+        lb_i_rel = -999999999999
+        ub_i_rel = ub_i_ada #999999999999
+        k_iter_rel = 1
+        cG_solved = None
+        pD_solved = None
+        pG_solved = None
+        pR_solved = None
+        logger.info("Starting second inner loop (relaxed) for y = {}".format(y_iter))
+        for il_rel_iter in range(k_max):
+            logger.info("Starting relaxed inner loop iteration  k = {}".format(k_iter_rel))
+            set_uncertain_params_ilsp(k_iter_rel, is_ada=False)
+            lb_i_rel = solve_ilsp(ess_inv, y_iter, j_iter, k_iter_rel)
+            logger.info("LBI = {} and UBI = {} before computing relaxed inner loop error.".format(lb_i_rel, ub_i_rel))
+            il_error_rel = abs(ub_i_rel - lb_i_rel) / lb_i_rel
+            logger.info("IL relaxed error = {:.4f}%.".format(il_error_rel * 100))
+            if il_error_rel < tol:
+                logger.info("Second inner loop (relaxed) has converged after k = {} iterations --> End relaxed inner loop".format(k_iter_rel))
+                break
+            elif il_error_rel >= tol:
+                logger.info("Second inner loop (relaxed) has not converged after k = {} iterations --> Solve relaxed ILMP".format(k_iter_rel))
+                ub_i_rel = solve_ilmp_relaxed(y_iter, j_iter, k_iter_rel, ub_i_rel)
+                # if k_iter_rel > 1 and cG_gy.l.records.equals(cG_solved) and pD_dy.l.records.equals(pD_solved) and pG_gy.l.records.equals(pG_solved) and pR_ry.l.records.equals(pR_solved):
+                #     logger.info("Second inner loop (relaxed): no change in solution after k = {} iterations-->  End relaxed inner loop".format(k_iter_rel))
+                #     break
+                k_iter_rel += 1
+                cG_solved = cG_gy.l.records
+                pD_solved = pD_dy.l.records
+                pG_solved = pG_gy.l.records
+                pR_solved = pR_ry.l.records
         if y_iter == max(years_data):
             logger.info("Reached end of last year (y = {}) in the planning horizon --> End year loop".format(y_iter))
             break
@@ -1065,7 +1085,8 @@ for ol_iter in range(j_max):
     ub_o = wc_cost
     logger.info("LBO = {} and UBO = {} before computing outer loop error.".format(lb_o, ub_o))
     print("Total worst-case cost = {}".format(ub_o))
-    ol_error = (ub_o - lb_o) / lb_o
+    ol_error = abs(ub_o - lb_o) / lb_o
+    logger.info("OL error = {:.4f}%.".format(ol_error * 100))
     if ol_error < tol:
         logger.info("Outer loop has converged after j = {} iterations --> End problem".format(j_iter))
         break
@@ -1078,4 +1099,13 @@ print(wc_cost)
 print(vL_ly.l.records)
 if ess_inv:
     print(vS_sy.l.records)
-m.write(r'C:\Users\Kevin\OneDrive - McGill University\Research\Sandbox\optimization\multi-year_AROTNEP\results\aro_tnep_results.gdx')
+m.write(r'C:\Users\Kevin\OneDrive - McGill University\Research\Sandbox\optimization\multi-year_AROTNEP\results\antigravity_test\aro_tnep_results.gdx')
+
+# At the end of the script:
+msg = f"multi_year_aro_tnep.py completed successfully!\n\nvL_ly records:\n{vL_ly.l.records}"
+if ess_inv:
+    msg += f"\n\nvS_sy records:\n{vS_sy.l.records}"
+
+notify_mobile(topic="kevin_aro_tnep_job_0919", title="Execution SUCCESS", message=msg, tags="white_check_mark")
+
+
