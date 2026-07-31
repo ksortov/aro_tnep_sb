@@ -74,7 +74,7 @@ max_sigma_tau = weights['sigma_t [days]'].max() * RD1['tau_th [h]'].max()
 # Tight flow Big-M based on maximum line rating
 FL_val = lines['PL_l'].max() * 10.5
 # Dynamically calculated tight dual Big-M bound based on maximum load-shedding cost and time weights
-FD_val = max(1000000.0, max_sigma_tau * (max_cls + max_cr) * 20.0)
+FD_val = max(1000000.0, max_sigma_tau * (max_cls + max_cr) * 5.0)
 logger.info('FL_val = {}'.format(FL_val))
 logger.info('FD_val = {}'.format(FD_val))
 FL = Parameter(m, name="FL", records=FL_val, description="Large constant for disjunctive linearization")
@@ -985,9 +985,8 @@ def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i_prev):
 
     return ilmp_ov
 
-def  compute_worst_case_total_cost(ess_inv, xi_ada):
+def compute_worst_case_total_cost(ess_inv, xi_worst_case):
     vL_vals = vL_ly.l.records
-    xi_y_vals = xi_y.records
     IL_vals = IL_l.records
     IL_vals.columns = ['lc', 'value']
     if ess_inv:
@@ -999,23 +998,19 @@ def  compute_worst_case_total_cost(ess_inv, xi_ada):
         sum_line_cost = 0
         if vL_vals is not None:
             vL_vals_year = vL_vals[vL_vals['y'].astype(str) == str(year)]
-            vL_IL = pd.merge(vL_vals_year, IL_vals, on='lc')
-            vL_IL['line_cost'] = vL_IL['level'] * vL_IL['value']
-            sum_line_cost = vL_IL['line_cost'].sum()
+            if not vL_vals_year.empty:
+                vL_IL = pd.merge(vL_vals_year, IL_vals, on='lc')
+                vL_IL['line_cost'] = vL_IL['level'] * vL_IL['value']
+                sum_line_cost = vL_IL['line_cost'].sum()
         sum_ess_cost = 0
         if ess_inv and vS_vals is not None:
             vS_vals_year = vS_vals[vS_vals['y'].astype(str) == str(year)]
-            vS_IS = pd.merge(vS_vals_year, IS_vals, on='s')
-            vS_IS['ess_cost'] = vS_IS['level'] * vS_IS['value']
-            sum_ess_cost = vS_IS['ess_cost'].sum()
-        if xi_y_vals is not None and not xi_y_vals.empty:
-            matching_xi = xi_y_vals[xi_y_vals['y'].astype(str) == str(year)]
-            if not matching_xi.empty:
-                xi_y_year = matching_xi['level'].values[0]
-            else:
-                xi_y_year = xi_ada[year - 1]
-        else:
-            xi_y_year = xi_ada[year - 1]
+            if not vS_vals_year.empty:
+                vS_IS = pd.merge(vS_vals_year, IS_vals, on='s')
+                vS_IS['ess_cost'] = vS_IS['level'] * vS_IS['value']
+                sum_ess_cost = vS_IS['ess_cost'].sum()
+        
+        xi_y_year = xi_worst_case.get(year, xi_worst_case.get(int(year), 0.0))
 
         logger.info('sum_line_cost = {}'.format(sum_line_cost))
         logger.info('sum_ess_cost = {}'.format(sum_ess_cost))
@@ -1050,7 +1045,7 @@ for ol_iter in range(j_max):
             logger.info("No change in investment decision variables (zero investment) --> End outer loop")
             break
     # YEAR LOOP
-    xi_ada = []
+    xi_year_worst_case = {}
     for y_iter in years_data:
         logger.info("Starting inner loop problems for y = {}".format(y_iter))
         # INNER LOOP: ILSP + ADA ILMP #
@@ -1076,7 +1071,6 @@ for ol_iter in range(j_max):
                 logger.info("First inner loop (ADA) has not converged after k = {} iterations --> Solve ADA ILMP".format(k_iter_ada))
                 ub_i_ada = solve_ilmp_ada(y_iter, j_iter, k_iter_ada, tol)
                 k_iter_ada += 1
-        xi_ada.append(ub_i_ada)
         # INNER LOOP: ILSP + relaxed ILMP #
         lb_i_rel = -999999999999
         ub_i_rel = ub_i_ada if (il_error_ada < tol and ub_i_ada >= lb_i_ada) else 999999999999
@@ -1106,6 +1100,9 @@ for ol_iter in range(j_max):
                 pD_solved = pD_dy.l.records
                 pG_solved = pG_gy.l.records
                 pR_solved = pR_ry.l.records
+        
+        xi_year_worst_case[y_iter] = ub_i_rel
+
         if y_iter == max(years_data):
             logger.info("Reached end of last year (y = {}) in the planning horizon --> End year loop".format(y_iter))
             break
@@ -1113,7 +1110,7 @@ for ol_iter in range(j_max):
             y_iter += 1
 
     # Update ub_o
-    wc_cost = compute_worst_case_total_cost(ess_inv, xi_ada)
+    wc_cost = compute_worst_case_total_cost(ess_inv, xi_year_worst_case)
     ub_o = wc_cost
     logger.info("LBO = {} and UBO = {} before computing outer loop error.".format(lb_o, ub_o))
     print("Total worst-case cost = {}".format(ub_o))
