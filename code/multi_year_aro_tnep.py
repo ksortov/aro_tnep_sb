@@ -241,51 +241,51 @@ con_1c = Equation(m, name="con_1c")
 con_1c_ess = Equation(m, name="con_1c_ess")
 con_1d = Equation(m, name="con_1d", domain=[lc])
 con_1e = Equation(m, name="con_1e", domain=[lc, y])
-con_4c = Equation(m, name="con_4c", domain=[y, ir])
-con_4d = Equation(m, name="con_4d", domain=[n, y, t, h, ir])
-con_4e = Equation(m, name="con_4e", domain=[le, y, t, h, ir])
-con_4f_lin1 = Equation(m, name="con_4f_lin1", domain=[lc, y, t, h, ir]) # Linearized
-con_4f_lin2 = Equation(m, name="con_4f_lin2", domain=[lc, y, t, h, ir]) # Linearized
-con_4g_exist_lin1 = Equation(m, name="con_4g_exist_lin1", domain=[le, y, t, h, ir])
-con_4g_exist_lin2 = Equation(m, name="con_4g_exist_lin2", domain=[le, y, t, h, ir])
-con_4g_can_lin1 = Equation(m, name="con_4g_can_lin1", domain=[lc, y, t, h, ir])
-con_4g_can_lin2 = Equation(m, name="con_4g_can_lin2", domain=[lc, y, t, h, ir])
-con_4h = Equation(m, name="con_4h", domain=[s, y, t, ir]) # H == 1
-con_4h_ess = Equation(m, name="con_4h_ess", domain=[s, y, t, ir]) # H == 1
+con_4c = Equation(m, name="con_4c", domain=[y, j])
+con_4d = Equation(m, name="con_4d", domain=[n, y, t, h, j])
+con_4e = Equation(m, name="con_4e", domain=[le, y, t, h, j])
+con_4f_lin1 = Equation(m, name="con_4f_lin1", domain=[lc, y, t, h, j]) # Linearized
+con_4f_lin2 = Equation(m, name="con_4f_lin2", domain=[lc, y, t, h, j]) # Linearized
+con_4g_exist_lin1 = Equation(m, name="con_4g_exist_lin1", domain=[le, y, t, h, j])
+con_4g_exist_lin2 = Equation(m, name="con_4g_exist_lin2", domain=[le, y, t, h, j])
+con_4g_can_lin1 = Equation(m, name="con_4g_can_lin1", domain=[lc, y, t, h, j])
+con_4g_can_lin2 = Equation(m, name="con_4g_can_lin2", domain=[lc, y, t, h, j])
+con_4h = Equation(m, name="con_4h", domain=[s, y, t, j]) # H == 1
+con_4h_ess = Equation(m, name="con_4h_ess", domain=[s, y, t, j]) # H == 1
 con_4h_ess0 = Equation(m, name="con_4h_ess0", domain=[s,y,t])
-con_4i = Equation(m, name="con_4i", domain=[s, y, t, h, ir]) # H =/= 1
-con_4i_ess = Equation(m, name="con_4i_ess", domain=[s, y, t, h, ir]) # H =/= 1
-con_4j = Equation(m, name="con_4j", domain=[s, y, t, ir]) # H == Hmax
-con_4k1 = Equation(m, name="con_4k1", domain=[s, y, t, h, ir])
-con_4k2 = Equation(m, name="con_4k2", domain=[s, y, t, h, ir])
-con_4j_ess = Equation(m, name="con_4j_ess", domain=[s, y, t, ir]) # H == Hmax
-con_4k1_ess = Equation(m, name="con_4k1_ess", domain=[s, y, t, h, ir])
-con_4k2_ess = Equation(m, name="con_4k2_ess", domain=[s, y, t, h, ir])
+con_4i = Equation(m, name="con_4i", domain=[s, y, t, h, j]) # H =/= 1
+con_4i_ess = Equation(m, name="con_4i_ess", domain=[s, y, t, h, j]) # H =/= 1
+con_4j = Equation(m, name="con_4j", domain=[s, y, t, j]) # H == Hmax
+con_4k1 = Equation(m, name="con_4k1", domain=[s, y, t, h, j])
+con_4k2 = Equation(m, name="con_4k2", domain=[s, y, t, h, j])
+con_4j_ess = Equation(m, name="con_4j_ess", domain=[s, y, t, j]) # H == Hmax
+con_4k1_ess = Equation(m, name="con_4k1_ess", domain=[s, y, t, h, j])
+con_4k2_ess = Equation(m, name="con_4k2_ess", domain=[s, y, t, h, j])
 # con_4l = Equation(m, name="con_4l", domain=[S,T,H,Y])
-con_4m = Equation(m, name="con_4m", domain=[s, y, t, h, ir])
-con_4n = Equation(m, name="con_4n", domain=[s, y, t, h, ir])
+con_4m = Equation(m, name="con_4m", domain=[s, y, t, h, j])
+con_4n = Equation(m, name="con_4n", domain=[s, y, t, h, j])
 con_4v1 = Equation(m, name="con_4v1", domain=[sc])
 con_4v2 = Equation(m, name="con_4v2", domain=[sc,y])
-con_4ess_lin1 = Equation(m, name="con_4ess_lin1", domain=[s, y, t, h, ir]) # Linearized
-con_4ess_lin2 = Equation(m, name="con_4ess_lin2", domain=[s, y, t, h, ir]) # Linearized
-con_4ess_lin3 = Equation(m, name="con_4ess_lin3", domain=[s, y, t, h, ir]) # Linearized
-con_4m_ess = Equation(m, name="con_4m_ess", domain=[s, y, t, h, ir])
-con_4n_ess = Equation(m, name="con_4n_ess", domain=[s, y, t, h, ir])
-con_4o = Equation(m, name="con_4o", domain=[d, y, t, h, ir])
+con_4ess_lin1 = Equation(m, name="con_4ess_lin1", domain=[s, y, t, h, j]) # Linearized
+con_4ess_lin2 = Equation(m, name="con_4ess_lin2", domain=[s, y, t, h, j]) # Linearized
+con_4ess_lin3 = Equation(m, name="con_4ess_lin3", domain=[s, y, t, h, j]) # Linearized
+con_4m_ess = Equation(m, name="con_4m_ess", domain=[s, y, t, h, j])
+con_4n_ess = Equation(m, name="con_4n_ess", domain=[s, y, t, h, j])
+con_4o = Equation(m, name="con_4o", domain=[d, y, t, h, j])
 # con_4p = Equation(m, name="con_4p", domain=[G,T,H,Y])
-con_4q1 = Equation(m, name="con_4q1", domain=[g, y, t, h, ir])
-con_4q2 = Equation(m, name="con_4q2", domain=[g, y, t, h, ir])
-con_4r1 = Equation(m, name="con_4r1", domain=[g, y, t, h, ir]) # H =/= 1
-con_4r2 = Equation(m, name="con_4r2", domain=[g, y, t, h, ir]) # H =/= 1
-con_4s = Equation(m, name="con_4s", domain=[r, y, t, h, ir])
-con_4t = Equation(m, name="con_4t", domain=[y, t, h, ir]) # N == ref bus
+con_4q1 = Equation(m, name="con_4q1", domain=[g, y, t, h, j])
+con_4q2 = Equation(m, name="con_4q2", domain=[g, y, t, h, j])
+con_4r1 = Equation(m, name="con_4r1", domain=[g, y, t, h, j]) # H =/= 1
+con_4r2 = Equation(m, name="con_4r2", domain=[g, y, t, h, j]) # H =/= 1
+con_4s = Equation(m, name="con_4s", domain=[r, y, t, h, j])
+con_4t = Equation(m, name="con_4t", domain=[y, t, h, j]) # N == ref bus
 
 con_4q_ess = Equation(m, name="con_4q_ess", domain=[n])
 
 def build_olmp_eqns(ess_inv, i_range):
     imin = min(i_range)
     imax = max(i_range)
-    # ir = (j.val >= imin) & (j.val <= imax)
+    jr = (Ord(j) >= imin) & (Ord(j) <= imax)
     hmax = int(nb_H.toValue())
 
     # Original objective function and limit on investment costs
@@ -301,59 +301,59 @@ def build_olmp_eqns(ess_inv, i_range):
     con_1d[lc] = Sum(y, vL_ly[lc, y]) <= 1
     con_1e[lc, y] = vL_ly_prev[lc, y] == Sum(yp.where[yp.val <= y.val], vL_ly[lc, yp])
 
-    con_4c[y, ir] = rho_y[y] >= Sum(t, sigma_yt[y, t] * Sum(h, tau_yth[y, t, h] * (Sum(g, CG_gyi[g,y,ir] * pG_gythi[g, y, t, h, ir]) \
-    + Sum(r, CR_r[r] * (gammaR_ryth[r, y, t, h] * PR_ryi[r,y,ir] - pR_rythi[r, y, t, h, ir])) \
-    + Sum(d, CLS_d[d] * pLS_dythi[d, y, t, h, ir]))))
-    con_4d[n, y, t, h, ir] = Sum(g.where[g_n[g, n]], pG_gythi[g, y, t, h, ir]) + Sum(r.where[r_n[r, n]], pR_rythi[r, y, t, h, ir]) \
-    + Sum(l.where[rel_n[l, n]], pL_lythi[l, y, t, h, ir]) - Sum(l.where[sel_n[l, n]], pL_lythi[l, y, t, h, ir]) \
-    + Sum(s.where[s_n[s, n]], pSD_sythi[s, y, t, h, ir] - pSC_sythi[s, y, t, h, ir]) \
-    == Sum(d.where[d_n[d, n]], gammaD_dyth[d, y, t, h] * PD_dyi[d,y,ir] - pLS_dythi[d, y, t, h, ir])
-    con_4e[le, y, t, h, ir] = pL_lythi[le, y, t, h, ir] == (1.0 / X_l[le]) * (Sum(n.where[sel_n[le, n]], theta_nythi[n, y, t, h, ir]) \
-    - Sum(n.where[rel_n[le, n]], theta_nythi[n, y, t, h, ir]))
-    con_4f_lin1[lc, y, t, h, ir] = pL_lythi[lc, y, t, h, ir] - (1 / X_l[lc]) * (Sum(n.where[sel_n[lc, n]], theta_nythi[n, y, t, h, ir]) \
-    - Sum(n.where[rel_n[lc, n]], theta_nythi[n, y, t, h, ir])) <= (1 - vL_ly_prev[lc, y]) * FL
-    con_4f_lin2[lc, y, t, h, ir] = pL_lythi[lc, y, t, h, ir] - (1 / X_l[lc]) * (Sum(n.where[sel_n[lc, n]], theta_nythi[n, y, t, h, ir]) \
-    - Sum(n.where[rel_n[lc, n]], theta_nythi[n, y, t, h, ir])) >= -(1 - vL_ly_prev[lc, y]) * FL
-    con_4g_exist_lin1[le, y, t, h, ir] = pL_lythi[le, y, t, h, ir] <= PL_l[le]
-    con_4g_exist_lin2[le, y, t, h, ir] = pL_lythi[le, y, t, h, ir] >= -PL_l[le]
-    con_4g_can_lin1[lc, y, t, h, ir] = pL_lythi[lc, y, t, h, ir] <= vL_ly_prev[lc, y] * PL_l[lc]
-    con_4g_can_lin2[lc, y, t, h, ir] = pL_lythi[lc, y, t, h, ir] >= -vL_ly_prev[lc, y] * PL_l[lc]
-    con_4h[se, y, t, ir] = eS_sythi[se, y, t, 1, ir] == ES_syt0[se,y,t] + (pSC_sythi[se, y, t, 1, ir] * etaSC_s[se] \
-    - (pSD_sythi[se, y, t, 1, ir] / etaSD_s[se])) * tau_yth[y, t, 1]
-    con_4h_ess[sc,y,t,ir] = eS_sythi[sc, y, t, 1, ir] == eS_syt0_ess[sc,y,t] + (pSC_sythi[sc, y, t, 1, ir] * etaSC_s[sc] \
-    - (pSD_sythi[sc, y, t, 1, ir] / etaSD_s[sc])) * tau_yth[y, t, 1]
+    con_4c[y, j].where[jr] = rho_y[y] >= Sum(t, sigma_yt[y, t] * Sum(h, tau_yth[y, t, h] * (Sum(g, CG_gyi[g,y,j] * pG_gythi[g, y, t, h, j]) \
+    + Sum(r, CR_r[r] * (gammaR_ryth[r, y, t, h] * PR_ryi[r,y,j] - pR_rythi[r, y, t, h, j])) \
+    + Sum(d, CLS_d[d] * pLS_dythi[d, y, t, h, j]))))
+    con_4d[n, y, t, h, j].where[jr] = Sum(g.where[g_n[g, n]], pG_gythi[g, y, t, h, j]) + Sum(r.where[r_n[r, n]], pR_rythi[r, y, t, h, j]) \
+    + Sum(l.where[rel_n[l, n]], pL_lythi[l, y, t, h, j]) - Sum(l.where[sel_n[l, n]], pL_lythi[l, y, t, h, j]) \
+    + Sum(s.where[s_n[s, n]], pSD_sythi[s, y, t, h, j] - pSC_sythi[s, y, t, h, j]) \
+    == Sum(d.where[d_n[d, n]], gammaD_dyth[d, y, t, h] * PD_dyi[d,y,j] - pLS_dythi[d, y, t, h, j])
+    con_4e[le, y, t, h, j].where[jr] = pL_lythi[le, y, t, h, j] == (1.0 / X_l[le]) * (Sum(n.where[sel_n[le, n]], theta_nythi[n, y, t, h, j]) \
+    - Sum(n.where[rel_n[le, n]], theta_nythi[n, y, t, h, j]))
+    con_4f_lin1[lc, y, t, h, j].where[jr] = pL_lythi[lc, y, t, h, j] - (1 / X_l[lc]) * (Sum(n.where[sel_n[lc, n]], theta_nythi[n, y, t, h, j]) \
+    - Sum(n.where[rel_n[lc, n]], theta_nythi[n, y, t, h, j])) <= (1 - vL_ly_prev[lc, y]) * FL
+    con_4f_lin2[lc, y, t, h, j].where[jr] = pL_lythi[lc, y, t, h, j] - (1 / X_l[lc]) * (Sum(n.where[sel_n[lc, n]], theta_nythi[n, y, t, h, j]) \
+    - Sum(n.where[rel_n[lc, n]], theta_nythi[n, y, t, h, j])) >= -(1 - vL_ly_prev[lc, y]) * FL
+    con_4g_exist_lin1[le, y, t, h, j].where[jr] = pL_lythi[le, y, t, h, j] <= PL_l[le]
+    con_4g_exist_lin2[le, y, t, h, j].where[jr] = pL_lythi[le, y, t, h, j] >= -PL_l[le]
+    con_4g_can_lin1[lc, y, t, h, j].where[jr] = pL_lythi[lc, y, t, h, j] <= vL_ly_prev[lc, y] * PL_l[lc]
+    con_4g_can_lin2[lc, y, t, h, j].where[jr] = pL_lythi[lc, y, t, h, j] >= -vL_ly_prev[lc, y] * PL_l[lc]
+    con_4h[se, y, t, j].where[jr] = eS_sythi[se, y, t, 1, j] == ES_syt0[se,y,t] + (pSC_sythi[se, y, t, 1, j] * etaSC_s[se] \
+    - (pSD_sythi[se, y, t, 1, j] / etaSD_s[se])) * tau_yth[y, t, 1]
+    con_4h_ess[sc,y,t,j].where[jr] = eS_sythi[sc, y, t, 1, j] == eS_syt0_ess[sc,y,t] + (pSC_sythi[sc, y, t, 1, j] * etaSC_s[sc] \
+    - (pSD_sythi[sc, y, t, 1, j] / etaSD_s[sc])) * tau_yth[y, t, 1]
     con_4h_ess0[sc,y,t] = eS_syt0_ess[sc,y,t] == vS_sy_prev[sc,y]*ES_syt0[sc,y,t]
-    con_4i[se, y, t, h, ir].where[(Ord(h) > 1)] = eS_sythi[se, y, t, h, ir] == eS_sythi[se, y, t, h.lag(1), ir] \
-    + (pSC_sythi[se, y, t, h, ir] * etaSC_s[se] - (pSD_sythi[se, y, t, h, ir] / etaSD_s[se])) * tau_yth[y, t, h]
-    con_4i_ess[sc, y, t, h, ir].where[(Ord(h) > 1)] = eS_sythi[sc, y, t, h, ir] == eS_sythi[sc, y, t, h.lag(1), ir] \
-    + (pSC_sythi[sc, y, t, h, ir] * etaSC_s[sc] - (pSD_sythi[sc, y, t, h, ir] / etaSD_s[sc])) * tau_yth[y, t, h]
+    con_4i[se, y, t, h, j].where[jr & (Ord(h) > 1)] = eS_sythi[se, y, t, h, j] == eS_sythi[se, y, t, h.lag(1), j] \
+    + (pSC_sythi[se, y, t, h, j] * etaSC_s[se] - (pSD_sythi[se, y, t, h, j] / etaSD_s[se])) * tau_yth[y, t, h]
+    con_4i_ess[sc, y, t, h, j].where[jr & (Ord(h) > 1)] = eS_sythi[sc, y, t, h, j] == eS_sythi[sc, y, t, h.lag(1), j] \
+    + (pSC_sythi[sc, y, t, h, j] * etaSC_s[sc] - (pSD_sythi[sc, y, t, h, j] / etaSD_s[sc])) * tau_yth[y, t, h]
 
-    con_4j[se, y, t, ir] =  eS_sythi[se, y, t, hmax, ir] >= ES_syt0[se, y, t]
-    con_4k1[se, y, t, h, ir] = eS_sythi[se, y, t, h, ir] <= ES_s_max[se]
-    con_4k2[se, y, t, h, ir] = eS_sythi[se, y, t, h, ir] >= ES_s_min[se]
-    con_4j_ess[sc, y, t, ir] = eS_sythi[sc, y, t, hmax, ir] >= vS_sy_prev[sc,y] * ES_syt0[sc, y, t]
-    con_4k1_ess[sc, y, t, h, ir] = eS_sythi[sc, y, t, h, ir] <= vS_sy_prev[sc,y] * ES_s_max[sc]
-    con_4k2_ess[sc, y, t, h, ir] = eS_sythi[sc, y, t, h, ir] >= vS_sy_prev[sc,y] * ES_s_min[sc]
+    con_4j[se, y, t, j].where[jr] =  eS_sythi[se, y, t, hmax, j] >= ES_syt0[se, y, t]
+    con_4k1[se, y, t, h, j].where[jr] = eS_sythi[se, y, t, h, j] <= ES_s_max[se]
+    con_4k2[se, y, t, h, j].where[jr] = eS_sythi[se, y, t, h, j] >= ES_s_min[se]
+    con_4j_ess[sc, y, t, j].where[jr] = eS_sythi[sc, y, t, hmax, j] >= vS_sy_prev[sc,y] * ES_syt0[sc, y, t]
+    con_4k1_ess[sc, y, t, h, j].where[jr] = eS_sythi[sc, y, t, h, j] <= vS_sy_prev[sc,y] * ES_s_max[sc]
+    con_4k2_ess[sc, y, t, h, j].where[jr] = eS_sythi[sc, y, t, h, j] >= vS_sy_prev[sc,y] * ES_s_min[sc]
     # Original constraints for avoiding simultaneous charging and discharging, max and min charging/discharging power
-    con_4m[s, y, t, h, ir] = pSC_sythi[s, y, t, h, ir] <= uS_sythi[s, y, t, h, ir] * PSC_s[s]
-    con_4n[s, y, t, h, ir] = pSD_sythi[s, y, t, h, ir] <= (1 - uS_sythi[s, y, t, h, ir]) * PSD_s[s]
+    con_4m[s, y, t, h, j].where[jr] = pSC_sythi[s, y, t, h, j] <= uS_sythi[s, y, t, h, j] * PSC_s[s]
+    con_4n[s, y, t, h, j].where[jr] = pSD_sythi[s, y, t, h, j] <= (1 - uS_sythi[s, y, t, h, j]) * PSD_s[s]
 
     # Modified constraints for avoiding simultaneous charging and discharging, max and min charging/discharging power
     con_4v1[sc] = Sum(y, vS_sy[sc, y]) <= 1
     con_4v2[sc, y] = vS_sy_prev[sc, y] == Sum(yp.where[yp.val <= y.val], vS_sy[sc, yp])
-    con_4ess_lin1[s, y, t, h, ir] = alphaS_sythi[s, y, t, h, ir] <= vS_sy_prev[s, y]
-    con_4ess_lin2[s, y, t, h, ir] = alphaS_sythi[s, y, t, h, ir] <= uS_sythi[s, y, t, h, ir]
-    con_4ess_lin3[s, y, t, h, ir] = alphaS_sythi[s, y, t, h, ir] >= vS_sy_prev[s, y] + uS_sythi[s, y, t, h, ir] - 1
-    con_4m_ess[s, y, t, h, ir] = pSC_sythi[s, y, t, h, ir] <= alphaS_sythi[s,y,t,h,ir] * PSC_s[s]
-    con_4n_ess[s, y, t, h, ir] = pSD_sythi[s, y, t, h, ir] <= (vS_sy_prev[s,y] - alphaS_sythi[s,y,t,h,ir]) * PSD_s[s]
+    con_4ess_lin1[s, y, t, h, j].where[jr] = alphaS_sythi[s, y, t, h, j] <= vS_sy_prev[s, y]
+    con_4ess_lin2[s, y, t, h, j].where[jr] = alphaS_sythi[s, y, t, h, j] <= uS_sythi[s, y, t, h, j]
+    con_4ess_lin3[s, y, t, h, j].where[jr] = alphaS_sythi[s, y, t, h, j] >= vS_sy_prev[s, y] + uS_sythi[s, y, t, h, j] - 1
+    con_4m_ess[s, y, t, h, j].where[jr] = pSC_sythi[s, y, t, h, j] <= alphaS_sythi[s,y,t,h,j] * PSC_s[s]
+    con_4n_ess[s, y, t, h, j].where[jr] = pSD_sythi[s, y, t, h, j] <= (vS_sy_prev[s,y] - alphaS_sythi[s,y,t,h,j]) * PSD_s[s]
 
-    con_4o[d, y, t, h, ir] = pLS_dythi[d, y, t, h, ir] <= gammaD_dyth[d, y, t, h] * PD_dyi[d,y,ir]  # pD_dy[D,Y]
-    con_4q1[g, y, t, h, ir] = pG_gythi[g, y, t, h, ir] <= uG_gythi[g, y, t, h, ir] * PG_gyi[g,y,ir]  # pG_gy[G,Y]
-    con_4q2[g, y, t, h, ir] = pG_gythi[g, y, t, h, ir] >= uG_gythi[g, y, t, h, ir] * PG_g_min[g]
-    con_4r1[g, y, t, h, ir].where[Ord(h) > 1] = pG_gythi[g, y, t, h, ir] - pG_gythi[g, y, t, h.lag(1), ir] <= RGU_g[g]
-    con_4r2[g, y, t, h, ir].where[Ord(h) > 1] = pG_gythi[g, y, t, h, ir] - pG_gythi[g, y, t, h.lag(1), ir] >= -RGD_g[g]
-    con_4s[r, y, t, h, ir] = pR_rythi[r, y, t, h, ir] <= gammaR_ryth[r, y, t, h] * PR_ryi[r,y,ir]  # pR_ry[R,Y]
-    con_4t[y, t, h, ir] = theta_nythi[1, y, t, h, ir] == 0
+    con_4o[d, y, t, h, j].where[jr] = pLS_dythi[d, y, t, h, j] <= gammaD_dyth[d, y, t, h] * PD_dyi[d,y,j]  # pD_dy[D,Y]
+    con_4q1[g, y, t, h, j].where[jr] = pG_gythi[g, y, t, h, j] <= uG_gythi[g, y, t, h, j] * PG_gyi[g,y,j]  # pG_gy[G,Y]
+    con_4q2[g, y, t, h, j].where[jr] = pG_gythi[g, y, t, h, j] >= uG_gythi[g, y, t, h, j] * PG_g_min[g]
+    con_4r1[g, y, t, h, j].where[jr & (Ord(h) > 1)] = pG_gythi[g, y, t, h, j] - pG_gythi[g, y, t, h.lag(1), j] <= RGU_g[g]
+    con_4r2[g, y, t, h, j].where[jr & (Ord(h) > 1)] = pG_gythi[g, y, t, h, j] - pG_gythi[g, y, t, h.lag(1), j] >= -RGD_g[g]
+    con_4s[r, y, t, h, j].where[jr] = pR_rythi[r, y, t, h, j] <= gammaR_ryth[r, y, t, h] * PR_ryi[r,y,j]  # pR_ry[R,Y]
+    con_4t[y, t, h, j].where[jr] = theta_nythi[1, y, t, h, j] == 0
 
     # Only one candidate ESS may be built per bus
     con_4q_ess[n] = Sum(y, Sum(sc.where[s_n[sc,n]], vS_sy[sc,y])) <= 1
