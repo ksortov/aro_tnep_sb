@@ -5,9 +5,13 @@ from input_data_processing import (weights, RD1, lines, buses, ESS, CG, RES, loa
                                    tau_yth_data, gamma_dyth_data, gamma_ryth_data, ES_syt0_data, tol, static, ess_inv)
 from gamspy import Alias, Container, Domain, Equation, Model, Options, Ord, Card, Parameter, Set, Smax, Sum, Variable
 from gamspy.math import power, Max
-from utils import logger, notify_mobile, setup_ntfy_exception_handler
+from utils import logger, notify_mobile, setup_ntfy_exception_handler, MemoryTracker
 import pandas as pd
 import sys
+
+# Start tracking peak RAM usage
+mem_tracker = MemoryTracker()
+mem_tracker.start()
 
 # Setup automatic ntfy alert on runtime crash
 setup_ntfy_exception_handler(topic="kevin_aro_tnep_job_0919", script_name="multi_year_aro_tnep.py")
@@ -65,10 +69,11 @@ IT = Parameter(m, name="IT", records=1500000000, description="Investment budget"
 nb_H = Parameter(m, name="nb_H", records=8, description="Number of RTPs of each RD")
 # Systematically computed Big-M parameters for tight linearizations
 max_cls = loads['CLS_d [$/MWh]'].max()
+max_sigma_tau = weights['sigma_t [days]'].max() * RD1['tau_th [h]'].max()
 # Tight flow Big-M based on maximum line rating
 FL_val = lines['PL_l'].max() * 10.5
-# Tight dual Big-M based on maximum load shedding cost
-FD_val = max_cls * 1.2
+# Numerically optimal dual Big-M (1e8) - 10x larger than max dual price (~10M), 10x smaller than 1e9 to avoid CPLEX presolve scaling instability
+FD_val = 100000000.0
 logger.info('FL_val = {}'.format(FL_val))
 logger.info('FD_val = {}'.format(FD_val))
 FL = Parameter(m, name="FL", records=FL_val, description="Large constant for disjunctive linearization")
@@ -389,51 +394,45 @@ con_2n = Equation(m, name="con_2n")
 # con_5c = Equation(m, name="con_5c")
 # con_5c[...] = xi_y[yi] <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h] * pD_dy[d,yi] * Sum(n.where[d_n[d,n]], lambdaN_nyth[n,yi,t,h])) - \
 #                           Sum(l, PL_l[l] * (muL_lyth_lo[l,yi,t,h] + muL_lyth_up[l,yi,t,h])) - \
-#                           Sum(s, uS_syth[s,yi,t,h] * PSC_s[s] * muSC_syth_up[s,yi,t,h] + (1 - uS_syth[s,yi,t,h]) * PSD_s[s] * muSD_syth_up[s,yi,t,h] - ES_s_min[s] * muS_syth_lo[s,yi,t,h] + ES_s_max[s] * muS_syth_up[s,yi,t,h]) + \
-#                           Sum(g, uG_gyth[g,yi,t,h] * (PG_g_min[g] * muG_gyth_lo[g,yi,t,h] - pG_gy[g,yi] * muG_gyth_up[g,yi,t,h])) - \
-#                           Sum(r, gammaR_ryth[r,yi,t,h] * pR_ry[r,yi] * (muR_ryth_up[r,yi,t,h] - sigma_yt[yi,t] * tau_yth[yi,t,h] * CR_r[r])) - \
-#                           Sum(d, gammaD_dyth[d,yi,t,h] * pD_dy[d,yi] * muD_dyth_up[d,yi,t,h])) + \
-#                           Sum(s, ES_syt0[s,yi,t] * (PhiS_syt[s,yi,t] + PhiS_syt_lo[s,yi,t])) - \
-#                           Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g] * muGD_gyth[g,yi,t,h] + RGU_g[g] * muGU_gyth[g,yi,t,h])))
-con_5c_lin_a = Equation(m, name="con_5c_lin_a", domain=[vr])
-con_5c_lin_a_ess = Equation(m, name="con_5c_lin_a_ess", domain=[vr])
-con_5c_lin_b1 = Equation(m, name="con_5c_lin_b1", domain=[d, t, h, vr])
-con_5c_lin_b2 = Equation(m, name="con_5c_lin_b2", domain=[d, t, h, vr])
-con_5c_lin_c1 = Equation(m, name="con_5c_lin_c1", domain=[d, t, h, vr])
-con_5c_lin_c2 = Equation(m, name="con_5c_lin_c2", domain=[d, t, h, vr])
-con_5c_lin_d = Equation(m, name="con_5c_lin_d", domain=[d, t, h, vr])
-con_5c_lin_e1 = Equation(m, name="con_5c_lin_e1", domain=[d, t, h, vr])
-con_5c_lin_e2 = Equation(m, name="con_5c_lin_e2", domain=[d, t, h, vr])
-con_5c_lin_f = Equation(m, name="con_5c_lin_f", domain=[g, t, h, vr])
-con_5c_lin_g1 = Equation(m, name="con_5c_lin_g1", domain=[g, t, h, vr])
-con_5c_lin_g2 = Equation(m, name="con_5c_lin_g2", domain=[g, t, h, vr])
-con_5c_lin_h = Equation(m, name="con_5c_lin_h", domain=[r, t, h, vr])
-con_5c_lin_i1 = Equation(m, name="con_5c_lin_i1", domain=[r, t, h, vr])
-con_5c_lin_i2 = Equation(m, name="con_5c_lin_i2", domain=[r, t, h, vr])
+con_5c_lin_a = Equation(m, name="con_5c_lin_a", domain=[k])
+con_5c_lin_a_ess = Equation(m, name="con_5c_lin_a_ess", domain=[k])
+con_5c_lin_b1 = Equation(m, name="con_5c_lin_b1", domain=[d, t, h, k])
+con_5c_lin_b2 = Equation(m, name="con_5c_lin_b2", domain=[d, t, h, k])
+con_5c_lin_c1 = Equation(m, name="con_5c_lin_c1", domain=[d, t, h, k])
+con_5c_lin_c2 = Equation(m, name="con_5c_lin_c2", domain=[d, t, h, k])
+con_5c_lin_d = Equation(m, name="con_5c_lin_d", domain=[d, t, h, k])
+con_5c_lin_e1 = Equation(m, name="con_5c_lin_e1", domain=[d, t, h, k])
+con_5c_lin_e2 = Equation(m, name="con_5c_lin_e2", domain=[d, t, h, k])
+con_5c_lin_f = Equation(m, name="con_5c_lin_f", domain=[g, t, h, k])
+con_5c_lin_g1 = Equation(m, name="con_5c_lin_g1", domain=[g, t, h, k])
+con_5c_lin_g2 = Equation(m, name="con_5c_lin_g2", domain=[g, t, h, k])
+con_5c_lin_h = Equation(m, name="con_5c_lin_h", domain=[r, t, h, k])
+con_5c_lin_i1 = Equation(m, name="con_5c_lin_i1", domain=[r, t, h, k])
+con_5c_lin_i2 = Equation(m, name="con_5c_lin_i2", domain=[r, t, h, k])
 
-con_5d = Equation(m, name="con_5d", domain=[g, t, vr])
-con_5e = Equation(m, name="con_5e", domain=[g, t, h, vr])
-con_5f = Equation(m, name="con_5f", domain=[g, t, vr])
-con_5g = Equation(m, name="con_5g", domain=[d, t, h, vr])
-con_5h = Equation(m, name="con_5h", domain=[r, t, h, vr])
-con_5i = Equation(m, name="con_5i", domain=[le, t, h, vr])
-con_5j = Equation(m, name="con_5j", domain=[lc, t, h, vr])
-con_5k = Equation(m, name="con_5k", domain=[s, t, vr])
-con_5l = Equation(m, name="con_5l", domain=[s, t, h, vr])
-con_5m = Equation(m, name="con_5m", domain=[s, t, vr])
-con_5n = Equation(m, name="con_5n", domain=[s, t, h, vr])
-con_5o = Equation(m, name="con_5o", domain=[n,t,h,vr]) # N =/= ref bus
-con_5p = Equation(m, name="con_5p", domain=[n,t,h,vr]) # N == ref bus
-con_5q = Equation(m, name="con_5q", domain=[s,t,vr])
-con_5r = Equation(m, name="con_5r", domain=[s,t,h,vr])
-con_5s = Equation(m, name="con_5s", domain=[s,t,vr])
-con_5t = Equation(m, name="con_5t", domain=[s,t,vr])
+con_5d = Equation(m, name="con_5d", domain=[g, t, k])
+con_5e = Equation(m, name="con_5e", domain=[g, t, h, k])
+con_5f = Equation(m, name="con_5f", domain=[g, t, k])
+con_5g = Equation(m, name="con_5g", domain=[d, t, h, k])
+con_5h = Equation(m, name="con_5h", domain=[r, t, h, k])
+con_5i = Equation(m, name="con_5i", domain=[le, t, h, k])
+con_5j = Equation(m, name="con_5j", domain=[lc, t, h, k])
+con_5k = Equation(m, name="con_5k", domain=[s, t, k])
+con_5l = Equation(m, name="con_5l", domain=[s, t, h, k])
+con_5m = Equation(m, name="con_5m", domain=[s, t, k])
+con_5n = Equation(m, name="con_5n", domain=[s, t, h, k])
+con_5o = Equation(m, name="con_5o", domain=[n,t,h,k]) # N =/= ref bus
+con_5p = Equation(m, name="con_5p", domain=[n,t,h,k]) # N == ref bus
+con_5q = Equation(m, name="con_5q", domain=[s,t,k])
+con_5r = Equation(m, name="con_5r", domain=[s,t,h,k])
+con_5s = Equation(m, name="con_5s", domain=[s,t,k])
+con_5t = Equation(m, name="con_5t", domain=[s,t,k])
 ilmp_obj_var = Equation(m, name="ilmp_obj_var")
 
 def build_ilmp_eqns(yi, v_range, ess_inv):
     vmin = min(v_range)
     vmax = max(v_range)
-    # vr = (v.val >= vmin) & (v.val <= vmax)
+    kr = (Ord(k) >= vmin) & (Ord(k) <= vmax)
     hmax = int(nb_H.toValue())
 
     con_2b[g] = cG_gy[g, yi] == CG_g_fc[g] * power(1 + zetaGC_g_fc[g], yi - 1) + CG_g_max[g] * power(1 + zetaGC_g_max[g], yi - 1) * zGC_gy[g, yi]
@@ -447,78 +446,78 @@ def build_ilmp_eqns(yi, v_range, ess_inv):
     con_2n[...] = Sum(rw, zR_ry[rw, yi]) <= GammaRW
 
     ilmp_obj_var[...] = xi == xi_y[yi]
-    con_5c_lin_a[vr] = xi_y[yi] <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h] * (PD_d_fc[d] * power(1+zetaD_d_fc[d], yi-1) \
-    * Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,vr]) + PD_d_max[d] * power(1+zetaD_d_max[d], yi-1) * alphaD_dythv[d,yi,t,h,vr])) \
-    - Sum(l, PL_l[l]*(muL_lythv_lo[l,yi,t,h,vr] + muL_lythv_up[l,yi,t,h,vr])) \
-    - Sum(s, US_sythv[s,yi,t,h,vr]*PSC_s[s]*muSC_sythv_up[s,yi,t,h,vr] + (1-US_sythv[s,yi,t,h,vr])*PSD_s[s]*muSD_sythv_up[s,yi,t,h,vr] - ES_s_min[s]*muS_sythv_lo[s,yi,t,h,vr] + ES_s_max[s]*muS_sythv_up[s,yi,t,h,vr]) \
-    + Sum(g, UG_gythv[g,yi,t,h,vr] * (PG_g_min[g] * muG_gythv_lo[g,yi,t,h,vr] - (PG_g_fc[g] * power(1-zetaGP_g_fc[g], yi-1) * muG_gythv_up[g,yi,t,h,vr] - PG_g_max[g] * power(1+zetaGP_g_max[g], yi-1) * alphaGP_gythv_up[g,yi,t,h,vr]))) \
-    - Sum(r, gammaR_ryth[r,yi,t,h] * (PR_r_fc[r] * power(1+zetaR_r_fc, yi-1) * muR_rythv_up[r,yi,t,h,vr] - PR_r_max[r] * power(1+zetaR_r_max, yi-1) * alphaR_rythv_up[r,yi,t,h,vr])) \
+    con_5c_lin_a[k].where[kr] = xi_y[yi] <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h] * (PD_d_fc[d] * power(1+zetaD_d_fc[d], yi-1) \
+    * Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,k]) + PD_d_max[d] * power(1+zetaD_d_max[d], yi-1) * alphaD_dythv[d,yi,t,h,k])) \
+    - Sum(l, PL_l[l]*(muL_lythv_lo[l,yi,t,h,k] + muL_lythv_up[l,yi,t,h,k])) \
+    - Sum(s, US_sythv[s,yi,t,h,k]*PSC_s[s]*muSC_sythv_up[s,yi,t,h,k] + (1-US_sythv[s,yi,t,h,k])*PSD_s[s]*muSD_sythv_up[s,yi,t,h,k] - ES_s_min[s]*muS_sythv_lo[s,yi,t,h,k] + ES_s_max[s]*muS_sythv_up[s,yi,t,h,k]) \
+    + Sum(g, UG_gythv[g,yi,t,h,k] * (PG_g_min[g] * muG_gythv_lo[g,yi,t,h,k] - (PG_g_fc[g] * power(1-zetaGP_g_fc[g], yi-1) * muG_gythv_up[g,yi,t,h,k] - PG_g_max[g] * power(1+zetaGP_g_max[g], yi-1) * alphaGP_gythv_up[g,yi,t,h,k]))) \
+    - Sum(r, gammaR_ryth[r,yi,t,h] * (PR_r_fc[r] * power(1+zetaR_r_fc, yi-1) * muR_rythv_up[r,yi,t,h,k] - PR_r_max[r] * power(1+zetaR_r_max, yi-1) * alphaR_rythv_up[r,yi,t,h,k])) \
     + Sum(r, sigma_yt[yi,t]*tau_yth[yi,t,h]*CR_r[r]*gammaR_ryth[r,yi,t,h]*(PR_r_fc[r]*power(1+zetaR_r_fc, yi-1) - PR_r_max[r]*power(1+zetaR_r_max, yi-1) * zR_ry[r,yi])) \
-    - Sum(d, gammaD_dyth[d,yi,t,h] * (PD_d_fc[d] * power(1+zetaD_d_fc[d], yi-1) * muD_dythv_up[d,yi,t,h,vr] + PD_d_max[d] * power(1+zetaD_d_max[d], yi-1) * alphaD_dythv_up[d,yi,t,h,vr]))) \
-    + Sum(s, ES_syt0[s,yi,t]*(PhiS_sytv[s,yi,t,vr] + PhiS_sytv_lo[s,yi,t,vr])) \
-    - Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g]*muGD_gythv[g,yi,t,h,vr] + RGU_g[g]*muGU_gythv[g,yi,t,h,vr])))
-    con_5c_lin_a_ess[vr] = xi_y[yi] <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h] * (PD_d_fc[d] * power(1+zetaD_d_fc[d], yi-1) \
-    * Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,vr]) + PD_d_max[d] * power(1+zetaD_d_max[d], yi-1) * alphaD_dythv[d,yi,t,h,vr])) \
-    - Sum(l, PL_l[l]*(muL_lythv_lo[l,yi,t,h,vr] + muL_lythv_up[l,yi,t,h,vr])) \
-    - Sum(s, VS_syj_prev[s,yi]*(US_sythv[s,yi,t,h,vr]*PSC_s[s]*muSC_sythv_up[s,yi,t,h,vr] + (1-US_sythv[s,yi,t,h,vr])*PSD_s[s]*muSD_sythv_up[s,yi,t,h,vr] - ES_s_min[s]*muS_sythv_lo[s,yi,t,h,vr] + ES_s_max[s]*muS_sythv_up[s,yi,t,h,vr])) \
-    + Sum(g, UG_gythv[g,yi,t,h,vr] * (PG_g_min[g] * muG_gythv_lo[g,yi,t,h,vr] - (PG_g_fc[g] * power(1-zetaGP_g_fc[g], yi-1) * muG_gythv_up[g,yi,t,h,vr] - PG_g_max[g] * power(1+zetaGP_g_max[g], yi-1) * alphaGP_gythv_up[g,yi,t,h,vr]))) \
-    - Sum(r, gammaR_ryth[r,yi,t,h] * (PR_r_fc[r] * power(1+zetaR_r_fc, yi-1) * muR_rythv_up[r,yi,t,h,vr] - PR_r_max[r] * power(1+zetaR_r_max, yi-1) * alphaR_rythv_up[r,yi,t,h,vr])) \
+    - Sum(d, gammaD_dyth[d,yi,t,h] * (PD_d_fc[d] * power(1+zetaD_d_fc[d], yi-1) * muD_dythv_up[d,yi,t,h,k] + PD_d_max[d] * power(1+zetaD_d_max[d], yi-1) * alphaD_dythv_up[d,yi,t,h,k]))) \
+    + Sum(s, ES_syt0[s,yi,t]*(PhiS_sytv[s,yi,t,k] + PhiS_sytv_lo[s,yi,t,k])) \
+    - Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g]*muGD_gythv[g,yi,t,h,k] + RGU_g[g]*muGU_gythv[g,yi,t,h,k])))
+    con_5c_lin_a_ess[k].where[kr] = xi_y[yi] <= Sum(t, Sum(h, Sum(d, gammaD_dyth[d,yi,t,h] * (PD_d_fc[d] * power(1+zetaD_d_fc[d], yi-1) \
+    * Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,k]) + PD_d_max[d] * power(1+zetaD_d_max[d], yi-1) * alphaD_dythv[d,yi,t,h,k])) \
+    - Sum(l, PL_l[l]*(muL_lythv_lo[l,yi,t,h,k] + muL_lythv_up[l,yi,t,h,k])) \
+    - Sum(s, VS_syj_prev[s,yi]*(US_sythv[s,yi,t,h,k]*PSC_s[s]*muSC_sythv_up[s,yi,t,h,k] + (1-US_sythv[s,yi,t,h,k])*PSD_s[s]*muSD_sythv_up[s,yi,t,h,k] - ES_s_min[s]*muS_sythv_lo[s,yi,t,h,k] + ES_s_max[s]*muS_sythv_up[s,yi,t,h,k])) \
+    + Sum(g, UG_gythv[g,yi,t,h,k] * (PG_g_min[g] * muG_gythv_lo[g,yi,t,h,k] - (PG_g_fc[g] * power(1-zetaGP_g_fc[g], yi-1) * muG_gythv_up[g,yi,t,h,k] - PG_g_max[g] * power(1+zetaGP_g_max[g], yi-1) * alphaGP_gythv_up[g,yi,t,h,k]))) \
+    - Sum(r, gammaR_ryth[r,yi,t,h] * (PR_r_fc[r] * power(1+zetaR_r_fc, yi-1) * muR_rythv_up[r,yi,t,h,k] - PR_r_max[r] * power(1+zetaR_r_max, yi-1) * alphaR_rythv_up[r,yi,t,h,k])) \
     + Sum(r, sigma_yt[yi,t]*tau_yth[yi,t,h]*CR_r[r]*gammaR_ryth[r,yi,t,h]*(PR_r_fc[r]*power(1+zetaR_r_fc, yi-1) - PR_r_max[r]*power(1+zetaR_r_max, yi-1) * zR_ry[r,yi])) \
-    - Sum(d, gammaD_dyth[d,yi,t,h] * (PD_d_fc[d] * power(1+zetaD_d_fc[d], yi-1) * muD_dythv_up[d,yi,t,h,vr] + PD_d_max[d] * power(1+zetaD_d_max[d], yi-1) * alphaD_dythv_up[d,yi,t,h,vr]))) \
-    + Sum(s, VS_syj_prev[s,yi]*ES_syt0[s,yi,t]*(PhiS_syt0v[s,yi,t,vr] + PhiS_sytv_lo[s,yi,t,vr])) \
-    - Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g]*muGD_gythv[g,yi,t,h,vr] + RGU_g[g]*muGU_gythv[g,yi,t,h,vr])))
-    con_5c_lin_b1[d, t, h, vr] = alphaD_dythv[d, yi, t, h, vr] <= zD_dy[d, yi] * FD
-    con_5c_lin_b2[d, t, h, vr] = alphaD_dythv[d, yi, t, h, vr] >= -zD_dy[d, yi] * FD
-    con_5c_lin_c1[d,t,h,vr] = Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,vr]) - alphaD_dythv[d,yi,t,h,vr] <= (1 - zD_dy[d,yi]) * FD
-    con_5c_lin_c2[d,t,h,vr] = Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,vr]) - alphaD_dythv[d,yi,t,h,vr] >= -(1 - zD_dy[d,yi]) * FD
-    con_5c_lin_d[d, t, h, vr] = alphaD_dythv_up[d, yi, t, h, vr] <= zD_dy[d, yi] * FD_up
-    con_5c_lin_e1[d, t, h, vr] = muD_dythv_up[d, yi, t, h, vr] - alphaD_dythv_up[d, yi, t, h, vr] <= (1 - zD_dy[d, yi]) * FD_up
-    con_5c_lin_e2[d, t, h, vr] = muD_dythv_up[d, yi, t, h, vr] - alphaD_dythv_up[d, yi, t, h, vr] >= 0
-    con_5c_lin_f[g, t, h, vr] = alphaGP_gythv_up[g, yi, t, h, vr] <= zGP_gy[g, yi] * FG_up
-    con_5c_lin_g1[g,t,h,vr] = muG_gythv_up[g,yi,t,h,vr] - alphaGP_gythv_up[g,yi,t,h,vr] <= (1 - zGP_gy[g,yi]) * FG_up
-    con_5c_lin_g2[g,t,h,vr] = muG_gythv_up[g,yi,t,h,vr] - alphaGP_gythv_up[g,yi,t,h,vr] >= 0
-    con_5c_lin_h[r, t, h, vr] = alphaR_rythv_up[r, yi, t, h, vr] <= zR_ry[r, yi] * FR_up
-    con_5c_lin_i1[r, t, h, vr] = muR_rythv_up[r, yi, t, h, vr] - alphaR_rythv_up[r, yi, t, h, vr] <= (1 - zR_ry[r, yi]) * FR_up
-    con_5c_lin_i2[r, t, h, vr] = muR_rythv_up[r, yi, t, h, vr] - alphaR_rythv_up[r, yi, t, h, vr] >= 0
+    - Sum(d, gammaD_dyth[d,yi,t,h] * (PD_d_fc[d] * power(1+zetaD_d_fc[d], yi-1) * muD_dythv_up[d,yi,t,h,k] + PD_d_max[d] * power(1+zetaD_d_max[d], yi-1) * alphaD_dythv_up[d,yi,t,h,k]))) \
+    + Sum(s, VS_syj_prev[s,yi]*ES_syt0[s,yi,t]*(PhiS_syt0v[s,yi,t,k] + PhiS_sytv_lo[s,yi,t,k])) \
+    - Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g]*muGD_gythv[g,yi,t,h,k] + RGU_g[g]*muGU_gythv[g,yi,t,h,k])))
+    con_5c_lin_b1[d, t, h, k].where[kr] = alphaD_dythv[d, yi, t, h, k] <= zD_dy[d, yi] * FD
+    con_5c_lin_b2[d, t, h, k].where[kr] = alphaD_dythv[d, yi, t, h, k] >= -zD_dy[d, yi] * FD
+    con_5c_lin_c1[d,t,h,k].where[kr] = Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,k]) - alphaD_dythv[d,yi,t,h,k] <= (1 - zD_dy[d,yi]) * FD
+    con_5c_lin_c2[d,t,h,k].where[kr] = Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,k]) - alphaD_dythv[d,yi,t,h,k] >= -(1 - zD_dy[d,yi]) * FD
+    con_5c_lin_d[d, t, h, k].where[kr] = alphaD_dythv_up[d, yi, t, h, k] <= zD_dy[d, yi] * FD_up
+    con_5c_lin_e1[d, t, h, k].where[kr] = muD_dythv_up[d, yi, t, h, k] - alphaD_dythv_up[d, yi, t, h, k] <= (1 - zD_dy[d, yi]) * FD_up
+    con_5c_lin_e2[d, t, h, k].where[kr] = muD_dythv_up[d, yi, t, h, k] - alphaD_dythv_up[d, yi, t, h, k] >= 0
+    con_5c_lin_f[g, t, h, k].where[kr] = alphaGP_gythv_up[g, yi, t, h, k] <= zGP_gy[g, yi] * FG_up
+    con_5c_lin_g1[g,t,h,k].where[kr] = muG_gythv_up[g,yi,t,h,k] - alphaGP_gythv_up[g,yi,t,h,k] <= (1 - zGP_gy[g,yi]) * FG_up
+    con_5c_lin_g2[g,t,h,k].where[kr] = muG_gythv_up[g,yi,t,h,k] - alphaGP_gythv_up[g,yi,t,h,k] >= 0
+    con_5c_lin_h[r, t, h, k].where[kr] = alphaR_rythv_up[r, yi, t, h, k] <= zR_ry[r, yi] * FR_up
+    con_5c_lin_i1[r,t,h,k].where[kr] = muR_rythv_up[r,yi,t,h,k] - alphaR_rythv_up[r,yi,t,h,k] <= (1 - zR_ry[r,yi]) * FR_up
+    con_5c_lin_i2[r,t,h,k].where[kr] = muR_rythv_up[r,yi,t,h,k] - alphaR_rythv_up[r,yi,t,h,k] >= 0
 
-    con_5d[g,t,vr] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,1,vr]) + muG_gythv_lo[g,yi,t,1,vr]\
-    - muG_gythv_up[g,yi,t,1,vr] - muGD_gythv[g,yi,t,2,vr] + muGU_gythv[g,yi,t,2,vr]\
+    con_5d[g,t,k].where[kr] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,1,k]) + muG_gythv_lo[g,yi,t,1,k]\
+    - muG_gythv_up[g,yi,t,1,k] - muGD_gythv[g,yi,t,2,k] + muGU_gythv[g,yi,t,2,k]\
     == sigma_yt[yi,t] * tau_yth[yi, t, 1] * cG_gy[g, yi]
-    con_5e[g,t,h,vr].where[(Ord(h)!=1) & (Ord(h)!=Card(h))] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,h,vr])\
-    + muG_gythv_lo[g,yi,t,h,vr] - muG_gythv_up[g,yi,t,h,vr] + muGD_gythv[g,yi,t,h,vr] - muGD_gythv[g,yi,t,h.lead(1),vr]\
-    - muGU_gythv[g,yi,t,h,vr] + muGU_gythv[g,yi,t,h.lead(1),vr] == sigma_yt[yi,t]*tau_yth[yi,t,h]*cG_gy[g, yi]
-    con_5f[g,t,vr] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,hmax,vr]) +  muG_gythv_lo[g,yi,t,hmax,vr]\
-    - muG_gythv_up[g,yi,t,hmax,vr] + muGD_gythv[g,yi,t,hmax,vr] - muGU_gythv[g, yi, t, hmax, vr]\
+    con_5e[g,t,h,k].where[kr & (Ord(h)!=1) & (Ord(h)!=Card(h))] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,h,k])\
+    + muG_gythv_lo[g,yi,t,h,k] - muG_gythv_up[g,yi,t,h,k] + muGD_gythv[g,yi,t,h,k] - muGD_gythv[g,yi,t,h.lead(1),k]\
+    - muGU_gythv[g,yi,t,h,k] + muGU_gythv[g,yi,t,h.lead(1),k] == sigma_yt[yi,t]*tau_yth[yi,t,h]*cG_gy[g, yi]
+    con_5f[g,t,k].where[kr] = Sum(n.where[g_n[g,n]], lambdaN_nythv[n,yi,t,hmax,k]) +  muG_gythv_lo[g,yi,t,hmax,k]\
+    - muG_gythv_up[g,yi,t,hmax,k] + muGD_gythv[g,yi,t,hmax,k] - muGU_gythv[g, yi, t, hmax, k]\
     == sigma_yt[yi, t] * tau_yth[yi, t, hmax] * cG_gy[g, yi]
-    con_5g[d,t,h,vr] = Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,vr])-muD_dythv_up[d, yi, t, h, vr]\
+    con_5g[d,t,h,k].where[kr] = Sum(n.where[d_n[d,n]], lambdaN_nythv[n,yi,t,h,k])-muD_dythv_up[d, yi, t, h, k]\
     <= sigma_yt[yi, t] * tau_yth[yi, t, h] * CLS_d[d]
-    con_5h[r,t,h,vr] = Sum(n.where[r_n[r,n]], lambdaN_nythv[n,yi,t,h,vr]) - muR_rythv_up[r,yi,t,h,vr]\
+    con_5h[r,t,h,k].where[kr] = Sum(n.where[r_n[r,n]], lambdaN_nythv[n,yi,t,h,k]) - muR_rythv_up[r,yi,t,h,k]\
     <= -sigma_yt[yi, t] * tau_yth[yi, t, h] * CR_r[r]
-    con_5i[le,t,h,vr] = Sum(n.where[rel_n[le,n]], lambdaN_nythv[n,yi,t,h,vr]) - Sum(n.where[sel_n[le,n]], lambdaN_nythv[n,yi,t,h,vr]) \
-    + muL_lythv_exist[le, yi, t, h, vr] + muL_lythv_lo[le, yi, t, h, vr] - muL_lythv_up[le, yi, t, h, vr] == 0
-    con_5j[lc,t,h,vr] = Sum(n.where[rel_n[lc,n]], lambdaN_nythv[n,yi,t,h,vr]) - Sum(n.where[sel_n[lc,n]], lambdaN_nythv[n,yi,t,h,vr]) \
-    + muL_lythv_can[lc,yi,t,h,vr] + muL_lythv_lo[lc,yi,t,h,vr] - muL_lythv_up[lc,yi,t,h,vr] == 0
-    con_5k[s,t,vr] = Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,1,vr])\
-    + (tau_yth[yi,t,1]/etaSD_s[s])*PhiS_sytv[s,yi,t,vr] - muSD_sythv_up[s,yi,t,1,vr] <= 0
-    con_5l[s,t,h,vr].where[Ord(h)>1] = Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,h,vr])\
-    + (tau_yth[yi,t,h]/etaSD_s[s])*muS_sythv[s,yi,t,h,vr] - muSD_sythv_up[s,yi,t,h,vr] <= 0
-    con_5m[s,t,vr] = -Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,1,vr])\
-    - etaSC_s[s]*tau_yth[yi,t,1]*PhiS_sytv[s,yi,t,vr] - muSC_sythv_up[s,yi,t,1,vr] <= 0
-    con_5n[s,t,h,vr].where[Ord(h)>1] = -Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,h,vr])\
-    - etaSC_s[s]*tau_yth[yi,t,h]*muS_sythv[s,yi,t,h,vr] - muSC_sythv_up[s,yi,t,h,vr] <= 0
-    con_5o[n, t, h, vr].where[Ord(n) > 1] = -Sum(le.where[sel_n[le, n]], muL_lythv_exist[le, yi, t, h, vr] / X_l[le])\
-    + Sum(le.where[rel_n[le, n]], muL_lythv_exist[le, yi, t, h, vr] / X_l[le])\
-    - Sum(lc.where[sel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, vr])\
-    + Sum(lc.where[rel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, vr]) == 0
-    con_5p[n, t, h, vr].where[Ord(n) == 1] = -Sum(le.where[sel_n[le, n]], muL_lythv_exist[le, yi, t, h, vr] / X_l[le])\
-    + Sum(le.where[rel_n[le, n]], muL_lythv_exist[le, yi, t, h, vr] / X_l[le])\
-    - Sum(lc.where[sel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, vr])\
-    + Sum(lc.where[rel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, vr])\
-    + phiN_nythv[n, yi, t, h, vr] == 0
-    con_5q[s,t,vr] = PhiS_sytv[s,yi,t,vr] - muS_sythv[s,yi,t,2,vr] + muS_sythv_lo[s,yi,t,1,vr] - muS_sythv_up[s,yi,t,1,vr] == 0
-    con_5r[s,t,h,vr].where[(Ord(h)!=1) & (Ord(h)!=Card(h))] = muS_sythv[s,yi,t,h,vr] - muS_sythv[s,yi,t,h.lead(1),vr] + muS_sythv_lo[s,yi,t,h,vr] - muS_sythv_up[s,yi,t,h,vr] == 0
-    con_5s[s,t,vr] = muS_sythv[s,yi,t,hmax,vr] + PhiS_sytv_lo[s,yi,t,vr] + muS_sythv_lo[s,yi,t,hmax,vr] - muS_sythv_up[s,yi,t,hmax,vr] == 0
-    con_5t[s,t,vr] = PhiS_syt0v[s,yi,t,vr] - PhiS_sytv[s,yi,t,vr] + muS_sythv_lo[s,yi,t,1,vr] - muS_sythv_up[s,yi,t,1,vr] == 0
+    con_5i[le,t,h,k].where[kr] = Sum(n.where[rel_n[le,n]], lambdaN_nythv[n,yi,t,h,k]) - Sum(n.where[sel_n[le,n]], lambdaN_nythv[n,yi,t,h,k]) \
+    + muL_lythv_exist[le, yi, t, h, k] + muL_lythv_lo[le, yi, t, h, k] - muL_lythv_up[le, yi, t, h, k] == 0
+    con_5j[lc,t,h,k].where[kr] = Sum(n.where[rel_n[lc,n]], lambdaN_nythv[n,yi,t,h,k]) - Sum(n.where[sel_n[lc,n]], lambdaN_nythv[n,yi,t,h,k]) \
+    + muL_lythv_can[lc,yi,t,h,k] + muL_lythv_lo[lc,yi,t,h,k] - muL_lythv_up[lc,yi,t,h,k] == 0
+    con_5k[s,t,k].where[kr] = Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,1,k])\
+    + (tau_yth[yi,t,1]/etaSD_s[s])*PhiS_sytv[s,yi,t,k] - muSD_sythv_up[s,yi,t,1,k] <= 0
+    con_5l[s,t,h,k].where[kr & (Ord(h)>1)] = Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,h,k])\
+    + (tau_yth[yi,t,h]/etaSD_s[s])*muS_sythv[s,yi,t,h,k] - muSD_sythv_up[s,yi,t,h,k] <= 0
+    con_5m[s,t,k].where[kr] = -Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,1,k])\
+    - etaSC_s[s]*tau_yth[yi,t,1]*PhiS_sytv[s,yi,t,k] - muSC_sythv_up[s,yi,t,1,k] <= 0
+    con_5n[s,t,h,k].where[kr & (Ord(h)>1)] = -Sum(n.where[s_n[s,n]], lambdaN_nythv[n,yi,t,h,k])\
+    - etaSC_s[s]*tau_yth[yi,t,h]*muS_sythv[s,yi,t,h,k] - muSC_sythv_up[s,yi,t,h,k] <= 0
+    con_5o[n, t, h, k].where[kr & (Ord(n) > 1)] = -Sum(le.where[sel_n[le, n]], muL_lythv_exist[le, yi, t, h, k] / X_l[le])\
+    + Sum(le.where[rel_n[le, n]], muL_lythv_exist[le, yi, t, h, k] / X_l[le])\
+    - Sum(lc.where[sel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, k])\
+    + Sum(lc.where[rel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, k]) == 0
+    con_5p[n, t, h, k].where[kr & (Ord(n) == 1)] = -Sum(le.where[sel_n[le, n]], muL_lythv_exist[le, yi, t, h, k] / X_l[le])\
+    + Sum(le.where[rel_n[le, n]], muL_lythv_exist[le, yi, t, h, k] / X_l[le])\
+    - Sum(lc.where[sel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, k])\
+    + Sum(lc.where[rel_n[lc, n]], (VL_lyj_prev[lc, yi] / X_l[lc]) * muL_lythv_can[lc, yi, t, h, k])\
+    + phiN_nythv[n, yi, t, h, k] == 0
+    con_5q[s,t,k].where[kr] = PhiS_sytv[s,yi,t,k] - muS_sythv[s,yi,t,2,k] + muS_sythv_lo[s,yi,t,1,k] - muS_sythv_up[s,yi,t,1,k] == 0
+    con_5r[s,t,h,k].where[kr & (Ord(h)!=1) & (Ord(h)!=Card(h))] = muS_sythv[s,yi,t,h,k] - muS_sythv[s,yi,t,h.lead(1),k] + muS_sythv_lo[s,yi,t,h,k] - muS_sythv_up[s,yi,t,h,k] == 0
+    con_5s[s,t,k].where[kr] = muS_sythv[s,yi,t,hmax,k] + PhiS_sytv_lo[s,yi,t,k] + muS_sythv_lo[s,yi,t,hmax,k] - muS_sythv_up[s,yi,t,hmax,k] == 0
+    con_5t[s,t,k].where[kr] = PhiS_syt0v[s,yi,t,k] - PhiS_sytv[s,yi,t,k] + muS_sythv_lo[s,yi,t,1,k] - muS_sythv_up[s,yi,t,1,k] == 0
 
     ilmp_eqns = [con_2b, con_2c, con_2d, con_2e, con_2j, con_2k, con_2l, con_2m, con_2n, ilmp_obj_var, con_5c_lin_a, con_5c_lin_b1,
              con_5c_lin_b2, con_5c_lin_c1, con_5c_lin_c2, con_5c_lin_d, con_5c_lin_e1, con_5c_lin_e2, con_5c_lin_f,
@@ -934,7 +933,7 @@ def solve_ilmp_ada(y_iter, j_iter, k_iter, tol):
     return ada_ov
 
 # Solve the relaxed inner-loop master problem
-def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i):
+def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i_prev):
     ri = 1 # Initialize relaxed iteration counter
     # Solve at least once, until ri == k
     while ri <= k_iter:
@@ -945,14 +944,16 @@ def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i):
         # Solve the inner-loop master problem
         ILMP_model = build_ilmp_eqns(y_iter, v_range, ess_inv) # Rebuild the ilmp equations to account for the change in set v
         ILMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_ilmp.txt"),output=sys.stdout)
+        logger.info("ILMP status = {}".format(ILMP_model.status.name))
         if ILMP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible', 'InfeasibleNoSolution']:
             raise RuntimeError('ILMP is infeasible at y = {}, j = {}, k = {}'.format(y_iter, j_iter, k_iter))
         ilmp_ov = ILMP_model.objective_value
         # Exit if ri == k or if optimal value is less than ub_i, else increment ri and iterate again
-        if ri == k_iter or ilmp_ov < ub_i:
-            logger.info("Relaxed ILMP iteration (ri = {}) equals inner-loop iteration (k = {}) or UBI has decreased --> Exit ILMP".format(ri, k_iter))
+        if ri == k_iter or (k_iter > 1 and ilmp_ov < ub_i_prev - 1e-4):
+            logger.info("Relaxed ILMP iteration (ri = {}) equals inner-loop iteration (k = {}) or UBI has decreased ({:.2f} < {:.2f}) --> Exit ILMP".format(ri, k_iter, ilmp_ov, ub_i_prev))
             break
         else:
+            logger.info("Relaxed ILMP (ri = {}) did not decrease UBI ({:.2f} >= {:.2f}) --> Add older cuts (ri = {})".format(ri, ilmp_ov, ub_i_prev, ri + 1))
             ri += 1
 
     return ilmp_ov
@@ -1046,7 +1047,7 @@ for ol_iter in range(j_max):
         xi_ada.append(ub_i_ada)
         # INNER LOOP: ILSP + relaxed ILMP #
         lb_i_rel = -999999999999
-        ub_i_rel = ub_i_ada #999999999999
+        ub_i_rel = ub_i_ada if il_error_ada < tol else 999999999999
         k_iter_rel = 1
         cG_solved = None
         pD_solved = None
@@ -1105,6 +1106,10 @@ m.write(r'C:\Users\Kevin\OneDrive - McGill University\Research\Sandbox\optimizat
 msg = f"multi_year_aro_tnep.py completed successfully!\n\nvL_ly records:\n{vL_ly.l.records}"
 if ess_inv:
     msg += f"\n\nvS_sy records:\n{vS_sy.l.records}"
+
+# Stop tracking and get peak RAM
+peak_memory = mem_tracker.stop()
+print(f"Peak Memory Used: {peak_memory}")
 
 notify_mobile(topic="kevin_aro_tnep_job_0919", title="Execution SUCCESS", message=msg, tags="white_check_mark")
 

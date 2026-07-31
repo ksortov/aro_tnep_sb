@@ -2,6 +2,9 @@ import logging
 import sys
 import requests
 import traceback
+import psutil
+import threading
+import time
 
 # Create logger
 logger = logging.getLogger('my_logger')
@@ -59,4 +62,42 @@ def setup_ntfy_exception_handler(topic="kevin_aro_tnep_job_0919", script_name="m
         sys.__excepthook__(exctype, value, tb)
 
     sys.excepthook = handle_exception
-
+
+class MemoryTracker:
+    """Monitors peak RAM usage (in MB/GB) of Python and child solver processes."""
+    def __init__(self, interval=0.5):
+        self.interval = interval
+        self.peak_bytes = 0
+        self._running = False
+        self._thread = None
+    def _monitor(self):
+        current_proc = psutil.Process()
+        while self._running:
+            try:
+                # Sum memory of Python process + GAMS/solver child processes
+                mem = current_proc.memory_info().rss
+                for child in current_proc.children(recursive=True):
+                    mem += child.memory_info().rss
+                if mem > self.peak_bytes:
+                    self.peak_bytes = mem
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+            time.sleep(self.interval)
+    def start(self):
+        self.peak_bytes = 0
+        self._running = True
+        self._thread = threading.Thread(target=self._monitor, daemon=True)
+        self._thread.start()
+    def stop(self):
+        self._running = False
+        if self._thread:
+            self._thread.join(timeout=1.0)
+        return self.get_peak_formatted()
+    def get_peak_mb(self):
+        return round(self.peak_bytes / (1024 * 1024), 2)
+    def get_peak_formatted(self):
+        mb = self.get_peak_mb()
+        if mb >= 1024:
+            return f"{mb / 1024:.2f} GB ({mb:.0f} MB)"
+        return f"{mb:.1f} MB"
+
