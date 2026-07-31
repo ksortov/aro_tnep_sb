@@ -451,8 +451,8 @@ def build_ilmp_eqns(yi, v_range, ess_inv):
     - Sum(l, PL_l[l]*(muL_lythv_lo[l,yi,t,h,k] + muL_lythv_up[l,yi,t,h,k])) \
     - Sum(s, US_sythv[s,yi,t,h,k]*PSC_s[s]*muSC_sythv_up[s,yi,t,h,k] + (1-US_sythv[s,yi,t,h,k])*PSD_s[s]*muSD_sythv_up[s,yi,t,h,k] - ES_s_min[s]*muS_sythv_lo[s,yi,t,h,k] + ES_s_max[s]*muS_sythv_up[s,yi,t,h,k]) \
     + Sum(g, UG_gythv[g,yi,t,h,k] * (PG_g_min[g] * muG_gythv_lo[g,yi,t,h,k] - (PG_g_fc[g] * power(1-zetaGP_g_fc[g], yi-1) * muG_gythv_up[g,yi,t,h,k] - PG_g_max[g] * power(1+zetaGP_g_max[g], yi-1) * alphaGP_gythv_up[g,yi,t,h,k]))) \
-    - Sum(r, gammaR_ryth[r,yi,t,h] * (PR_r_fc[r] * power(1+zetaR_r_fc, yi-1) * muR_rythv_up[r,yi,t,h,k] - PR_r_max[r] * power(1+zetaR_r_max, yi-1) * alphaR_rythv_up[r,yi,t,h,k])) \
-    + Sum(r, sigma_yt[yi,t]*tau_yth[yi,t,h]*CR_r[r]*gammaR_ryth[r,yi,t,h]*(PR_r_fc[r]*power(1+zetaR_r_fc, yi-1) - PR_r_max[r]*power(1+zetaR_r_max, yi-1) * zR_ry[r,yi])) \
+    - Sum(r, gammaR_ryth[r,yi,t,h] * (PR_r_fc[r] * power(1+zetaR_r_fc[r], yi-1) * muR_rythv_up[r,yi,t,h,k] - PR_r_max[r] * power(1+zetaR_r_max[r], yi-1) * alphaR_rythv_up[r,yi,t,h,k])) \
+    + Sum(r, sigma_yt[yi,t]*tau_yth[yi,t,h]*CR_r[r]*gammaR_ryth[r,yi,t,h]*(PR_r_fc[r]*power(1+zetaR_r_fc[r], yi-1) - PR_r_max[r]*power(1+zetaR_r_max[r], yi-1) * zR_ry[r,yi])) \
     - Sum(d, gammaD_dyth[d,yi,t,h] * (PD_d_fc[d] * power(1+zetaD_d_fc[d], yi-1) * muD_dythv_up[d,yi,t,h,k] + PD_d_max[d] * power(1+zetaD_d_max[d], yi-1) * alphaD_dythv_up[d,yi,t,h,k]))) \
     + Sum(s, ES_syt0[s,yi,t]*(PhiS_sytv[s,yi,t,k] + PhiS_sytv_lo[s,yi,t,k])) \
     - Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g]*muGD_gythv[g,yi,t,h,k] + RGU_g[g]*muGU_gythv[g,yi,t,h,k])))
@@ -461,8 +461,8 @@ def build_ilmp_eqns(yi, v_range, ess_inv):
     - Sum(l, PL_l[l]*(muL_lythv_lo[l,yi,t,h,k] + muL_lythv_up[l,yi,t,h,k])) \
     - Sum(s, VS_syj_prev[s,yi]*(US_sythv[s,yi,t,h,k]*PSC_s[s]*muSC_sythv_up[s,yi,t,h,k] + (1-US_sythv[s,yi,t,h,k])*PSD_s[s]*muSD_sythv_up[s,yi,t,h,k] - ES_s_min[s]*muS_sythv_lo[s,yi,t,h,k] + ES_s_max[s]*muS_sythv_up[s,yi,t,h,k])) \
     + Sum(g, UG_gythv[g,yi,t,h,k] * (PG_g_min[g] * muG_gythv_lo[g,yi,t,h,k] - (PG_g_fc[g] * power(1-zetaGP_g_fc[g], yi-1) * muG_gythv_up[g,yi,t,h,k] - PG_g_max[g] * power(1+zetaGP_g_max[g], yi-1) * alphaGP_gythv_up[g,yi,t,h,k]))) \
-    - Sum(r, gammaR_ryth[r,yi,t,h] * (PR_r_fc[r] * power(1+zetaR_r_fc, yi-1) * muR_rythv_up[r,yi,t,h,k] - PR_r_max[r] * power(1+zetaR_r_max, yi-1) * alphaR_rythv_up[r,yi,t,h,k])) \
-    + Sum(r, sigma_yt[yi,t]*tau_yth[yi,t,h]*CR_r[r]*gammaR_ryth[r,yi,t,h]*(PR_r_fc[r]*power(1+zetaR_r_fc, yi-1) - PR_r_max[r]*power(1+zetaR_r_max, yi-1) * zR_ry[r,yi])) \
+    - Sum(r, gammaR_ryth[r,yi,t,h] * (PR_r_fc[r] * power(1+zetaR_r_fc[r], yi-1) * muR_rythv_up[r,yi,t,h,k] - PR_r_max[r] * power(1+zetaR_r_max[r], yi-1) * alphaR_rythv_up[r,yi,t,h,k])) \
+    + Sum(r, sigma_yt[yi,t]*tau_yth[yi,t,h]*CR_r[r]*gammaR_ryth[r,yi,t,h]*(PR_r_fc[r]*power(1+zetaR_r_fc[r], yi-1) - PR_r_max[r]*power(1+zetaR_r_max[r], yi-1) * zR_ry[r,yi])) \
     - Sum(d, gammaD_dyth[d,yi,t,h] * (PD_d_fc[d] * power(1+zetaD_d_fc[d], yi-1) * muD_dythv_up[d,yi,t,h,k] + PD_d_max[d] * power(1+zetaD_d_max[d], yi-1) * alphaD_dythv_up[d,yi,t,h,k]))) \
     + Sum(s, VS_syj_prev[s,yi]*ES_syt0[s,yi,t]*(PhiS_syt0v[s,yi,t,k] + PhiS_sytv_lo[s,yi,t,k])) \
     - Sum(h.where[Ord(h) > 1], Sum(g, RGD_g[g]*muGD_gythv[g,yi,t,h,k] + RGU_g[g]*muGU_gythv[g,yi,t,h,k])))
@@ -842,6 +842,7 @@ def set_uncertain_params_ilsp(k_iter, is_ada):
 # Solve the relaxed outer-loop master problem
 def solve_olmp_relaxed(j_iter, lb_o, ess_inv):
     ro = 1 # Initialize relaxed iteration counter
+    olmp_ov = 0
     # Solve at least once, until ro == j
     while ro <= j_iter:
         # Determine the subset i as a function of j and ro
@@ -851,7 +852,11 @@ def solve_olmp_relaxed(j_iter, lb_o, ess_inv):
         OLMP_model = build_olmp_eqns(ess_inv, i_range) # Rebuild the olmp equations to account for the change in set i
         OLMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_olmp.txt"),output=sys.stdout)
         if OLMP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible', 'InfeasibleNoSolution']:
-            raise RuntimeError('OLMP is infeasible at j = {}'.format(j_iter))
+            if ro > 1:
+                logger.warning("Relaxed OLMP at ro = {} (i_range = {}) is {}; falling back to valid ro = {} bound ({:.2f}).".format(ro, i_range, OLMP_model.status.name, ro - 1, olmp_ov))
+                break
+            else:
+                raise RuntimeError('OLMP is infeasible at j = {}'.format(j_iter))
         VL_lyj[lc,y] = vL_ly.l[lc,y]
         VL_lyj_prev[lc,y] = vL_ly_prev.l[lc,y]
         VS_syj_prev[sc,y] = vS_sy_prev.l[sc,y]
@@ -935,6 +940,7 @@ def solve_ilmp_ada(y_iter, j_iter, k_iter, tol):
 # Solve the relaxed inner-loop master problem
 def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i_prev):
     ri = 1 # Initialize relaxed iteration counter
+    ilmp_ov = 999999999999
     # Solve at least once, until ri == k
     while ri <= k_iter:
         # Determine the subset v as a function of k and ri
@@ -946,7 +952,12 @@ def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i_prev):
         ILMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_ilmp.txt"),output=sys.stdout)
         logger.info("ILMP status = {}".format(ILMP_model.status.name))
         if ILMP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible', 'InfeasibleNoSolution']:
-            raise RuntimeError('ILMP is infeasible at y = {}, j = {}, k = {}'.format(y_iter, j_iter, k_iter))
+            if ri > 1:
+                logger.warning("Relaxed ILMP at ri = {} (v_range = {}) is {}; falling back to valid ri = {} bound ({:.2f}).".format(ri, v_range, ILMP_model.status.name, ri - 1, ilmp_ov))
+                break
+            else:
+                raise RuntimeError('ILMP is infeasible at y = {}, j = {}, k = {}'.format(y_iter, j_iter, k_iter))
+        
         ilmp_ov = ILMP_model.objective_value
         # Exit if ri == k or if optimal value is less than ub_i, else increment ri and iterate again
         if ri == k_iter or (k_iter > 1 and ilmp_ov < ub_i_prev - 1e-4):
