@@ -856,7 +856,7 @@ def solve_olmp_relaxed(j_iter, lb_o, ess_inv):
         if OLMP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible', 'InfeasibleNoSolution']:
             if ro > 1 and last_valid_VL is not None:
                 logger.warning("Relaxed OLMP at ro = {} (i_range = {}) is {}; falling back to valid ro = {} bound ({:.2f}).".format(ro, i_range, OLMP_model.status.name, ro - 1, olmp_ov))
-                vL_ly.l.records = last_valid_VL
+                vL_ly.setRecords(last_valid_VL)
                 break
             else:
                 raise RuntimeError('OLMP is infeasible at j = {}'.format(j_iter))
@@ -960,10 +960,10 @@ def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i_prev):
         if ILMP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible', 'InfeasibleNoSolution']:
             if ri > 1 and last_valid_sol is not None:
                 logger.warning("Relaxed ILMP at ri = {} (v_range = {}) is {}; falling back to valid ri = {} bound ({:.2f}).".format(ri, v_range, ILMP_model.status.name, ri - 1, ilmp_ov))
-                if last_valid_sol['cG'] is not None: cG_gy.l.records = last_valid_sol['cG']
-                if last_valid_sol['pD'] is not None: pD_dy.l.records = last_valid_sol['pD']
-                if last_valid_sol['pG'] is not None: pG_gy.l.records = last_valid_sol['pG']
-                if last_valid_sol['pR'] is not None: pR_ry.l.records = last_valid_sol['pR']
+                if last_valid_sol['cG'] is not None: cG_gy.setRecords(last_valid_sol['cG'])
+                if last_valid_sol['pD'] is not None: pD_dy.setRecords(last_valid_sol['pD'])
+                if last_valid_sol['pG'] is not None: pG_gy.setRecords(last_valid_sol['pG'])
+                if last_valid_sol['pR'] is not None: pR_ry.setRecords(last_valid_sol['pR'])
                 break
             else:
                 raise RuntimeError('ILMP is infeasible at y = {}, j = {}, k = {}'.format(y_iter, j_iter, k_iter))
@@ -1059,13 +1059,10 @@ for ol_iter in range(j_max):
             ilsp_val_ada = solve_ilsp(ess_inv, y_iter, j_iter, k_iter_ada)
             lb_i_ada = max(lb_i_ada, ilsp_val_ada)
             logger.info("LBI = {} and UBI = {} before computing ADA inner loop error.".format(lb_i_ada, ub_i_ada))
-            il_error_ada = abs(ub_i_ada - lb_i_ada) / lb_i_ada if lb_i_ada > 0 else 999.0
+            il_error_ada = (ub_i_ada - lb_i_ada) / lb_i_ada if lb_i_ada > 0 else 999.0
             logger.info("IL ADA error = {:.4f}%.".format(il_error_ada * 100))
-            if il_error_ada < tol or lb_i_ada >= ub_i_ada:
-                if lb_i_ada >= ub_i_ada:
-                    logger.info("First inner loop (ADA): LBI >= UBI ({:.2f} >= {:.2f}) --> End ADA inner loop".format(lb_i_ada, ub_i_ada))
-                else:
-                    logger.info("First inner loop (ADA) has converged after k = {} iterations --> End ADA inner loop".format(k_iter_ada))
+            if il_error_ada < tol:
+                logger.info("First inner loop (ADA) has converged after k = {} iterations --> End ADA inner loop".format(k_iter_ada))
                 break
             else:
                 logger.info("First inner loop (ADA) has not converged after k = {} iterations --> Solve ADA ILMP".format(k_iter_ada))
@@ -1086,9 +1083,9 @@ for ol_iter in range(j_max):
             ilsp_val_rel = solve_ilsp(ess_inv, y_iter, j_iter, k_iter_rel)
             lb_i_rel = max(lb_i_rel, ilsp_val_rel)
             logger.info("LBI = {} and UBI = {} before computing relaxed inner loop error.".format(lb_i_rel, ub_i_rel))
-            il_error_rel = abs(ub_i_rel - lb_i_rel) / lb_i_rel if lb_i_rel > 0 else 999.0
+            il_error_rel = (ub_i_rel - lb_i_rel) / lb_i_rel if lb_i_rel > 0 else 999.0
             logger.info("IL relaxed error = {:.4f}%.".format(il_error_rel * 100))
-            if il_error_rel < tol or (ub_i_rel <= lb_i_rel and k_iter_rel > 1):
+            if il_error_rel < tol:
                 logger.info("Second inner loop (relaxed) has converged after k = {} iterations --> End relaxed inner loop".format(k_iter_rel))
                 break
             elif il_error_rel >= tol:
@@ -1114,7 +1111,7 @@ for ol_iter in range(j_max):
     ub_o = wc_cost
     logger.info("LBO = {} and UBO = {} before computing outer loop error.".format(lb_o, ub_o))
     print("Total worst-case cost = {}".format(ub_o))
-    ol_error = abs(ub_o - lb_o) / lb_o
+    ol_error = (ub_o - lb_o) / lb_o if lb_o > 0 else 999.0
     logger.info("OL error = {:.4f}%.".format(ol_error * 100))
     if ol_error < tol:
         logger.info("Outer loop has converged after j = {} iterations --> End problem".format(j_iter))
