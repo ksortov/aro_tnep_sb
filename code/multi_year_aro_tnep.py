@@ -852,7 +852,7 @@ def solve_olmp_relaxed(j_iter, lb_o, ess_inv):
         ir.setRecords(i_range)
         # Solve the outer-loop master problem
         OLMP_model = build_olmp_eqns(ess_inv, i_range) # Rebuild the olmp equations to account for the change in set i
-        OLMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_olmp.txt"),output=sys.stdout)
+        OLMP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_olmp.txt"), output=sys.stdout)
         if OLMP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible', 'InfeasibleNoSolution']:
             if ro > 1 and last_valid_VL is not None:
                 logger.warning("Relaxed OLMP at ro = {} (i_range = {}) is {}; falling back to valid ro = {} bound ({:.2f}).".format(ro, i_range, OLMP_model.status.name, ro - 1, olmp_ov))
@@ -1049,8 +1049,8 @@ for ol_iter in range(j_max):
     for y_iter in years_data:
         logger.info("Starting inner loop problems for y = {}".format(y_iter))
         # INNER LOOP: ILSP + ADA ILMP #
-        lb_i_ada = -999999999999
-        ub_i_ada = 999999999999
+        lb_i_ada = -9999999999
+        ub_i_ada = 9999999999
         k_iter_ada = 1
         logger.info("Starting first inner loop (ADA) for y = {}".format(y_iter))
         for il_ada_iter in range(k_max):
@@ -1068,35 +1068,39 @@ for ol_iter in range(j_max):
                 logger.info("First inner loop (ADA) has not converged after k = {} iterations --> Solve ADA ILMP".format(k_iter_ada))
                 ub_i_ada = solve_ilmp_ada(y_iter, j_iter, k_iter_ada, tol)
                 k_iter_ada += 1
-        # INNER LOOP: ILSP + relaxed ILMP #
-        lb_i_rel = -999999999999
-        ub_i_rel = ub_i_ada if (il_error_ada < tol and ub_i_ada >= lb_i_ada) else 999999999999
-        k_iter_rel = 1
-        cG_solved = None
-        pD_solved = None
-        pG_solved = None
-        pR_solved = None
-        logger.info("Starting second inner loop (relaxed) for y = {}".format(y_iter))
-        for il_rel_iter in range(k_max):
-            logger.info("Starting relaxed inner loop iteration  k = {}".format(k_iter_rel))
-            set_uncertain_params_ilsp(k_iter_rel, is_ada=False)
-            ilsp_val_rel = solve_ilsp(ess_inv, y_iter, j_iter, k_iter_rel)
-            lb_i_rel = max(lb_i_rel, ilsp_val_rel)
-            logger.info("LBI = {} and UBI = {} before computing relaxed inner loop error.".format(lb_i_rel, ub_i_rel))
-            il_error_rel = (ub_i_rel - lb_i_rel) / lb_i_rel if lb_i_rel > 0 else 999.0
-            logger.info("IL relaxed error = {:.4f}%.".format(il_error_rel * 100))
-            if il_error_rel < tol:
-                logger.info("Second inner loop (relaxed) has converged after k = {} iterations --> End relaxed inner loop".format(k_iter_rel))
-                break
-            elif il_error_rel >= tol:
-                logger.info("Second inner loop (relaxed) has not converged after k = {} iterations --> Solve relaxed ILMP".format(k_iter_rel))
-                ilmp_val_rel = solve_ilmp_relaxed(y_iter, j_iter, k_iter_rel, ub_i_rel)
-                ub_i_rel = min(ub_i_rel, ilmp_val_rel)
-                k_iter_rel += 1
-                cG_solved = cG_gy.l.records
-                pD_solved = pD_dy.l.records
-                pG_solved = pG_gy.l.records
-                pR_solved = pR_ry.l.records
+        if il_error_ada < tol:
+            logger.info("First inner loop (ADA) has converged for y = {} --> Skipping second inner loop (relaxed ILMP)".format(y_iter))
+            ub_i_rel = ub_i_ada
+        else:
+            # INNER LOOP: ILSP + relaxed ILMP #
+            lb_i_rel = -9999999999
+            ub_i_rel = 9999999999
+            k_iter_rel = 1
+            cG_solved = None
+            pD_solved = None
+            pG_solved = None
+            pR_solved = None
+            logger.info("Starting second inner loop (relaxed) for y = {}".format(y_iter))
+            for il_rel_iter in range(k_max):
+                logger.info("Starting relaxed inner loop iteration  k = {}".format(k_iter_rel))
+                set_uncertain_params_ilsp(k_iter_rel, is_ada=False)
+                ilsp_val_rel = solve_ilsp(ess_inv, y_iter, j_iter, k_iter_rel)
+                lb_i_rel = max(lb_i_rel, ilsp_val_rel)
+                logger.info("LBI = {} and UBI = {} before computing relaxed inner loop error.".format(lb_i_rel, ub_i_rel))
+                il_error_rel = (ub_i_rel - lb_i_rel) / lb_i_rel if lb_i_rel > 0 else 999.0
+                logger.info("IL relaxed error = {:.4f}%.".format(il_error_rel * 100))
+                if il_error_rel < tol:
+                    logger.info("Second inner loop (relaxed) has converged after k = {} iterations --> End relaxed inner loop".format(k_iter_rel))
+                    break
+                elif il_error_rel >= tol:
+                    logger.info("Second inner loop (relaxed) has not converged after k = {} iterations --> Solve relaxed ILMP".format(k_iter_rel))
+                    ilmp_val_rel = solve_ilmp_relaxed(y_iter, j_iter, k_iter_rel, ub_i_rel)
+                    ub_i_rel = min(ub_i_rel, ilmp_val_rel)
+                    k_iter_rel += 1
+                    cG_solved = cG_gy.l.records
+                    pD_solved = pD_dy.l.records
+                    pG_solved = pG_gy.l.records
+                    pR_solved = pR_ry.l.records
         
         xi_year_worst_case[y_iter] = ub_i_rel
 
