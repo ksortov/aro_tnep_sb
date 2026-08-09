@@ -120,6 +120,13 @@ RGD_g = Parameter(m, name="RGD_g", domain=[g], records=CG[['Generating unit', 'R
 RGU_g = Parameter(m, name="RGU_g", domain=[g], records=CG[['Generating unit', 'RGU_g [MW]']], description="Ramp-up limit of conventional unit")
 X_l = Parameter(m, name="X_l", domain=[l], records=lines[['Transmission line', 'X_l']], description="Reactance of transmission line l")
 
+# Pre-built forecast DataFrames for fast vector transfers via setRecords
+df_years = pd.DataFrame({'y': [str(y_val) for y_val in years_data]})
+df_cg_fc = CG_g_fc.records.rename(columns={CG_g_fc.records.columns[0]: 'g'}).merge(df_years, how='cross')[['g', 'y', 'value']]
+df_pd_fc = PD_d_fc.records.rename(columns={PD_d_fc.records.columns[0]: 'd'}).merge(df_years, how='cross')[['d', 'y', 'value']]
+df_pg_fc = PG_g_fc.records.rename(columns={PG_g_fc.records.columns[0]: 'g'}).merge(df_years, how='cross')[['g', 'y', 'value']]
+df_pr_fc = PR_r_fc.records.rename(columns={PR_r_fc.records.columns[0]: 'r'}).merge(df_years, how='cross')[['r', 'y', 'value']]
+
 # Parameters used to represent given results for certain variables
 CG_gyi = Parameter(m, name='CG_gyi', domain=[g, y, j], description="Worst-case realization of the marginal production cost of conventional generating unit g for relaxed outer loop iteration i")
 PD_dyi = Parameter(m, name='PD_dyi', domain=[d, y, j], description="Worst-case realization of the peak power consumption of load d for relaxed outer loop iteration i")
@@ -816,29 +823,64 @@ def build_lp2_eqns(yi, v_range, ess_inv):
 def set_uncertain_params_olmp(j_iter):
     # At the first iteration, uncertain parameters equal their forecast values
     if j_iter == 1:
-        CG_gyi[g,y,j_iter] = CG_g_fc[g]
-        PD_dyi[d,y,j_iter] = PD_d_fc[d]
-        PG_gyi[g,y,j_iter] = PG_g_fc[g]
-        PR_ryi[r,y,j_iter] = PR_r_fc[r]
+        df_cg = df_cg_fc.copy()
+        df_cg['j'] = str(j_iter)
+        df_cg = df_cg[['g', 'y', 'j', 'value']]
+        CG_gyi.setRecords(df_cg)
+
+        df_pd = df_pd_fc.copy()
+        df_pd['j'] = str(j_iter)
+        df_pd = df_pd[['d', 'y', 'j', 'value']]
+        PD_dyi.setRecords(df_pd)
+
+        df_pg = df_pg_fc.copy()
+        df_pg['j'] = str(j_iter)
+        df_pg = df_pg[['g', 'y', 'j', 'value']]
+        PG_gyi.setRecords(df_pg)
+
+        df_pr = df_pr_fc.copy()
+        df_pr['j'] = str(j_iter)
+        df_pr = df_pr[['r', 'y', 'j', 'value']]
+        PR_ryi.setRecords(df_pr)
     else:
-        CG_gyi[g, y, j_iter] = cG_gy.l[g,y]
-        PD_dyi[d, y, j_iter] = pD_dy.l[d,y]
-        PG_gyi[g, y, j_iter] = pG_gy.l[g,y]
-        PR_ryi[r, y, j_iter] = pR_ry.l[r,y]
+        if cG_gy.l.records is not None:
+            df_cg = cG_gy.l.records.copy()
+            val_col = 'level' if 'level' in df_cg.columns else 'value'
+            df_cg['j'] = str(j_iter)
+            df_cg = df_cg[['g', 'y', 'j', val_col]]
+            CG_gyi.setRecords(df_cg)
+        if pD_dy.l.records is not None:
+            df_pd = pD_dy.l.records.copy()
+            val_col = 'level' if 'level' in df_pd.columns else 'value'
+            df_pd['j'] = str(j_iter)
+            df_pd = df_pd[['d', 'y', 'j', val_col]]
+            PD_dyi.setRecords(df_pd)
+        if pG_gy.l.records is not None:
+            df_pg = pG_gy.l.records.copy()
+            val_col = 'level' if 'level' in df_pg.columns else 'value'
+            df_pg['j'] = str(j_iter)
+            df_pg = df_pg[['g', 'y', 'j', val_col]]
+            PG_gyi.setRecords(df_pg)
+        if pR_ry.l.records is not None:
+            df_pr = pR_ry.l.records.copy()
+            val_col = 'level' if 'level' in df_pr.columns else 'value'
+            df_pr['j'] = str(j_iter)
+            df_pr = df_pr[['r', 'y', 'j', val_col]]
+            PR_ryi.setRecords(df_pr)
 
 # Set values of the uncertain parameters for the given inner loop iteration
 def set_uncertain_params_ilsp(k_iter, is_ada):
     # At the first iteration, uncertain parameters equal their forecast values
     if is_ada and k_iter == 1:
-        CG_gyk[g,y] = CG_g_fc[g]
-        PD_dyk[d,y] = PD_d_fc[d]
-        PG_gyk[g,y] = PG_g_fc[g]
-        PR_ryk[r,y] = PR_r_fc[r]
+        CG_gyk.setRecords(df_cg_fc)
+        PD_dyk.setRecords(df_pd_fc)
+        PG_gyk.setRecords(df_pg_fc)
+        PR_ryk.setRecords(df_pr_fc)
     else:
-        CG_gyk[g,y] = cG_gy.l[g,y]
-        PD_dyk[d,y] = pD_dy.l[d,y]
-        PG_gyk[g,y] = pG_gy.l[g,y]
-        PR_ryk[r,y] = pR_ry.l[r,y]
+        if cG_gy.l.records is not None: CG_gyk.setRecords(cG_gy.l.records)
+        if pD_dy.l.records is not None: PD_dyk.setRecords(pD_dy.l.records)
+        if pG_gy.l.records is not None: PG_gyk.setRecords(pG_gy.l.records)
+        if pR_ry.l.records is not None: PR_ryk.setRecords(pR_ry.l.records)
 
 # Solve the relaxed outer-loop master problem
 def solve_olmp_relaxed(j_iter, lb_o, ess_inv):
@@ -860,9 +902,9 @@ def solve_olmp_relaxed(j_iter, lb_o, ess_inv):
                 break
             else:
                 raise RuntimeError('OLMP is infeasible at j = {}'.format(j_iter))
-        VL_lyj[lc,y] = vL_ly.l[lc,y]
-        VL_lyj_prev[lc,y] = vL_ly_prev.l[lc,y]
-        VS_syj_prev[sc,y] = vS_sy_prev.l[sc,y]
+        if vL_ly.l.records is not None: VL_lyj.setRecords(vL_ly.l.records)
+        if vL_ly_prev.l.records is not None: VL_lyj_prev.setRecords(vL_ly_prev.l.records)
+        if ess_inv and vS_sy_prev.l.records is not None: VS_syj_prev.setRecords(vS_sy_prev.l.records)
         olmp_ov = OLMP_model.objective_value
         if vL_ly.l.records is not None:
             last_valid_VL = vL_ly.l.records.copy()
@@ -881,8 +923,8 @@ def solve_ilsp(ess_inv, y_iter, j_iter, k_iter):
     ILSP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_ilsp.txt"),output=sys.stdout)
     if ILSP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible', 'InfeasibleNoSolution']:
         raise RuntimeError('ILSP is infeasible at y = {}, j = {}, k = {}'.format(y_iter, j_iter, k_iter))
-    UG_gythv[g,y,t,h,k_iter] = uG_gythi.l[g,y,t,h,j_iter]
-    US_sythv[s,y,t,h,k_iter] = uS_sythi.l[s,y,t,h,j_iter]
+    if uG_gythi.l.records is not None: UG_gythv.setRecords(uG_gythi.l.records)
+    if ess_inv and uS_sythi.l.records is not None: US_sythv.setRecords(uS_sythi.l.records)
     ilsp_ov = ILSP_model.objective_value
 
     return ilsp_ov
@@ -896,38 +938,39 @@ def solve_ilmp_ada(y_iter, j_iter, k_iter, tol):
     o_iter = 1
     for ada_iter in range(10):
         if o_iter == 1:
-            PD_dyo[d,y] = PD_d_fc[d]
-            PG_gyo[g,y] = PG_g_fc[g]
-            PR_ryo[r,y] = PR_r_fc[r]
+            PD_dyo.setRecords(df_pd_fc)
+            PG_gyo.setRecords(df_pg_fc)
+            PR_ryo.setRecords(df_pr_fc)
         LP1_model = build_lp1_eqns(y_iter, v_range, ess_inv)
-        LP1_model.solve(options=Options(relative_optimality_gap=tol, lp="CPLEX", savepoint=1, log_file="log_lp1.txt"),output=sys.stdout)
+        LP1_model.solve(options=Options(relative_optimality_gap=tol, lp="CPLEX", savepoint=1, log_file="log_lp1.txt"), output=sys.stdout)
         if LP1_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible', 'InfeasibleNoSolution']:
             raise RuntimeError('LP1 is infeasible at y = {}, j = {}, k = {}'.format(y_iter, j_iter, k_iter))
-        LambdaN_nythvo[n,y,t,h,k] = lambdaN_nythv.l[n,y,t,h,k]
-        muD_dythvo_up[d,y,t,h,k] = muD_dythv_up.l[d,y,t,h,k]
-        muG_gythvo_lo[g,y,t,h,k] = muG_gythv_lo.l[g,y,t,h,k]
-        muG_gythvo_up[g,y,t,h,k] = muG_gythv_up.l[g,y,t,h,k]
-        muGD_gythvo[g,y,t,h,k] = muGD_gythv.l[g,y,t,h,k]
-        muGU_gythvo[g,y,t,h,k] = muGU_gythv.l[g,y,t,h,k]
-        muL_lythvo_lo[l,y,t,h,k] = muL_lythv_lo.l[l,y,t,h,k]
-        muL_lythvo_up[l,y,t,h,k] = muL_lythv_up.l[l,y,t,h,k]
-        muR_rythvo_up[r,y,t,h,k] = muR_rythv_up.l[r,y,t,h,k]
-        muS_sythvo_lo[s,y,t,h,k] = muS_sythv_lo.l[s,y,t,h,k]
-        muS_sythvo_up[s,y,t,h,k] = muS_sythv_up.l[s,y,t,h,k]
-        muSC_sythvo_up[s,y,t,h,k] = muSC_sythv_up.l[s,y,t,h,k]
-        muSD_sythvo_up[s,y,t,h,k] = muSD_sythv_up.l[s,y,t,h,k]
-        PhiS_sytvo[s,y,t,k] = PhiS_sytv.l[s,y,t,k]
-        PhiS_sytvo_lo[s,y,t,k] = PhiS_sytv_lo.l[s,y,t,k]
-        PhiS_syt0vo[s,y,t,k] = PhiS_syt0v.l[s,y,t,k]
+        if lambdaN_nythv.l.records is not None: LambdaN_nythvo.setRecords(lambdaN_nythv.l.records)
+        if muD_dythv_up.l.records is not None: muD_dythvo_up.setRecords(muD_dythv_up.l.records)
+        if muG_gythv_lo.l.records is not None: muG_gythvo_lo.setRecords(muG_gythv_lo.l.records)
+        if muG_gythv_up.l.records is not None: muG_gythvo_up.setRecords(muG_gythv_up.l.records)
+        if muGD_gythv.l.records is not None: muGD_gythvo.setRecords(muGD_gythv.l.records)
+        if muGU_gythv.l.records is not None: muGU_gythvo.setRecords(muGU_gythv.l.records)
+        if muL_lythv_lo.l.records is not None: muL_lythvo_lo.setRecords(muL_lythv_lo.l.records)
+        if muL_lythv_up.l.records is not None: muL_lythvo_up.setRecords(muL_lythv_up.l.records)
+        if muR_rythv_up.l.records is not None: muR_rythvo_up.setRecords(muR_rythv_up.l.records)
+        if muS_sythv_lo.l.records is not None: muS_sythvo_lo.setRecords(muS_sythv_lo.l.records)
+        if muS_sythv_up.l.records is not None: muS_sythvo_up.setRecords(muS_sythv_up.l.records)
+        if ess_inv:
+            if muSC_sythv_up.l.records is not None: muSC_sythvo_up.setRecords(muSC_sythv_up.l.records)
+            if muSD_sythv_up.l.records is not None: muSD_sythvo_up.setRecords(muSD_sythv_up.l.records)
+            if PhiS_sytv.l.records is not None: PhiS_sytvo.setRecords(PhiS_sytv.l.records)
+            if PhiS_sytv_lo.l.records is not None: PhiS_sytvo_lo.setRecords(PhiS_sytv_lo.l.records)
+            if PhiS_syt0v.l.records is not None: PhiS_syt0vo.setRecords(PhiS_syt0v.l.records)
         lp1_ov = LP1_model.objective_value
 
         LP2_model = build_lp2_eqns(y_iter, v_range, ess_inv)
-        LP2_model.solve(options=Options(relative_optimality_gap=tol, lp="CPLEX", savepoint=1, log_file="log_lp2.txt"),output=sys.stdout)
+        LP2_model.solve(options=Options(relative_optimality_gap=tol, lp="CPLEX", savepoint=1, log_file="log_lp2.txt"), output=sys.stdout)
         if LP2_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible', 'InfeasibleNoSolution']:
             raise RuntimeError('LP2 is infeasible at y = {}, j ={}, k = {}'.format(y_iter, j_iter, k_iter))
-        PD_dyo[d,y] = pD_dy.l[d,y]
-        PG_gyo[g,y] = pG_gy.l[g,y]
-        PR_ryo[r,y] = pR_ry.l[r,y]
+        if pD_dy.l.records is not None: PD_dyo.setRecords(pD_dy.l.records)
+        if pG_gy.l.records is not None: PG_gyo.setRecords(pG_gy.l.records)
+        if pR_ry.l.records is not None: PR_ryo.setRecords(pR_ry.l.records)
         lp2_ov = LP2_model.objective_value
 
         ada_ov = min(lp1_ov, lp2_ov)
