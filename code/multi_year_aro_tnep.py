@@ -1129,7 +1129,20 @@ print(wc_cost)
 print(vL_ly.l.records)
 if ess_inv:
     print(vS_sy.l.records)
-m.write(r'C:\Users\Kevin\OneDrive - McGill University\Research\Sandbox\optimization\multi-year_AROTNEP\results\antigravity_test\aro_tnep_results.gdx')
+    
+def safe_write_gdx(container, target_path):
+    local_filename = "aro_tnep_results.gdx"
+    container.write(local_filename)
+    if target_path and target_path != local_filename:
+        try:
+            import os, shutil
+            os.makedirs(os.path.dirname(target_path), exist_ok=True)
+            shutil.copy2(local_filename, target_path)
+        except Exception as err:
+            logger.warning(f"Could not copy GDX to {target_path}: {err}")
+
+target_gdx_path = r'C:\Users\Kevin\OneDrive - McGill University\Research\Sandbox\optimization\multi-year_AROTNEP\results\antigravity_test\aro_tnep_results.gdx'
+safe_write_gdx(m, target_gdx_path)
 
 # At the end of the script:
 msg = f"multi_year_aro_tnep.py completed successfully!\n\nvL_ly records:\n{vL_ly.l.records}"
