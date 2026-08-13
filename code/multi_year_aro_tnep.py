@@ -923,8 +923,20 @@ def solve_ilsp(ess_inv, y_iter, j_iter, k_iter):
     ILSP_model.solve(options=Options(relative_optimality_gap=tol, mip="CPLEX", savepoint=1, log_file="log_ilsp.txt"),output=sys.stdout)
     if ILSP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible', 'InfeasibleNoSolution']:
         raise RuntimeError('ILSP is infeasible at y = {}, j = {}, k = {}'.format(y_iter, j_iter, k_iter))
-    if uG_gythi.l.records is not None: UG_gythv.setRecords(uG_gythi.l.records)
-    if ess_inv and uS_sythi.l.records is not None: US_sythv.setRecords(uS_sythi.l.records)
+    if uG_gythi.l.records is not None:
+        df_ug = uG_gythi.l.records.copy()
+        val_col = 'level' if 'level' in df_ug.columns else 'value'
+        df_ug['y'] = str(y_iter)
+        df_ug['k'] = str(k_iter)
+        df_ug = df_ug[['g', 'y', 't', 'h', 'k', val_col]]
+        UG_gythv.setRecords(df_ug)
+    if ess_inv and uS_sythi.l.records is not None:
+        df_us = uS_sythi.l.records.copy()
+        val_col = 'level' if 'level' in df_us.columns else 'value'
+        df_us['y'] = str(y_iter)
+        df_us['k'] = str(k_iter)
+        df_us = df_us[['s', 'y', 't', 'h', 'k', val_col]]
+        US_sythv.setRecords(df_us)
     ilsp_ov = ILSP_model.objective_value
 
     return ilsp_ov
@@ -1104,14 +1116,14 @@ for ol_iter in range(j_max):
             logger.info("LBI = {} and UBI = {} before computing ADA inner loop error.".format(lb_i_ada, ub_i_ada))
             il_error_ada = (ub_i_ada - lb_i_ada) / lb_i_ada if lb_i_ada > 0 else 999.0
             logger.info("IL ADA error = {:.4f}%.".format(il_error_ada * 100))
-            if 0 <= il_error_ada < tol:
+            if abs(il_error_ada) < tol:
                 logger.info("First inner loop (ADA) has converged after k = {} iterations --> End ADA inner loop".format(k_iter_ada))
                 break
             else:
                 logger.info("First inner loop (ADA) has not converged after k = {} iterations --> Solve ADA ILMP".format(k_iter_ada))
                 ub_i_ada = solve_ilmp_ada(y_iter, j_iter, k_iter_ada, tol)
                 k_iter_ada += 1
-        if 0 <= il_error_ada < tol:
+        if abs(il_error_ada) < tol:
             logger.info("First inner loop (ADA) has converged for y = {} --> Skipping second inner loop (relaxed ILMP)".format(y_iter))
             ub_i_rel = ub_i_ada
         else:
@@ -1132,7 +1144,7 @@ for ol_iter in range(j_max):
                 logger.info("LBI = {} and UBI = {} before computing relaxed inner loop error.".format(lb_i_rel, ub_i_rel))
                 il_error_rel = (ub_i_rel - lb_i_rel) / lb_i_rel if lb_i_rel > 0 else 999.0
                 logger.info("IL relaxed error = {:.4f}%.".format(il_error_rel * 100))
-                if 0 <= il_error_rel < tol:
+                if abs(il_error_rel) < tol:
                     logger.info("Second inner loop (relaxed) has converged after k = {} iterations --> End relaxed inner loop".format(k_iter_rel))
                     break
                 elif il_error_rel >= tol:
