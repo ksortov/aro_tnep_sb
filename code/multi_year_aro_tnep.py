@@ -819,6 +819,20 @@ def build_lp2_eqns(yi, v_range, ess_inv):
     )
     return LP2_model
 
+# Helper to append/update records without erasing previous iterations
+def update_parameter_records(param, new_df, subset_cols):
+    val_col = 'level' if 'level' in new_df.columns else 'value'
+    if param.records is not None and not param.records.empty:
+        existing_df = param.records.copy()
+        ex_val_col = 'level' if 'level' in existing_df.columns else 'value'
+        if ex_val_col != val_col:
+            existing_df = existing_df.rename(columns={ex_val_col: val_col})
+        combined_df = pd.concat([existing_df[subset_cols + [val_col]], new_df[subset_cols + [val_col]]], ignore_index=True)
+        combined_df = combined_df.drop_duplicates(subset=subset_cols, keep='last')
+    else:
+        combined_df = new_df[subset_cols + [val_col]]
+    param.setRecords(combined_df)
+
 # Set values of the uncertain parameters for the given outer loop iteration
 def set_uncertain_params_olmp(j_iter):
     # At the first iteration, uncertain parameters equal their forecast values
@@ -826,52 +840,54 @@ def set_uncertain_params_olmp(j_iter):
         df_cg = df_cg_fc.copy()
         df_cg['j'] = str(j_iter)
         df_cg = df_cg[['g', 'y', 'j', 'value']]
-        CG_gyi.setRecords(df_cg)
+        update_parameter_records(CG_gyi, df_cg, ['g', 'y', 'j'])
 
         df_pd = df_pd_fc.copy()
         df_pd['j'] = str(j_iter)
         df_pd = df_pd[['d', 'y', 'j', 'value']]
-        PD_dyi.setRecords(df_pd)
+        update_parameter_records(PD_dyi, df_pd, ['d', 'y', 'j'])
 
         df_pg = df_pg_fc.copy()
         df_pg['j'] = str(j_iter)
         df_pg = df_pg[['g', 'y', 'j', 'value']]
-        PG_gyi.setRecords(df_pg)
+        update_parameter_records(PG_gyi, df_pg, ['g', 'y', 'j'])
 
         df_pr = df_pr_fc.copy()
         df_pr['j'] = str(j_iter)
         df_pr = df_pr[['r', 'y', 'j', 'value']]
-        PR_ryi.setRecords(df_pr)
+        update_parameter_records(PR_ryi, df_pr, ['r', 'y', 'j'])
     else:
         if cG_gy.l.records is not None:
             df_cg = cG_gy.l.records.copy()
             val_col = 'level' if 'level' in df_cg.columns else 'value'
             df_cg['j'] = str(j_iter)
             df_cg = df_cg[['g', 'y', 'j', val_col]]
-            CG_gyi.setRecords(df_cg)
+            update_parameter_records(CG_gyi, df_cg, ['g', 'y', 'j'])
         if pD_dy.l.records is not None:
             df_pd = pD_dy.l.records.copy()
             val_col = 'level' if 'level' in df_pd.columns else 'value'
             df_pd['j'] = str(j_iter)
             df_pd = df_pd[['d', 'y', 'j', val_col]]
-            PD_dyi.setRecords(df_pd)
+            update_parameter_records(PD_dyi, df_pd, ['d', 'y', 'j'])
         if pG_gy.l.records is not None:
             df_pg = pG_gy.l.records.copy()
             val_col = 'level' if 'level' in df_pg.columns else 'value'
             df_pg['j'] = str(j_iter)
             df_pg = df_pg[['g', 'y', 'j', val_col]]
-            PG_gyi.setRecords(df_pg)
+            update_parameter_records(PG_gyi, df_pg, ['g', 'y', 'j'])
         if pR_ry.l.records is not None:
             df_pr = pR_ry.l.records.copy()
             val_col = 'level' if 'level' in df_pr.columns else 'value'
             df_pr['j'] = str(j_iter)
             df_pr = df_pr[['r', 'y', 'j', val_col]]
-            PR_ryi.setRecords(df_pr)
+            update_parameter_records(PR_ryi, df_pr, ['r', 'y', 'j'])
 
 # Set values of the uncertain parameters for the given inner loop iteration
 def set_uncertain_params_ilsp(k_iter, is_ada):
     # At the first iteration, uncertain parameters equal their forecast values
     if is_ada and k_iter == 1:
+        UG_gythv.setRecords(pd.DataFrame())
+        US_sythv.setRecords(pd.DataFrame())
         CG_gyk.setRecords(df_cg_fc)
         PD_dyk.setRecords(df_pd_fc)
         PG_gyk.setRecords(df_pg_fc)
@@ -934,7 +950,7 @@ def solve_ilsp(ess_inv, y_iter, j_iter, k_iter):
             df_ug = df_ug[df_ug['j'].astype(str) == str(j_iter)]
         df_ug['k'] = str(k_iter)
         df_ug = df_ug[['g', 'y', 't', 'h', 'k', val_col]]
-        UG_gythv.setRecords(df_ug)
+        update_parameter_records(UG_gythv, df_ug, ['g', 'y', 't', 'h', 'k'])
     if ess_inv and uS_sythi.l.records is not None:
         df_us = uS_sythi.l.records.copy()
         val_col = 'level' if 'level' in df_us.columns else 'value'
@@ -946,7 +962,7 @@ def solve_ilsp(ess_inv, y_iter, j_iter, k_iter):
             df_us = df_us[df_us['j'].astype(str) == str(j_iter)]
         df_us['k'] = str(k_iter)
         df_us = df_us[['s', 'y', 't', 'h', 'k', val_col]]
-        US_sythv.setRecords(df_us)
+        update_parameter_records(US_sythv, df_us, ['s', 'y', 't', 'h', 'k'])
     ilsp_ov = ILSP_model.objective_value
 
     return ilsp_ov
