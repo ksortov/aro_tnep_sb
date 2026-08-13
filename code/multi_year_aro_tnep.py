@@ -821,16 +821,18 @@ def build_lp2_eqns(yi, v_range, ess_inv):
 
 # Helper to append/update records without erasing previous iterations
 def update_parameter_records(param, new_df, subset_cols):
-    val_col = 'level' if 'level' in new_df.columns else 'value'
+    df_new = new_df.copy()
+    if 'level' in df_new.columns:
+        df_new = df_new.rename(columns={'level': 'value'})
+    
     if param.records is not None and not param.records.empty:
         existing_df = param.records.copy()
-        ex_val_col = 'level' if 'level' in existing_df.columns else 'value'
-        if ex_val_col != val_col:
-            existing_df = existing_df.rename(columns={ex_val_col: val_col})
-        combined_df = pd.concat([existing_df[subset_cols + [val_col]], new_df[subset_cols + [val_col]]], ignore_index=True)
+        if 'level' in existing_df.columns:
+            existing_df = existing_df.rename(columns={'level': 'value'})
+        combined_df = pd.concat([existing_df[subset_cols + ['value']], df_new[subset_cols + ['value']]], ignore_index=True)
         combined_df = combined_df.drop_duplicates(subset=subset_cols, keep='last')
     else:
-        combined_df = new_df[subset_cols + [val_col]]
+        combined_df = df_new[subset_cols + ['value']]
     param.setRecords(combined_df)
 
 # Set values of the uncertain parameters for the given outer loop iteration
@@ -886,8 +888,8 @@ def set_uncertain_params_olmp(j_iter):
 def set_uncertain_params_ilsp(k_iter, is_ada):
     # At the first iteration, uncertain parameters equal their forecast values
     if is_ada and k_iter == 1:
-        UG_gythv.setRecords(pd.DataFrame())
-        US_sythv.setRecords(pd.DataFrame())
+        UG_gythv.setRecords(pd.DataFrame(columns=['g', 'y', 't', 'h', 'k', 'value']))
+        US_sythv.setRecords(pd.DataFrame(columns=['s', 'y', 't', 'h', 'k', 'value']))
         CG_gyk.setRecords(df_cg_fc)
         PD_dyk.setRecords(df_pd_fc)
         PG_gyk.setRecords(df_pg_fc)
