@@ -1,5 +1,2 @@
 threads 0
 parallelmode -1
-mipemphasis 1
-advance 1
-benders strategy 3
