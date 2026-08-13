@@ -926,14 +926,24 @@ def solve_ilsp(ess_inv, y_iter, j_iter, k_iter):
     if uG_gythi.l.records is not None:
         df_ug = uG_gythi.l.records.copy()
         val_col = 'level' if 'level' in df_ug.columns else 'value'
-        df_ug['y'] = str(y_iter)
+        if 'y' in df_ug.columns:
+            df_ug = df_ug[df_ug['y'].astype(str) == str(y_iter)]
+        else:
+            df_ug['y'] = str(y_iter)
+        if 'j' in df_ug.columns:
+            df_ug = df_ug[df_ug['j'].astype(str) == str(j_iter)]
         df_ug['k'] = str(k_iter)
         df_ug = df_ug[['g', 'y', 't', 'h', 'k', val_col]]
         UG_gythv.setRecords(df_ug)
     if ess_inv and uS_sythi.l.records is not None:
         df_us = uS_sythi.l.records.copy()
         val_col = 'level' if 'level' in df_us.columns else 'value'
-        df_us['y'] = str(y_iter)
+        if 'y' in df_us.columns:
+            df_us = df_us[df_us['y'].astype(str) == str(y_iter)]
+        else:
+            df_us['y'] = str(y_iter)
+        if 'j' in df_us.columns:
+            df_us = df_us[df_us['j'].astype(str) == str(j_iter)]
         df_us['k'] = str(k_iter)
         df_us = df_us[['s', 'y', 't', 'h', 'k', val_col]]
         US_sythv.setRecords(df_us)
