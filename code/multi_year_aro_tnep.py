@@ -1026,7 +1026,7 @@ def solve_ilmp_ada(y_iter, j_iter, k_iter):
 
     return ada_ov
 
-# Solve the relaxed inner-loop master problem
+# Solve the relaxed inner-loop master problem (AT2 strictly per Thesis C.4.2.2 & Paper 3.2.1)
 def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i_prev, lb_i_prev):
     ri = 1 # Initialize relaxed iteration counter
     ilmp_ov = 999999999999
@@ -1053,34 +1053,28 @@ def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i_prev, lb_i_prev):
                 ri += 1
                 continue
             else:
-                if last_valid_sol is not None:
-                    logger.warning("Relaxed ILMP at ri = {} is {}; falling back to valid bound ({:.2f}).".format(ri, ILMP_model.status.name, best_valid_ov))
-                    if last_valid_sol['cG'] is not None: cG_gy.setRecords(last_valid_sol['cG'])
-                    if last_valid_sol['pD'] is not None: pD_dy.setRecords(last_valid_sol['pD'])
-                    if last_valid_sol['pG'] is not None: pG_gy.setRecords(last_valid_sol['pG'])
-                    if last_valid_sol['pR'] is not None: pR_ry.setRecords(last_valid_sol['pR'])
-                    break
-                else:
-                    raise RuntimeError('ILMP is infeasible at y = {}, j = {}, k = {}'.format(y_iter, j_iter, k_iter))
+                logger.warning("Relaxed ILMP at ri = {} is {}; falling back to best valid bound ({:.2f}).".format(ri, ILMP_model.status.name, best_valid_ov))
+                if last_valid_sol['cG'] is not None: cG_gy.setRecords(last_valid_sol['cG'])
+                if last_valid_sol['pD'] is not None: pD_dy.setRecords(last_valid_sol['pD'])
+                if last_valid_sol['pG'] is not None: pG_gy.setRecords(last_valid_sol['pG'])
+                if last_valid_sol['pR'] is not None: pR_ry.setRecords(last_valid_sol['pR'])
+                break
         
         ilmp_ov = ILMP_model.objective_value
-        if ilmp_ov >= lb_i_prev - 1e-4:
-            if ilmp_ov < best_valid_ov:
-                best_valid_ov = ilmp_ov
-                last_valid_sol = {
-                    'cG': cG_gy.l.records.copy() if cG_gy.l.records is not None else None,
-                    'pD': pD_dy.l.records.copy() if pD_dy.l.records is not None else None,
-                    'pG': pG_gy.l.records.copy() if pG_gy.l.records is not None else None,
-                    'pR': pR_ry.l.records.copy() if pR_ry.l.records is not None else None,
-                }
-            if ri == k_iter or (k_iter > 1 and ilmp_ov < ub_i_prev - 1e-4):
-                logger.info("Relaxed ILMP iteration (ri = {}) equals inner-loop iteration (k = {}) or UBI has validly decreased ({:.2f} < {:.2f}) --> Exit ILMP".format(ri, k_iter, ilmp_ov, ub_i_prev))
-                break
-            else:
-                logger.info("Relaxed ILMP (ri = {}) did not decrease UBI ({:.2f} >= {:.2f}) --> Add older cuts (ri = {})".format(ri, ilmp_ov, ub_i_prev, ri + 1))
-                ri += 1
+        best_valid_ov = min(best_valid_ov, ilmp_ov)
+        last_valid_sol = {
+            'cG': cG_gy.l.records.copy() if cG_gy.l.records is not None else None,
+            'pD': pD_dy.l.records.copy() if pD_dy.l.records is not None else None,
+            'pG': pG_gy.l.records.copy() if pG_gy.l.records is not None else None,
+            'pR': pR_ry.l.records.copy() if pR_ry.l.records is not None else None,
+        }
+        
+        # In AT2: Exit ILMP if UBI has decreased or if all active cuts are included (ri == k_iter)
+        if ri == k_iter or (k_iter > 1 and ilmp_ov < ub_i_prev - 1e-4):
+            logger.info("Relaxed ILMP iteration (ri = {}) equals inner-loop iteration (k = {}) or UBI has validly decreased ({:.2f} < {:.2f}) --> Exit ILMP".format(ri, k_iter, ilmp_ov, ub_i_prev))
+            break
         else:
-            logger.warning("Relaxed ILMP (ri = {}) returned degenerate bound below LBI ({:.2f} < {:.2f}) --> Reject and try older cuts (ri = {})".format(ri, ilmp_ov, lb_i_prev, ri + 1))
+            logger.info("Relaxed ILMP (ri = {}) did not decrease UBI ({:.2f} >= {:.2f}) --> Add older cuts (ri = {})".format(ri, ilmp_ov, ub_i_prev, ri + 1))
             ri += 1
 
     return best_valid_ov
@@ -1192,7 +1186,7 @@ for ol_iter in range(j_max):
                 if abs(il_error_rel) < tol_res:
                     logger.info("Second inner loop (relaxed) has converged after k = {} iterations --> End relaxed inner loop".format(k_iter_rel))
                     break
-                elif il_error_rel >= tol_res:
+                else:
                     logger.info("Second inner loop (relaxed) has not converged after k = {} iterations --> Solve relaxed ILMP".format(k_iter_rel))
                     ilmp_val_rel = solve_ilmp_relaxed(y_iter, j_iter, k_iter_rel, ub_i_rel, lb_i_rel)
                     ub_i_rel = min(ub_i_rel, ilmp_val_rel)
