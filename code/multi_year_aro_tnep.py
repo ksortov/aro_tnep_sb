@@ -1030,28 +1030,38 @@ def solve_ilmp_ada(y_iter, j_iter, k_iter):
 def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i_prev, lb_i_prev):
     ri = 1 # Initialize relaxed iteration counter
     ilmp_ov = 999999999999
-    last_valid_sol = None
     best_valid_ov = ub_i_prev
+    last_valid_sol = {
+        'cG': cG_gy.l.records.copy() if cG_gy.l.records is not None else None,
+        'pD': pD_dy.l.records.copy() if pD_dy.l.records is not None else None,
+        'pG': pG_gy.l.records.copy() if pG_gy.l.records is not None else None,
+        'pR': pR_ry.l.records.copy() if pR_ry.l.records is not None else None,
+    }
     # Solve at least once, until ri == k
     while ri <= k_iter:
-        # Determine the subset v as a function of k and ri
-        v_range = list(range(k_iter - ri + 1, k_iter + 1))
+        # Determine the subset v as a function of k and ri, always including anchor cut 1
+        v_range = sorted(list(set([1] + list(range(k_iter - ri + 1, k_iter + 1)))))
         vr.setRecords(v_range)
         logger.info('v_range = {}'.format(v_range))
         # Solve the inner-loop master problem
         ILMP_model = build_ilmp_eqns(y_iter, v_range, ess_inv) # Rebuild the ilmp equations to account for the change in set v
-        ILMP_model.solve(options=Options(relative_optimality_gap=tol_CPLEX, mip="CPLEX", savepoint=1, log_file="log_ilmp.txt"),output=sys.stdout)
+        ILMP_model.solve(options=Options(relative_optimality_gap=tol_CPLEX, mip="CPLEX", savepoint=1, log_file="log_ilmp.txt"), output=sys.stdout)
         logger.info("ILMP status = {}".format(ILMP_model.status.name))
         if ILMP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible', 'InfeasibleNoSolution']:
-            if ri > 1 and last_valid_sol is not None:
-                logger.warning("Relaxed ILMP at ri = {} (v_range = {}) is {}; falling back to valid ri = {} bound ({:.2f}).".format(ri, v_range, ILMP_model.status.name, ri - 1, best_valid_ov))
-                if last_valid_sol['cG'] is not None: cG_gy.setRecords(last_valid_sol['cG'])
-                if last_valid_sol['pD'] is not None: pD_dy.setRecords(last_valid_sol['pD'])
-                if last_valid_sol['pG'] is not None: pG_gy.setRecords(last_valid_sol['pG'])
-                if last_valid_sol['pR'] is not None: pR_ry.setRecords(last_valid_sol['pR'])
-                break
+            if ri < k_iter:
+                logger.warning("Relaxed ILMP at ri = {} (v_range = {}) is {}; trying more cuts (ri = {}).".format(ri, v_range, ILMP_model.status.name, ri + 1))
+                ri += 1
+                continue
             else:
-                raise RuntimeError('ILMP is infeasible at y = {}, j = {}, k = {}'.format(y_iter, j_iter, k_iter))
+                if last_valid_sol is not None:
+                    logger.warning("Relaxed ILMP at ri = {} is {}; falling back to valid bound ({:.2f}).".format(ri, ILMP_model.status.name, best_valid_ov))
+                    if last_valid_sol['cG'] is not None: cG_gy.setRecords(last_valid_sol['cG'])
+                    if last_valid_sol['pD'] is not None: pD_dy.setRecords(last_valid_sol['pD'])
+                    if last_valid_sol['pG'] is not None: pG_gy.setRecords(last_valid_sol['pG'])
+                    if last_valid_sol['pR'] is not None: pR_ry.setRecords(last_valid_sol['pR'])
+                    break
+                else:
+                    raise RuntimeError('ILMP is infeasible at y = {}, j = {}, k = {}'.format(y_iter, j_iter, k_iter))
         
         ilmp_ov = ILMP_model.objective_value
         if ilmp_ov >= lb_i_prev - 1e-4:
