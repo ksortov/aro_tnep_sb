@@ -1077,6 +1077,13 @@ def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i_prev, lb_i_prev):
             logger.info("Relaxed ILMP (ri = {}) did not decrease UBI ({:.2f} >= {:.2f}) --> Add older cuts (ri = {})".format(ri, ilmp_ov, ub_i_prev, ri + 1))
             ri += 1
 
+    # Guarantee that GAMS memory holds the exact profile that achieved best_valid_ov
+    if last_valid_sol is not None:
+        if last_valid_sol['cG'] is not None: cG_gy.setRecords(last_valid_sol['cG'])
+        if last_valid_sol['pD'] is not None: pD_dy.setRecords(last_valid_sol['pD'])
+        if last_valid_sol['pG'] is not None: pG_gy.setRecords(last_valid_sol['pG'])
+        if last_valid_sol['pR'] is not None: pR_ry.setRecords(last_valid_sol['pR'])
+
     return best_valid_ov
 
 def compute_worst_case_total_cost(ess_inv, xi_worst_case):
@@ -1167,14 +1174,15 @@ for ol_iter in range(j_max):
             ub_i_rel = ub_i_ada
         else:
             # INNER LOOP: ILSP + relaxed ILMP #
-            lb_i_rel = -9999999999
-            ub_i_rel = 9999999999
+            lb_i_rel = -9999999999 #lb_i_ada if lb_i_ada > -9999999999 else -9999999999
+            ub_i_rel = ub_i_ada if (ub_i_ada is not None and 0 < ub_i_ada < 9999999998) else 9999999999
             k_iter_rel = 1
             cG_solved = None
             pD_solved = None
             pG_solved = None
             pR_solved = None
             logger.info("Starting second inner loop (relaxed) for y = {}".format(y_iter))
+            logger.info("Initialized relaxed inner loop bounds from ADA: LBI = {:.2f}, UBI = {:.2f}".format(lb_i_rel, ub_i_rel))
             for il_rel_iter in range(k_max):
                 logger.info("Starting relaxed inner loop iteration  k = {}".format(k_iter_rel))
                 set_uncertain_params_ilsp(k_iter_rel, is_ada=False)
