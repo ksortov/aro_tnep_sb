@@ -70,19 +70,25 @@ IT = Parameter(m, name="IT", records=1500000000, description="Investment budget"
 nb_H = Parameter(m, name="nb_H", records=8, description="Number of RTPs of each RD")
 # Systematically computed Big-M parameters for tight linearizations
 max_cls = loads['CLS_d [$/MWh]'].max()
+max_cg = CG['CG_g [$/MWh]'].max() if 'CG_g [$/MWh]' in CG.columns else 100.0
 max_cr = RES['CR_r [$/MWh]'].max() if 'CR_r [$/MWh]' in RES.columns else 0.0
 max_sigma_tau = weights['sigma_t [days]'].max() * RD1['tau_th [h]'].max()
 # Tight flow Big-M based on maximum line rating
 FL_val = lines['PL_l'].max() * 10.5
 # Dynamically calculated tight dual Big-M bound based on maximum load-shedding cost and time weights
-FD_val = max(1000000.0, max_sigma_tau * (max_cls + max_cr) * 5.0)
+# FD_val = max(1000000.0, max_sigma_tau * (max_cls + max_cr) * 5.0)
+FD_val = max(1000000.0, max_sigma_tau * (max_cls + max_cr) * 1.15)
+FG_val = max(500000.0, max_sigma_tau * max_cg * 1.15)
+FR_val = max(500000.0, max_sigma_tau * max(max_cr, 50.0) * 1.15)
 logger.info('FL_val = {}'.format(FL_val))
 logger.info('FD_val = {}'.format(FD_val))
+logger.info('FG_val = {}'.format(FG_val))
+logger.info('FR_val = {}'.format(FR_val))
 FL = Parameter(m, name="FL", records=FL_val, description="Large constant for disjunctive linearization")
 FD = Parameter(m, name="FD", records=FD_val, description="Large constant for exact linearization")
 FD_up = Parameter(m, name="FD_up", records=FD_val, description="Large constant for exact linearization")
-FG_up = Parameter(m, name="FG_up", records=FD_val, description="Large constant for exact linearization")
-FR_up = Parameter(m, name="FR_up", records=FD_val, description="Large constant for exact linearization")
+FG_up = Parameter(m, name="FG_up", records=FG_val, description="Large constant for exact linearization")
+FR_up = Parameter(m, name="FR_up", records=FR_val, description="Large constant for exact linearization")
 
 gammaD_dyth = Parameter(m, name="gammaD_dyth", domain=[d, y, t, h], records=gamma_dyth_data, description="Demand factor of load d")
 gammaR_ryth = Parameter(m, name="gammaR_ryth", domain=[r, y, t, h], records=gamma_ryth_data, description="Capacity factor of renewable unit r")
