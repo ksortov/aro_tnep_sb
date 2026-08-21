@@ -3,6 +3,7 @@ from pandas.core.dtypes.inference import is_re
 
 from input_data_processing import (weights, RD1, lines, buses, ESS, CG, RES, loads, years_data, sigma_yt_data,
                                    tau_yth_data, gamma_dyth_data, gamma_ryth_data, ES_syt0_data, tol_CPLEX, tol_res,
+                                   time_limit_olmp, time_limit_ilmp,
                                    static, ess_inv)
 from gamspy import Alias, Container, Domain, Equation, Model, Options, Ord, Card, Parameter, Set, Smax, Sum, Variable
 from gamspy.math import power, Max
@@ -919,7 +920,7 @@ def solve_olmp_relaxed(j_iter, lb_o, ess_inv):
         ir.setRecords(i_range)
         # Solve the outer-loop master problem
         OLMP_model = build_olmp_eqns(ess_inv, i_range) # Rebuild the olmp equations to account for the change in set i
-        OLMP_model.solve(options=Options(relative_optimality_gap=tol_CPLEX, mip="CPLEX", savepoint=1, log_file="log_olmp.txt"), output=sys.stdout)
+        OLMP_model.solve(options=Options(relative_optimality_gap=tol_CPLEX, time_limit=time_limit_olmp, mip="CPLEX", savepoint=1, log_file="log_olmp.txt"), output=sys.stdout)
         if OLMP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible', 'InfeasibleNoSolution']:
             if ro > 1 and last_valid_VL is not None:
                 logger.warning("Relaxed OLMP at ro = {} (i_range = {}) is {}; falling back to valid ro = {} bound ({:.2f}).".format(ro, i_range, OLMP_model.status.name, ro - 1, olmp_ov))
@@ -1051,7 +1052,7 @@ def solve_ilmp_relaxed(y_iter, j_iter, k_iter, ub_i_prev, lb_i_prev):
         logger.info('v_range = {}'.format(v_range))
         # Solve the inner-loop master problem
         ILMP_model = build_ilmp_eqns(y_iter, v_range, ess_inv) # Rebuild the ilmp equations to account for the change in set v
-        ILMP_model.solve(options=Options(relative_optimality_gap=tol_CPLEX, mip="CPLEX", savepoint=1, log_file="log_ilmp.txt"), output=sys.stdout)
+        ILMP_model.solve(options=Options(relative_optimality_gap=tol_CPLEX, time_limit=time_limit_ilmp, mip="CPLEX", savepoint=1, log_file="log_ilmp.txt"), output=sys.stdout)
         logger.info("ILMP status = {}".format(ILMP_model.status.name))
         if ILMP_model.status.name in ['InfeasibleGlobal', 'InfeasibleLocal', 'InfeasibleIntermed', 'IntegerInfeasible', 'InfeasibleNoSolution']:
             if ri < k_iter:

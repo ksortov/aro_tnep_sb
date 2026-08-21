@@ -42,6 +42,8 @@ UB = rts_24['UB']
 years_data = range(1,2)
 tol_CPLEX = 0.008
 tol_res = 0.01
+time_limit_olmp = 600 #1200, 1800 # Time limit in seconds for Outer-Loop Master Problem (OLMP)
+time_limit_ilmp = 180 #300, 600  # Time limit in seconds for Relaxed Inner-Loop Master Problem (ILMP)
 
 SEl_data = []
 for line, rel in zip(lines['Transmission line'], lines['From bus']):
