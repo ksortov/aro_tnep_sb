@@ -1154,8 +1154,17 @@ for ol_iter in range(j_max):
             break
     # YEAR LOOP
     xi_year_worst_case = {}
+    best_pD_all, best_pR_all, best_pG_all, best_cG_all = [], [], [], []
     for y_iter in years_data:
         logger.info("Starting inner loop problems for y = {}".format(y_iter))
+        # Best-solution tracker for this year across both ADA and Relaxed ILMP
+        best_err_y = float('inf')
+        best_xi_y = None
+        best_pD = None
+        best_pR = None
+        best_pG = None
+        best_cG = None
+
         # INNER LOOP: ILSP + ADA ILMP #
         lb_i_ada = -9999999999
         ub_i_ada = 9999999999
@@ -1169,6 +1178,18 @@ for ol_iter in range(j_max):
             logger.info("LBI = {} and UBI = {} before computing ADA inner loop error.".format(lb_i_ada, ub_i_ada))
             il_error_ada = (ub_i_ada - lb_i_ada) / lb_i_ada if lb_i_ada > 0 else 999.0
             logger.info("IL ADA error = {:.4f}%.".format(il_error_ada * 100))
+
+            # Track best candidate solution in ADA
+            if ub_i_ada < 9999999998 and lb_i_ada > 0:
+                cur_abs_err = abs(il_error_ada)
+                if cur_abs_err < best_err_y:
+                    best_err_y = cur_abs_err
+                    best_xi_y = ub_i_ada
+                    if pD_dy.l.records is not None: best_pD = pD_dy.l.records.copy()
+                    if pR_ry.l.records is not None: best_pR = pR_ry.l.records.copy()
+                    if pG_gy.l.records is not None: best_pG = pG_gy.l.records.copy()
+                    if cG_gy.l.records is not None: best_cG = cG_gy.l.records.copy()
+
             if abs(il_error_ada) < tol_res:
                 logger.info("First inner loop (ADA) has converged after k = {} iterations --> End ADA inner loop".format(k_iter_ada))
                 break
@@ -1181,7 +1202,7 @@ for ol_iter in range(j_max):
             ub_i_rel = ub_i_ada
         else:
             # INNER LOOP: ILSP + relaxed ILMP #
-            lb_i_rel = -9999999999 #lb_i_ada if lb_i_ada > -9999999999 else -9999999999
+            lb_i_rel = -9999999999
             ub_i_rel = ub_i_ada if (ub_i_ada is not None and 0 < ub_i_ada < 9999999998) else 9999999999
             k_iter_rel = 1
             cG_solved = None
@@ -1198,6 +1219,18 @@ for ol_iter in range(j_max):
                 logger.info("LBI = {} and UBI = {} before computing relaxed inner loop error.".format(lb_i_rel, ub_i_rel))
                 il_error_rel = (ub_i_rel - lb_i_rel) / lb_i_rel if lb_i_rel > 0 else 999.0
                 logger.info("IL relaxed error = {:.4f}%.".format(il_error_rel * 100))
+
+                # Track best candidate solution in Relaxed ILMP
+                if ub_i_rel < 9999999998 and lb_i_rel > 0:
+                    cur_abs_err = abs(il_error_rel)
+                    if cur_abs_err < best_err_y:
+                        best_err_y = cur_abs_err
+                        best_xi_y = ub_i_rel
+                        if pD_dy.l.records is not None: best_pD = pD_dy.l.records.copy()
+                        if pR_ry.l.records is not None: best_pR = pR_ry.l.records.copy()
+                        if pG_gy.l.records is not None: best_pG = pG_gy.l.records.copy()
+                        if cG_gy.l.records is not None: best_cG = cG_gy.l.records.copy()
+
                 if abs(il_error_rel) < tol_res:
                     logger.info("Second inner loop (relaxed) has converged after k = {} iterations --> End relaxed inner loop".format(k_iter_rel))
                     break
@@ -1211,7 +1244,17 @@ for ol_iter in range(j_max):
                     pG_solved = pG_gy.l.records
                     pR_solved = pR_ry.l.records
         
-        xi_year_worst_case[y_iter] = ub_i_rel
+        # Select best-converged solution (lowest absolute error)
+        if best_xi_y is not None:
+            xi_year_worst_case[y_iter] = best_xi_y
+            logger.info("Year y = {}: Selected best-converged solution with error = {:.4f}% (xi = {:.2f})".format(
+                y_iter, best_err_y * 100, best_xi_y))
+            if best_pD is not None: best_pD_all.append(best_pD)
+            if best_pR is not None: best_pR_all.append(best_pR)
+            if best_pG is not None: best_pG_all.append(best_pG)
+            if best_cG is not None: best_cG_all.append(best_cG)
+        else:
+            xi_year_worst_case[y_iter] = ub_i_rel if 'ub_i_rel' in locals() else ub_i_ada
 
         if y_iter == max(years_data):
             logger.info("Reached end of last year (y = {}) in the planning horizon --> End year loop".format(y_iter))
@@ -1219,14 +1262,20 @@ for ol_iter in range(j_max):
         else:
             y_iter += 1
 
+    # Restore concatenated best uncertainty profiles across all years for outer cut generation
+    if best_pD_all: pD_dy.setRecords(pd.concat(best_pD_all, ignore_index=True))
+    if best_pR_all: pR_ry.setRecords(pd.concat(best_pR_all, ignore_index=True))
+    if best_pG_all: pG_gy.setRecords(pd.concat(best_pG_all, ignore_index=True))
+    if best_cG_all: cG_gy.setRecords(pd.concat(best_cG_all, ignore_index=True))
+
     # Update ub_o
     wc_cost = compute_worst_case_total_cost(ess_inv, xi_year_worst_case)
     ub_o = wc_cost
     logger.info("LBO = {} and UBO = {} before computing outer loop error.".format(lb_o, ub_o))
     print("Total worst-case cost = {}".format(ub_o))
-    ol_error = (ub_o - lb_o) / lb_o if lb_o > 0 else 999.0
+    ol_error = (ub_o - lb_o) / lb_o if (0 < lb_o < 1e100) else 999.0
     logger.info("OL error = {:.4f}%.".format(ol_error * 100))
-    if ol_error < tol_res:
+    if 0 <= ol_error < tol_res or (ol_error < 0 and abs(ol_error) < tol_res):
         logger.info("Outer loop has converged after j = {} iterations --> End problem".format(j_iter))
         break
     else:
