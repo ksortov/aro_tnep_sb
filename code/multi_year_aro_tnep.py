@@ -843,8 +843,14 @@ def update_parameter_records(param, new_df, subset_cols):
         combined_df = df_new[subset_cols + ['value']]
     param.setRecords(combined_df)
 
+best_pD_records = None
+best_pR_records = None
+best_pG_records = None
+best_cG_records = None
+
 # Set values of the uncertain parameters for the given outer loop iteration
 def set_uncertain_params_olmp(j_iter):
+    global best_pD_records, best_pR_records, best_pG_records, best_cG_records
     # At the first iteration, uncertain parameters equal their forecast values
     if j_iter == 1:
         df_cg = df_cg_fc.copy()
@@ -867,26 +873,33 @@ def set_uncertain_params_olmp(j_iter):
         df_pr = df_pr[['r', 'y', 'j', 'value']]
         update_parameter_records(PR_ryi, df_pr, ['r', 'y', 'j'])
     else:
-        if cG_gy.l.records is not None:
-            df_cg = cG_gy.l.records.copy()
+        df_source_cg = best_cG_records if best_cG_records is not None else cG_gy.l.records
+        if df_source_cg is not None:
+            df_cg = df_source_cg.copy()
             val_col = 'level' if 'level' in df_cg.columns else 'value'
             df_cg['j'] = str(j_iter)
             df_cg = df_cg[['g', 'y', 'j', val_col]]
             update_parameter_records(CG_gyi, df_cg, ['g', 'y', 'j'])
-        if pD_dy.l.records is not None:
-            df_pd = pD_dy.l.records.copy()
+
+        df_source_pd = best_pD_records if best_pD_records is not None else pD_dy.l.records
+        if df_source_pd is not None:
+            df_pd = df_source_pd.copy()
             val_col = 'level' if 'level' in df_pd.columns else 'value'
             df_pd['j'] = str(j_iter)
             df_pd = df_pd[['d', 'y', 'j', val_col]]
             update_parameter_records(PD_dyi, df_pd, ['d', 'y', 'j'])
-        if pG_gy.l.records is not None:
-            df_pg = pG_gy.l.records.copy()
+
+        df_source_pg = best_pG_records if best_pG_records is not None else pG_gy.l.records
+        if df_source_pg is not None:
+            df_pg = df_source_pg.copy()
             val_col = 'level' if 'level' in df_pg.columns else 'value'
             df_pg['j'] = str(j_iter)
             df_pg = df_pg[['g', 'y', 'j', val_col]]
             update_parameter_records(PG_gyi, df_pg, ['g', 'y', 'j'])
-        if pR_ry.l.records is not None:
-            df_pr = pR_ry.l.records.copy()
+
+        df_source_pr = best_pR_records if best_pR_records is not None else pR_ry.l.records
+        if df_source_pr is not None:
+            df_pr = df_source_pr.copy()
             val_col = 'level' if 'level' in df_pr.columns else 'value'
             df_pr['j'] = str(j_iter)
             df_pr = df_pr[['r', 'y', 'j', val_col]]
@@ -1185,10 +1198,22 @@ for ol_iter in range(j_max):
                 if cur_abs_err < best_err_y:
                     best_err_y = cur_abs_err
                     best_xi_y = ub_i_ada
-                    if pD_dy.l.records is not None: best_pD = pD_dy.l.records.copy()
-                    if pR_ry.l.records is not None: best_pR = pR_ry.l.records.copy()
-                    if pG_gy.l.records is not None: best_pG = pG_gy.l.records.copy()
-                    if cG_gy.l.records is not None: best_cG = cG_gy.l.records.copy()
+                    if pD_dy.l.records is not None:
+                        df_p = pD_dy.l.records.copy()
+                        val_c = 'level' if 'level' in df_p.columns else 'value'
+                        best_pD = df_p[df_p['y'].astype(str) == str(y_iter)][['d', 'y', val_c]]
+                    if pR_ry.l.records is not None:
+                        df_p = pR_ry.l.records.copy()
+                        val_c = 'level' if 'level' in df_p.columns else 'value'
+                        best_pR = df_p[df_p['y'].astype(str) == str(y_iter)][['r', 'y', val_c]]
+                    if pG_gy.l.records is not None:
+                        df_p = pG_gy.l.records.copy()
+                        val_c = 'level' if 'level' in df_p.columns else 'value'
+                        best_pG = df_p[df_p['y'].astype(str) == str(y_iter)][['g', 'y', val_c]]
+                    if cG_gy.l.records is not None:
+                        df_p = cG_gy.l.records.copy()
+                        val_c = 'level' if 'level' in df_p.columns else 'value'
+                        best_cG = df_p[df_p['y'].astype(str) == str(y_iter)][['g', 'y', val_c]]
 
             if abs(il_error_ada) < tol_res:
                 logger.info("First inner loop (ADA) has converged after k = {} iterations --> End ADA inner loop".format(k_iter_ada))
@@ -1226,10 +1251,22 @@ for ol_iter in range(j_max):
                     if cur_abs_err < best_err_y:
                         best_err_y = cur_abs_err
                         best_xi_y = ub_i_rel
-                        if pD_dy.l.records is not None: best_pD = pD_dy.l.records.copy()
-                        if pR_ry.l.records is not None: best_pR = pR_ry.l.records.copy()
-                        if pG_gy.l.records is not None: best_pG = pG_gy.l.records.copy()
-                        if cG_gy.l.records is not None: best_cG = cG_gy.l.records.copy()
+                        if pD_dy.l.records is not None:
+                            df_p = pD_dy.l.records.copy()
+                            val_c = 'level' if 'level' in df_p.columns else 'value'
+                            best_pD = df_p[df_p['y'].astype(str) == str(y_iter)][['d', 'y', val_c]]
+                        if pR_ry.l.records is not None:
+                            df_p = pR_ry.l.records.copy()
+                            val_c = 'level' if 'level' in df_p.columns else 'value'
+                            best_pR = df_p[df_p['y'].astype(str) == str(y_iter)][['r', 'y', val_c]]
+                        if pG_gy.l.records is not None:
+                            df_p = pG_gy.l.records.copy()
+                            val_c = 'level' if 'level' in df_p.columns else 'value'
+                            best_pG = df_p[df_p['y'].astype(str) == str(y_iter)][['g', 'y', val_c]]
+                        if cG_gy.l.records is not None:
+                            df_p = cG_gy.l.records.copy()
+                            val_c = 'level' if 'level' in df_p.columns else 'value'
+                            best_cG = df_p[df_p['y'].astype(str) == str(y_iter)][['g', 'y', val_c]]
 
                 if abs(il_error_rel) < tol_res:
                     logger.info("Second inner loop (relaxed) has converged after k = {} iterations --> End relaxed inner loop".format(k_iter_rel))
@@ -1262,11 +1299,11 @@ for ol_iter in range(j_max):
         else:
             y_iter += 1
 
-    # Restore concatenated best uncertainty profiles across all years for outer cut generation
-    if best_pD_all: pD_dy.setRecords(pd.concat(best_pD_all, ignore_index=True))
-    if best_pR_all: pR_ry.setRecords(pd.concat(best_pR_all, ignore_index=True))
-    if best_pG_all: pG_gy.setRecords(pd.concat(best_pG_all, ignore_index=True))
-    if best_cG_all: cG_gy.setRecords(pd.concat(best_cG_all, ignore_index=True))
+    # Store concatenated best uncertainty profiles across all years for outer cut generation
+    if best_pD_all: best_pD_records = pd.concat(best_pD_all, ignore_index=True).drop_duplicates(subset=['d', 'y'], keep='last')
+    if best_pR_all: best_pR_records = pd.concat(best_pR_all, ignore_index=True).drop_duplicates(subset=['r', 'y'], keep='last')
+    if best_pG_all: best_pG_records = pd.concat(best_pG_all, ignore_index=True).drop_duplicates(subset=['g', 'y'], keep='last')
+    if best_cG_all: best_cG_records = pd.concat(best_cG_all, ignore_index=True).drop_duplicates(subset=['g', 'y'], keep='last')
 
     # Update ub_o
     wc_cost = compute_worst_case_total_cost(ess_inv, xi_year_worst_case)
